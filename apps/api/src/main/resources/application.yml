@@ -1,0 +1,48 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/db}
+    username: ${DB_USERNAME:postgres}
+    password: ${DB_PASSWORD:postgres}
+    driver-class-name: org.postgresql.Driver
+  jpa:
+    hibernate:
+      ddl-auto: update
+    open-in-view: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.PostgreSQLDialect
+        format_sql: false
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+    default-property-inclusion: non_null  # 跳过JSON序列化时的空值字段
+  servlet:
+    multipart:
+      max-file-size: 10MB
+      max-request-size: 10MB
+
+# JWT
+jwt:
+  secret: ${JWT_SECRET:orion-key-dev-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  expiration: 86400000  # 24 hours
+
+# Security
+security:
+  password-plain: ${PASSWORD_PLAIN:true}  # true=明文密码(开发用), false=BCrypt(生产用)
+
+# Upload
+upload:
+  path: ${UPLOAD_PATH:/data/orion-key/uploads}
+  url-prefix: /uploads
+
+# Logging
+logging:
+  level:
+    com.orionkey: DEBUG
+    org.springframework.security: WARN

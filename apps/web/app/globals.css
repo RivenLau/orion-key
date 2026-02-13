@@ -1,0 +1,295 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+body {
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+@layer utilities {
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .animate-marquee {
+    display: inline-block;
+    animation: marquee 20s linear infinite;
+  }
+}
+
+@keyframes marquee {
+  0% {
+    transform: translateX(0%);
+  }
+  100% {
+    transform: translateX(-50%);
+  }
+}
+
+/* ==========================================================
+   Color scheme system
+   Each scheme is activated via data-color="..." on <html>.
+   Base tokens use warm neutrals; primary color overridden per scheme.
+   App default = coral (matches context.tsx and theme-script.tsx).
+   ========================================================== */
+
+@layer base {
+  /* ---------- Coral (default) ---------- */
+  :root {
+    --background: 30 20% 98%;
+    --foreground: 20 20% 10%;
+    --card: 0 0% 100%;
+    --card-foreground: 20 20% 10%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 20 20% 10%;
+    --primary: 12 85% 55%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 30 15% 95%;
+    --secondary-foreground: 20 15% 15%;
+    --muted: 30 10% 95%;
+    --muted-foreground: 20 8% 46%;
+    --accent: 30 15% 93%;
+    --accent-foreground: 20 15% 15%;
+    --destructive: 0 84% 60%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 30 10% 88%;
+    --input: 30 10% 88%;
+    --ring: 12 85% 55%;
+    --chart-1: 12 85% 55%;
+    --chart-2: 173 58% 39%;
+    --chart-3: 197 37% 24%;
+    --chart-4: 43 74% 66%;
+    --chart-5: 27 87% 67%;
+    --radius: 0.5rem;
+    --sidebar-background: 30 15% 97%;
+    --sidebar-foreground: 20 15% 26%;
+    --sidebar-primary: 12 85% 55%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 30 12% 94%;
+    --sidebar-accent-foreground: 20 15% 15%;
+    --sidebar-border: 30 10% 90%;
+    --sidebar-ring: 12 85% 55%;
+    /* Scheme-specific accent for gradient / glow */
+    --scheme-gradient-from: 0 80% 55%;
+    --scheme-gradient-via: 12 85% 55%;
+    --scheme-gradient-to: 30 90% 50%;
+    --scheme-glow: 12 85% 55%;
+  }
+  .dark {
+    --background: 20 15% 4%;
+    --foreground: 30 15% 95%;
+    --card: 20 12% 10%;
+    --card-foreground: 30 15% 95%;
+    --popover: 20 12% 10%;
+    --popover-foreground: 30 15% 95%;
+    --primary: 12 85% 58%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 20 10% 14%;
+    --secondary-foreground: 30 15% 95%;
+    --muted: 20 10% 15%;
+    --muted-foreground: 30 10% 65%;
+    --accent: 20 10% 17%;
+    --accent-foreground: 30 15% 95%;
+    --destructive: 0 62% 30%;
+    --destructive-foreground: 0 0% 98%;
+    --border: 20 10% 17%;
+    --input: 20 10% 17%;
+    --ring: 12 85% 58%;
+    --chart-1: 12 85% 58%;
+    --chart-2: 160 60% 45%;
+    --chart-3: 30 80% 55%;
+    --chart-4: 280 65% 60%;
+    --chart-5: 340 75% 55%;
+    --sidebar-background: 20 12% 8%;
+    --sidebar-foreground: 30 15% 95%;
+    --sidebar-primary: 12 85% 58%;
+    --sidebar-primary-foreground: 0 0% 100%;
+    --sidebar-accent: 20 10% 14%;
+    --sidebar-accent-foreground: 30 15% 95%;
+    --sidebar-border: 20 10% 16%;
+    --sidebar-ring: 12 85% 58%;
+    --scheme-gradient-from: 0 80% 58%;
+    --scheme-gradient-via: 12 85% 58%;
+    --scheme-gradient-to: 30 90% 52%;
+    --scheme-glow: 12 85% 58%;
+  }
+
+  /* ---------- Orange ---------- */
+  [data-color="orange"] {
+    --primary: 24 85% 52%;
+    --ring: 24 85% 52%;
+    --chart-1: 24 85% 52%;
+    --sidebar-primary: 24 85% 52%;
+    --sidebar-ring: 24 85% 52%;
+    --scheme-gradient-from: 24 90% 53%;
+    --scheme-gradient-via: 38 92% 50%;
+    --scheme-gradient-to: 45 93% 47%;
+    --scheme-glow: 24 85% 52%;
+  }
+  .dark[data-color="orange"] {
+    --primary: 24 85% 55%;
+    --ring: 24 85% 55%;
+    --chart-1: 24 85% 55%;
+    --sidebar-primary: 24 85% 55%;
+    --sidebar-ring: 24 85% 55%;
+    --scheme-gradient-from: 24 90% 55%;
+    --scheme-gradient-via: 38 92% 52%;
+    --scheme-gradient-to: 45 93% 50%;
+    --scheme-glow: 24 85% 55%;
+  }
+
+  /* ---------- Emerald ---------- */
+  [data-color="emerald"] {
+    --primary: 160 75% 42%;
+    --ring: 160 75% 42%;
+    --chart-1: 160 75% 42%;
+    --sidebar-primary: 160 75% 42%;
+    --sidebar-ring: 160 75% 42%;
+    --scheme-gradient-from: 160 75% 40%;
+    --scheme-gradient-via: 175 70% 42%;
+    --scheme-gradient-to: 190 80% 45%;
+    --scheme-glow: 160 75% 42%;
+  }
+  .dark[data-color="emerald"] {
+    --primary: 160 75% 45%;
+    --ring: 160 75% 45%;
+    --chart-1: 160 75% 45%;
+    --sidebar-primary: 160 75% 45%;
+    --sidebar-ring: 160 75% 45%;
+    --scheme-gradient-from: 160 75% 45%;
+    --scheme-gradient-via: 175 70% 45%;
+    --scheme-gradient-to: 190 80% 48%;
+    --scheme-glow: 160 75% 45%;
+  }
+
+  /* ---------- Electric Blue ---------- */
+  [data-color="blue"] {
+    --primary: 215 90% 55%;
+    --ring: 215 90% 55%;
+    --chart-1: 215 90% 55%;
+    --sidebar-primary: 215 90% 55%;
+    --sidebar-ring: 215 90% 55%;
+    --scheme-gradient-from: 215 90% 55%;
+    --scheme-gradient-via: 235 70% 55%;
+    --scheme-gradient-to: 200 85% 52%;
+    --scheme-glow: 215 90% 55%;
+  }
+  .dark[data-color="blue"] {
+    --primary: 215 90% 58%;
+    --ring: 215 90% 58%;
+    --chart-1: 215 90% 58%;
+    --sidebar-primary: 215 90% 58%;
+    --sidebar-ring: 215 90% 58%;
+    --scheme-gradient-from: 215 90% 58%;
+    --scheme-gradient-via: 235 70% 58%;
+    --scheme-gradient-to: 200 85% 55%;
+    --scheme-glow: 215 90% 58%;
+  }
+
+  /* ---------- Hot Pink ---------- */
+  [data-color="pink"] {
+    --primary: 340 82% 55%;
+    --ring: 340 82% 55%;
+    --chart-1: 340 82% 55%;
+    --sidebar-primary: 340 82% 55%;
+    --sidebar-ring: 340 82% 55%;
+    --scheme-gradient-from: 340 82% 55%;
+    --scheme-gradient-via: 350 75% 52%;
+    --scheme-gradient-to: 310 70% 55%;
+    --scheme-glow: 340 82% 55%;
+  }
+  .dark[data-color="pink"] {
+    --primary: 340 82% 58%;
+    --ring: 340 82% 58%;
+    --chart-1: 340 82% 58%;
+    --sidebar-primary: 340 82% 58%;
+    --sidebar-ring: 340 82% 58%;
+    --scheme-gradient-from: 340 82% 58%;
+    --scheme-gradient-via: 350 75% 55%;
+    --scheme-gradient-to: 310 70% 58%;
+    --scheme-glow: 340 82% 58%;
+  }
+
+  /* ---------- Royal Purple ---------- */
+  [data-color="purple"] {
+    --primary: 265 70% 55%;
+    --ring: 265 70% 55%;
+    --chart-1: 265 70% 55%;
+    --sidebar-primary: 265 70% 55%;
+    --sidebar-ring: 265 70% 55%;
+    --scheme-gradient-from: 265 70% 55%;
+    --scheme-gradient-via: 280 65% 52%;
+    --scheme-gradient-to: 310 70% 55%;
+    --scheme-glow: 265 70% 55%;
+  }
+  .dark[data-color="purple"] {
+    --primary: 265 70% 60%;
+    --ring: 265 70% 60%;
+    --chart-1: 265 70% 60%;
+    --sidebar-primary: 265 70% 60%;
+    --sidebar-ring: 265 70% 60%;
+    --scheme-gradient-from: 265 70% 60%;
+    --scheme-gradient-via: 280 65% 58%;
+    --scheme-gradient-to: 310 70% 58%;
+    --scheme-glow: 265 70% 60%;
+  }
+}
+
+/* Utility: scheme-driven gradient text */
+.scheme-gradient-text {
+  background: linear-gradient(
+    to right,
+    hsl(var(--scheme-gradient-from)),
+    hsl(var(--scheme-gradient-via)),
+    hsl(var(--scheme-gradient-to))
+  );
+  -webkit-background-clip: text;
+  -webkit-text-fill-color: transparent;
+  background-clip: text;
+}
+
+/* Utility: scheme-driven glow shadow on buttons */
+.scheme-glow {
+  --tw-shadow-color: hsl(var(--scheme-glow) / 0.25);
+  --tw-shadow: 0 10px 15px -3px var(--tw-shadow-color), 0 4px 6px -4px var(--tw-shadow-color);
+  box-shadow: var(--tw-ring-offset-shadow, 0 0 #0000), var(--tw-ring-shadow, 0 0 #0000), var(--tw-shadow);
+}
+.scheme-glow:hover {
+  --tw-shadow-color: hsl(var(--scheme-glow) / 0.35);
+  --tw-shadow: 0 20px 25px -5px var(--tw-shadow-color), 0 8px 10px -6px var(--tw-shadow-color);
+}
+.dark .scheme-glow {
+  --tw-shadow-color: hsl(var(--scheme-glow) / 0.2);
+}
+.dark .scheme-glow:hover {
+  --tw-shadow-color: hsl(var(--scheme-glow) / 0.3);
+}
+
+/* Utility: scheme-driven glow blob */
+.scheme-blob {
+  background: radial-gradient(
+    circle,
+    hsl(var(--scheme-glow) / 0.1) 0%,
+    transparent 70%
+  );
+}
+.dark .scheme-blob {
+  background: radial-gradient(
+    circle,
+    hsl(var(--scheme-glow) / 0.15) 0%,
+    transparent 70%
+  );
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+  }
+  /* 页面切换时平滑过渡背景色和文字色，避免瞬间切换的视觉闪烁 */
+  html, body {
+    transition: background-color 0.1s ease, color 0.1s ease;
+  }
+}

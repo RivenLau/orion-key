@@ -1,0 +1,34 @@
+server:
+  port: 8082
+  servlet:
+    context-path: /api
+
+spring:
+  datasource:
+    url: jdbc:h2:mem:testdb;DB_CLOSE_DELAY=-1;MODE=PostgreSQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    open-in-view: false
+  jackson:
+    property-naming-strategy: SNAKE_CASE
+    date-format: yyyy-MM-dd HH:mm:ss
+    time-zone: Asia/Shanghai
+  sql:
+    init:
+      mode: never
+
+jwt:
+  secret: test-secret-key-must-be-at-least-256-bits-long-for-hs256-algorithm
+  expiration: 86400000
+
+upload:
+  path: ./test-uploads
+  url-prefix: /uploads
+
+logging:
+  level:
+    com.orionkey: DEBUG

@@ -1,0 +1,373 @@
+"use client"
+
+import { useState, useEffect, useCallback, useRef } from "react"
+import { useSearchParams } from "next/navigation"
+import { Search, Copy, Download, FileText, CheckCircle2, X, Clock } from "lucide-react"
+import { toast } from "sonner"
+import { useLocale } from "@/lib/context"
+import { orderApi, withMockFallback } from "@/services/api"
+import { mockQueryOrders, mockDeliver } from "@/lib/mock-data"
+import { OrderStatusBadge } from "@/components/shared/order-status-badge"
+import type { OrderBrief, DeliverResult } from "@/types"
+import { cn } from "@/lib/utils"
+
+interface RecentQuery {
+  value: string
+  timestamp: number
+}
+
+export default function OrderQueryPage() {
+  const { t } = useLocale()
+  const searchParams = useSearchParams()
+  const [queryValue, setQueryValue] = useState("")
+  const [orders, setOrders] = useState<OrderBrief[]>([])
+  const [deliverResults, setDeliverResults] = useState<DeliverResult[]>([])
+  const [isSearching, setIsSearching] = useState(false)
+  const [searched, setSearched] = useState(false)
+  const [recentQueries, setRecentQueries] = useState<RecentQuery[]>([])
+  const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
+  const initRef = useRef(false)
+
+  // Load recent queries + handle URL params on mount
+  useEffect(() => {
+    if (initRef.current) return
+    initRef.current = true
+
+    let recent: RecentQuery[] = []
+    try {
+      const saved = localStorage.getItem("recentOrderQueries")
+      if (saved) recent = JSON.parse(saved)
+    } catch { /* empty */ }
+    setRecentQueries(recent)
+
+    // Auto-query from URL params
+    const orderIdParam = searchParams.get("orderId")
+    if (orderIdParam) {
+      setQueryValue(orderIdParam)
+      doSearch(orderIdParam, recent)
+    }
+  }, [searchParams])
+
+  // Core search logic: query → deliver for DELIVERED orders
+  const doSearch = useCallback(async (searchValue: string, currentRecent?: RecentQuery[]) => {
+    const trimmed = searchValue.trim()
+    if (!trimmed) {
+      setSearched(true)
+      setOrders([])
+      setDeliverResults([])
+      return
+    }
+
+    setIsSearching(true)
+    setOrders([])
+    setDeliverResults([])
+
+    try {
+      // Determine if input is email or order ID
+      const isEmail = trimmed.includes("@")
+      const queryParams = isEmail
+        ? { emails: [trimmed] }
+        : { order_ids: [trimmed] }
+
+      const found = await withMockFallback(
+        () => orderApi.query(queryParams),
+        () => mockQueryOrders(queryParams)
+      )
+
+      setOrders(found)
+
+      // Auto-deliver for DELIVERED orders
+      const deliveredIds = found.filter(o => o.status === "DELIVERED").map(o => o.id)
+      if (deliveredIds.length > 0) {
+        const delivered = await withMockFallback(
+          () => orderApi.deliver({ order_ids: deliveredIds }),
+          () => mockDeliver(deliveredIds)
+        )
+        setDeliverResults(delivered)
+      }
+
+      // Save to recent queries
+      if (found.length > 0) {
+        setRecentQueries(prev => {
+          const base = currentRecent ?? prev
+          const entry: RecentQuery = { value: trimmed, timestamp: Date.now() }
+          const updated = [entry, ...base.filter(q => q.value !== trimmed)].slice(0, 5)
+          localStorage.setItem("recentOrderQueries", JSON.stringify(updated))
+          return updated
+        })
+      }
+    } catch {
+      // fallback already handled by withMockFallback
+    } finally {
+      setSearched(true)
+      setIsSearching(false)
+    }
+  }, [])
+
+  const handleSearch = useCallback((value?: string) => {
+    doSearch(value || queryValue)
+  }, [queryValue, doSearch])
+
+  const confirmRemoveQuery = (value: string) => {
+    setRecentQueries(prev => {
+      const updated = prev.filter(q => q.value !== value)
+      localStorage.setItem("recentOrderQueries", JSON.stringify(updated))
+      return updated
+    })
+    setDeleteConfirm(null)
+  }
+
+  const formatTimeAgo = (timestamp: number) => {
+    const diff = Date.now() - timestamp
+    const hours = Math.floor(diff / (1000 * 60 * 60))
+    const days = Math.floor(hours / 24)
+    if (days > 0) return `${days} ${t("order.daysAgo")}`
+    if (hours > 0) return `${hours} ${t("order.hoursAgo")}`
+    return `1 ${t("order.hoursAgo")}`
+  }
+
+  const quickQuery = (value: string) => {
+    setQueryValue(value)
+    doSearch(value)
+  }
+
+  const getDeliverForOrder = (orderId: string) => {
+    return deliverResults.find(d => d.order_id === orderId)
+  }
+
+  const copyAllKeys = (deliver: DeliverResult) => {
+    const allKeys = deliver.groups.flatMap(g => g.card_keys).join("\n")
+    navigator.clipboard.writeText(allKeys)
+    toast.success(t("order.copied"))
+  }
+
+  const downloadKeys = (deliver: DeliverResult) => {
+    const lines: string[] = []
+    deliver.groups.forEach(g => {
+      lines.push(`--- ${g.product_title}${g.spec_name ? ` (${g.spec_name})` : ""} ---`)
+      g.card_keys.forEach(k => lines.push(k))
+      lines.push("")
+    })
+    const blob = new Blob([lines.join("\n")], { type: "text/plain" })
+    const url = URL.createObjectURL(blob)
+    const a = document.createElement("a")
+    a.href = url
+    a.download = `order-${deliver.order_id.slice(0, 8)}-keys.txt`
+    a.click()
+    URL.revokeObjectURL(url)
+  }
+
+  return (
+    <div className="mx-auto flex max-w-2xl flex-col gap-6">
+      {/* Header */}
+      <div>
+        <h1 className="text-xl font-bold text-foreground">{t("order.query")}</h1>
+        <p className="mt-1 text-sm text-muted-foreground">{t("order.queryDesc")}</p>
+      </div>
+
+      {/* Search Form */}
+      <div className="rounded-lg border border-border bg-card p-4">
+        <div className="flex gap-2">
+          <input
+            type="text"
+            placeholder={t("order.queryPlaceholder")}
+            value={queryValue}
+            onChange={(e) => setQueryValue(e.target.value)}
+            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+            className="h-10 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+          />
+          <button
+            onClick={() => handleSearch()}
+            disabled={isSearching}
+            className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+          >
+            <Search className="h-4 w-4" />
+            {t("order.search")}
+          </button>
+        </div>
+      </div>
+
+      {/* Recent Queries */}
+      {recentQueries.length > 0 && (
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">{t("order.recentOrders")}</h2>
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">{t("order.recentOrdersDesc")}</p>
+
+          <div className="space-y-2">
+            {recentQueries.map((recent) => (
+              <div
+                key={recent.value}
+                className="flex items-center justify-between rounded-lg border border-border bg-background p-3 transition-colors hover:border-primary/30 hover:bg-accent"
+              >
+                <button
+                  onClick={() => quickQuery(recent.value)}
+                  className="flex flex-1 items-center gap-3 text-left"
+                >
+                  <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-sm font-medium text-foreground truncate">
+                      {recent.value.length > 30 ? `${recent.value.slice(0, 12)}...${recent.value.slice(-8)}` : recent.value}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatTimeAgo(recent.timestamp)}
+                    </p>
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDeleteConfirm(recent.value)
+                  }}
+                  className="ml-2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Results */}
+      {isSearching && (
+        <div className="flex items-center justify-center py-12">
+          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
+        </div>
+      )}
+
+      {searched && !isSearching && orders.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-12">
+          <FileText className="mb-3 h-10 w-10 text-muted-foreground/30" />
+          <p className="text-sm text-muted-foreground">{t("order.noResult")}</p>
+        </div>
+      )}
+
+      {orders.map((order) => {
+        const deliver = getDeliverForOrder(order.id)
+        return (
+          <div key={order.id} className="flex flex-col gap-4 rounded-lg border border-border bg-card p-5">
+            {/* Order Header */}
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-xs text-muted-foreground">{t("payment.orderNo")}</p>
+                <p className="font-mono text-xs font-medium text-foreground">
+                  {order.id.length > 30 ? `${order.id.slice(0, 12)}...${order.id.slice(-8)}` : order.id}
+                </p>
+              </div>
+              <OrderStatusBadge status={order.status} />
+            </div>
+
+            <hr className="border-border" />
+
+            {/* Order Summary */}
+            <div className="flex flex-col gap-1 text-sm">
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("order.amount")}</span>
+                <span className="font-bold text-foreground">
+                  {"\u00A5"}{order.actual_amount.toFixed(2)}
+                </span>
+              </div>
+              <div className="flex justify-between">
+                <span className="text-muted-foreground">{t("order.createdAt")}</span>
+                <span className="text-foreground">
+                  {new Date(order.created_at).toLocaleString()}
+                </span>
+              </div>
+            </div>
+
+            {/* Card Keys */}
+            {deliver && deliver.groups.length > 0 && (
+              <>
+                <hr className="border-border" />
+                <div>
+                  <div className="mb-3 flex items-center justify-between">
+                    <h3 className="flex items-center gap-2 text-sm font-semibold text-foreground">
+                      <CheckCircle2 className="h-4 w-4 text-emerald-500" />
+                      {t("order.cardKeys")}
+                    </h3>
+                    <div className="flex gap-2">
+                      <button
+                        onClick={() => copyAllKeys(deliver)}
+                        className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-xs text-foreground transition-colors hover:bg-accent"
+                      >
+                        <Copy className="h-3 w-3" />
+                        {t("order.copyAll")}
+                      </button>
+                      <button
+                        onClick={() => downloadKeys(deliver)}
+                        className="inline-flex h-7 items-center gap-1 rounded border border-border px-2 text-xs text-foreground transition-colors hover:bg-accent"
+                      >
+                        <Download className="h-3 w-3" />
+                        {t("order.download")}
+                      </button>
+                    </div>
+                  </div>
+                  {deliver.groups.map((group, gIdx) => (
+                    <div key={gIdx} className="mb-2">
+                      <p className="mb-1 text-xs font-medium text-muted-foreground">
+                        {group.product_title}{group.spec_name ? ` - ${group.spec_name}` : ""}
+                      </p>
+                      <div className="rounded-md bg-muted p-3">
+                        {group.card_keys.map((key, kIdx) => (
+                          <div
+                            key={kIdx}
+                            className="flex items-center justify-between py-1"
+                          >
+                            <code className="font-mono text-sm text-foreground">{key}</code>
+                            <button
+                              onClick={() => {
+                                navigator.clipboard.writeText(key)
+                                toast.success(t("order.copied"))
+                              }}
+                              className="text-muted-foreground hover:text-foreground"
+                            >
+                              <Copy className="h-3.5 w-3.5" />
+                            </button>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </>
+            )}
+          </div>
+        )
+      })}
+
+      {/* Delete Confirmation Dialog */}
+      {deleteConfirm && (
+        <>
+          <div
+            className="fixed inset-0 z-50 bg-black/50 backdrop-blur-sm"
+            onClick={() => setDeleteConfirm(null)}
+          />
+          <div className="fixed left-1/2 top-1/2 z-50 w-full max-w-md -translate-x-1/2 -translate-y-1/2 rounded-lg border border-border bg-background p-6 shadow-lg">
+            <div className="mb-2 flex items-center justify-between gap-3">
+              <h3 className="text-lg font-semibold text-foreground">{t("order.deleteConfirmTitle")}</h3>
+            </div>
+            <p className="mb-6 text-sm text-muted-foreground">
+              {t("order.deleteConfirmMessage")}
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setDeleteConfirm(null)}
+                className="rounded-lg border border-border px-4 py-2 text-sm font-medium text-foreground transition-colors hover:bg-accent"
+              >
+                {t("order.cancel")}
+              </button>
+              <button
+                onClick={() => confirmRemoveQuery(deleteConfirm)}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white transition-colors hover:bg-red-700"
+              >
+                {t("order.delete")}
+              </button>
+            </div>
+          </div>
+        </>
+      )}
+    </div>
+  )
+}
