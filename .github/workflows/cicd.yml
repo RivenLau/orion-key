@@ -8,6 +8,7 @@
 #   后端 (Java):  Jib Maven 插件直接产出 Docker 镜像（无需 Dockerfile）
 #   前端 (Next.js): 标准 Dockerfile 多阶段构建
 #
+# 兼容国内服务器无法连接github不稳定导致的git clone 大量数据时超时
 # ===================================================================
 
 name: Orion Key CI/CD
@@ -104,8 +105,9 @@ jobs:
       packages: read                    # 拉取镜像只需 read 权限
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v4
+      # 注意：此 job 不需要 checkout 代码（避免国内服务器 git clone github.com 超时）
+      # docker-compose.yml 已在首次部署时手动放置到 /opt/orion-key/
+      # 如果 docker-compose.prod.yml 有变更，手动更新服务器上的文件即可
 
       # 重新计算镜像标签（与 Job 1 逻辑一致）
       - name: Compute image tag
@@ -130,15 +132,12 @@ jobs:
       # ── 核心部署步骤（Docker Compose）──
       #
       # 流程：
-      #   1. 把仓库中的 docker-compose.prod.yml 复制到服务器部署目录
-      #   2. 将本次构建的镜像标签写入 .env（Compose 通过 ${API_IMAGE} 变量引用）
-      #   3. docker compose pull 拉取最新镜像
-      #   4. docker compose up -d 自动停旧容器、启新容器
+      #   1. 将本次构建的镜像标签写入 .env（Compose 通过 ${API_IMAGE} 变量引用）
+      #   2. docker compose pull 拉取最新镜像
+      #   3. docker compose up -d 自动停旧容器、启新容器
       #
-      # 相比 bare docker run，Compose 的好处：
-      #   - 一个文件声明所有容器的配置（端口、网络、卷、环境变量）
-      #   - 一条命令启动/停止/重建所有容器
-      #   - 自动创建共享网络（容器间通过 service 名互访，无需手动 docker network create）
+      # docker-compose.yml 已在首次部署时放置到 /opt/orion-key/，无需每次从仓库复制
+      # 如需更新 compose 配置，手动 scp 或编辑服务器上的文件即可
       #
       - name: Deploy with Docker Compose
         shell: bash
@@ -146,10 +145,7 @@ jobs:
           set -euo pipefail
           DEPLOY_DIR="/opt/orion-key"
 
-          # ① 将 docker-compose.prod.yml 复制到部署目录（每次部署自动同步最新配置）
-          cp docker-compose.prod.yml "$DEPLOY_DIR/docker-compose.yml"
-
-          # ② 更新 .env 中的镜像标签
+          # ① 更新 .env 中的镜像标签
           #    先移除旧的 IMAGE 行，再追加新值
           #    这样 docker-compose.yml 中的 ${API_IMAGE} 和 ${WEB_IMAGE} 就指向本次构建的镜像
           cd "$DEPLOY_DIR"
@@ -158,13 +154,13 @@ jobs:
           echo "API_IMAGE=${{ steps.meta.outputs.api_image }}" >> .env
           echo "WEB_IMAGE=${{ steps.meta.outputs.web_image }}" >> .env
 
-          # ③ 拉取最新镜像 + 启动/重建容器
+          # ② 拉取最新镜像 + 启动/重建容器
           #    pull:  根据 .env 中的 IMAGE 标签拉取镜像
           #    up -d: 比较当前运行状态与 compose 配置，只重建有变化的容器
           #    --remove-orphans: 清理不再定义的旧容器
           docker compose pull
           docker compose up -d --remove-orphans
 
-          # ④ 验证
+          # ③ 验证
           echo "Deployed with tag: ${{ steps.meta.outputs.tag }}"
           docker compose ps
