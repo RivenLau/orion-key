@@ -170,7 +170,7 @@ export default function AdminProductsPage() {
       )
       toast.success("删除成功")
       setShowDeleteConfirm(null)
-      revalidateCache("products", `product-${id}`)
+      revalidateCache("/", `/product/${id}`)
       await fetchProducts()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "删除失败")
@@ -184,7 +184,7 @@ export default function AdminProductsPage() {
         () => null
       )
       toast.success(product.is_enabled === false ? "已上架" : "已下架")
-      revalidateCache("products", `product-${product.id}`)
+      revalidateCache("/", `/product/${product.id}`)
       await fetchProducts()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "操作失败")
@@ -277,7 +277,7 @@ export default function AdminProductsPage() {
 
       toast.success("保存成功")
       handleCloseModal()
-      revalidateCache("products", ...(editingProduct ? [`product-${editingProduct.id}`] : []))
+      revalidateCache("/", ...(editingProduct ? [`/product/${editingProduct.id}`] : []))
       await fetchProducts()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")

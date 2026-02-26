@@ -232,15 +232,18 @@ export async function withMockFallback<T>(
 // ============================================================
 
 /**
- * 清除指定 tag 的 ISR 缓存，使 SSR 页面立即获取最新数据。
+ * 清除指定路径的 ISR 缓存，使 SSR 页面立即获取最新数据。
  * 管理后台写操作成功后调用。失败时静默（不影响业务流程）。
+ *
+ * @param paths - 需要失效的页面路径，如 "/" "/product/xxx"。
+ *                不传参数时默认刷新首页。
  */
-export async function revalidateCache(...tags: string[]) {
+export async function revalidateCache(...paths: string[]) {
   try {
     await fetch("/internal/revalidate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ tags }),
+      body: JSON.stringify({ paths: paths.length > 0 ? paths : ["/"] }),
     })
   } catch {
     // 缓存失效失败不应阻断业务操作

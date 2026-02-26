@@ -271,7 +271,7 @@ export default function AdminPaymentChannelsPage() {
       }
       toast.success("保存成功")
       handleCloseModal()
-      revalidateCache("payment-channels")
+      revalidateCache("/")
       await fetchChannels()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")
@@ -288,7 +288,7 @@ export default function AdminPaymentChannelsPage() {
       )
       toast.success("删除成功")
       setShowDeleteConfirm(null)
-      revalidateCache("payment-channels")
+      revalidateCache("/")
       await fetchChannels()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "删除失败")
@@ -302,7 +302,7 @@ export default function AdminPaymentChannelsPage() {
         () => null
       )
       toast.success(channel.is_enabled ? "已禁用" : "已启用")
-      revalidateCache("payment-channels")
+      revalidateCache("/")
       await fetchChannels()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "操作失败")

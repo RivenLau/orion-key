@@ -59,7 +59,7 @@ export default function AdminSiteConfigPage() {
         () => adminConfigApi.update({ configs }),
         () => null
       )
-      revalidateCache("site-config")
+      revalidateCache("/")
       toast.success("保存成功")
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")
@@ -76,7 +76,7 @@ export default function AdminSiteConfigPage() {
         () => null
       )
       setValue("maintenance_enabled", String(newEnabled))
-      revalidateCache("site-config")
+      revalidateCache("/")
       toast.success(newEnabled ? "已开启维护模式" : "已关闭维护模式")
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "操作失败")

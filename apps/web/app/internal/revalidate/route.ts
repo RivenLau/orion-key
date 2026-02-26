@@ -1,4 +1,4 @@
-import { revalidateTag } from "next/cache"
+import { revalidatePath } from "next/cache"
 import { NextRequest, NextResponse } from "next/server"
 
 /**
@@ -8,23 +8,24 @@ import { NextRequest, NextResponse } from "next/server"
  * 调用此接口清除对应的 ISR 缓存，使首页等 SSR 页面立即获取最新数据。
  *
  * POST /internal/revalidate
- * Body: { "tags": ["products"] }
+ * Body: { "paths": ["/", "/product/xxx"] }
+ *
+ * paths 为空时默认刷新首页
  */
 export async function POST(request: NextRequest) {
   try {
-    const { tags } = await request.json()
+    const { paths } = await request.json()
 
-    if (!Array.isArray(tags) || tags.length === 0) {
-      return NextResponse.json({ error: "tags array is required" }, { status: 400 })
+    const targetPaths: string[] =
+      Array.isArray(paths) && paths.length > 0
+        ? paths.filter((p: unknown) => typeof p === "string")
+        : ["/"]
+
+    for (const p of targetPaths) {
+      revalidatePath(p)
     }
 
-    for (const tag of tags) {
-      if (typeof tag === "string") {
-        revalidateTag(tag, "default")
-      }
-    }
-
-    return NextResponse.json({ revalidated: tags })
+    return NextResponse.json({ revalidated: targetPaths })
   } catch {
     return NextResponse.json({ error: "Invalid request" }, { status: 400 })
   }

@@ -67,7 +67,7 @@ export default function AdminCategoriesPage() {
       }
       toast.success("保存成功")
       handleCloseModal()
-      revalidateCache("categories")
+      revalidateCache("/")
       await fetchCategories()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")
@@ -84,7 +84,7 @@ export default function AdminCategoriesPage() {
       )
       toast.success("删除成功")
       setShowDeleteConfirm(null)
-      revalidateCache("categories")
+      revalidateCache("/")
       await fetchCategories()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "删除失败")
