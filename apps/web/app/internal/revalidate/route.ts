@@ -7,7 +7,7 @@ import { NextRequest, NextResponse } from "next/server"
  * 管理后台在执行写操作（新增/修改/删除商品、分类、站点配置等）后
  * 调用此接口清除对应的 ISR 缓存，使首页等 SSR 页面立即获取最新数据。
  *
- * POST /api/revalidate
+ * POST /internal/revalidate
  * Body: { "tags": ["products"] }
  */
 export async function POST(request: NextRequest) {

@@ -29,14 +29,13 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* Image */}
       <Link
         href={productUrl}
-        className="relative block aspect-[4/3.2] cursor-pointer overflow-hidden bg-muted"
+        className="relative block aspect-[4/3.2] cursor-pointer bg-muted"
       >
         {product.cover_url ? (
           <img
-            src={product.cover_url}
+            src={product.cover_url || "/placeholder.svg"}
             alt={product.title}
-            loading="lazy"
-            className="h-full w-full object-cover transition-transform duration-300 will-change-transform group-hover/card:scale-105"
+            className="h-full w-full object-cover transition-transform duration-300 will-change-transform hover:scale-105"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/50">

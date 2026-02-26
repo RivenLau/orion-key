@@ -71,6 +71,25 @@ export function clearToken() {
   localStorage.removeItem("auth_token")
 }
 
+/**
+ * JWT 过期/无效时：清除本地登录态，跳转登录页
+ * 使用防抖避免多个并发请求同时触发多次跳转
+ */
+let redirecting = false
+function handleUnauthorized() {
+  if (typeof window === "undefined" || redirecting) return
+  redirecting = true
+  clearToken()
+  localStorage.removeItem("userProfile")
+  const currentPath = window.location.pathname
+  // 已经在登录页则不再跳转
+  if (currentPath === "/login") {
+    redirecting = false
+    return
+  }
+  window.location.href = `/login?redirect=${encodeURIComponent(currentPath)}`
+}
+
 // ============================================================
 // Session Token (guest cart)
 // ============================================================
@@ -137,6 +156,9 @@ async function request<T>(
   }
 
   if (!res.ok) {
+    if (res.status === 401) {
+      handleUnauthorized()
+    }
     const body = await res.json().catch(() => ({ code: res.status, message: res.statusText }))
     throw new ApiError(body.code || res.status, body.message || res.statusText)
   }
@@ -164,6 +186,9 @@ async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
   })
 
   if (!res.ok) {
+    if (res.status === 401) {
+      handleUnauthorized()
+    }
     const body = await res.json().catch(() => ({ code: res.status, message: res.statusText }))
     throw new ApiError(body.code || res.status, body.message || res.statusText)
   }
@@ -212,7 +237,7 @@ export async function withMockFallback<T>(
  */
 export async function revalidateCache(...tags: string[]) {
   try {
-    await fetch("/api/revalidate", {
+    await fetch("/internal/revalidate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({ tags }),
