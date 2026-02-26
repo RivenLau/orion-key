@@ -1,4 +1,3 @@
-import Image from "next/image"
 import { notFound } from "next/navigation"
 import { Package } from "lucide-react"
 import { getProductDetail, getPaymentChannels } from "@/services/api-server"
@@ -96,13 +95,10 @@ export default async function ProductDetailPage({ params }: { params: Promise<{ 
         <div className="lg:col-span-2">
           <div className="relative aspect-square overflow-hidden rounded-lg border border-border bg-muted">
             {product.cover_url ? (
-              <Image
+              <img
                 src={product.cover_url}
                 alt={product.title}
-                fill
-                className="object-cover"
-                sizes="(max-width: 1024px) 100vw, 40vw"
-                priority
+                className="h-full w-full object-cover"
               />
             ) : (
               <div className="flex h-full w-full items-center justify-center">

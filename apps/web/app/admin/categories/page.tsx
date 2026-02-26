@@ -3,7 +3,7 @@
 import { useState, useEffect } from "react"
 import { Plus, Edit, Trash2, FolderTree, GripVertical, X, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
-import { adminCategoryApi, withMockFallback } from "@/services/api"
+import { adminCategoryApi, withMockFallback, revalidateCache } from "@/services/api"
 import { mockCategories } from "@/lib/mock-data"
 import { useLocale } from "@/lib/context"
 import { Modal } from "@/components/ui/modal"
@@ -67,6 +67,7 @@ export default function AdminCategoriesPage() {
       }
       toast.success("保存成功")
       handleCloseModal()
+      revalidateCache("categories")
       await fetchCategories()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")
@@ -83,6 +84,7 @@ export default function AdminCategoriesPage() {
       )
       toast.success("删除成功")
       setShowDeleteConfirm(null)
+      revalidateCache("categories")
       await fetchCategories()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "删除失败")

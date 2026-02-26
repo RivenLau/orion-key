@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback } from "react"
 import { Save, AlertTriangle } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { adminConfigApi, withMockFallback } from "@/services/api"
+import { adminConfigApi, withMockFallback, revalidateCache } from "@/services/api"
 import { mockSiteConfigKVs } from "@/lib/mock-data"
 import { useLocale } from "@/lib/context"
 import type { SiteConfigKV } from "@/types"
@@ -59,6 +59,7 @@ export default function AdminSiteConfigPage() {
         () => adminConfigApi.update({ configs }),
         () => null
       )
+      revalidateCache("site-config")
       toast.success("保存成功")
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")
@@ -75,6 +76,7 @@ export default function AdminSiteConfigPage() {
         () => null
       )
       setValue("maintenance_enabled", String(newEnabled))
+      revalidateCache("site-config")
       toast.success(newEnabled ? "已开启维护模式" : "已关闭维护模式")
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "操作失败")

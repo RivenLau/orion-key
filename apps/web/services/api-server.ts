@@ -89,7 +89,7 @@ export async function getProductDetail(id: string): Promise<ProductDetail> {
 export async function getCategories(): Promise<Category[]> {
   return serverRequest<Category[]>(
     "/categories",
-    { revalidate: 300, tags: ["categories"] }
+    { revalidate: 60, tags: ["categories"] }
   )
 }
 
@@ -100,7 +100,7 @@ export async function getCategories(): Promise<Category[]> {
 export async function getPaymentChannels(): Promise<PaymentChannelItem[]> {
   return serverRequest<PaymentChannelItem[]>(
     "/payment-channels",
-    { revalidate: 300, tags: ["payment-channels"] }
+    { revalidate: 60, tags: ["payment-channels"] }
   )
 }
 
@@ -122,6 +122,6 @@ export async function getSiteConfig(): Promise<SiteConfig> {
 export async function getCurrencies(): Promise<CurrencyItem[]> {
   return serverRequest<CurrencyItem[]>(
     "/currencies",
-    { revalidate: 300, tags: ["currencies"] }
+    { revalidate: 60, tags: ["currencies"] }
   )
 }

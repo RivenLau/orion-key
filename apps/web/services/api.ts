@@ -203,6 +203,26 @@ export async function withMockFallback<T>(
 }
 
 // ============================================================
+// ISR Cache Revalidation
+// ============================================================
+
+/**
+ * 清除指定 tag 的 ISR 缓存，使 SSR 页面立即获取最新数据。
+ * 管理后台写操作成功后调用。失败时静默（不影响业务流程）。
+ */
+export async function revalidateCache(...tags: string[]) {
+  try {
+    await fetch("/api/revalidate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ tags }),
+    })
+  } catch {
+    // 缓存失效失败不应阻断业务操作
+  }
+}
+
+// ============================================================
 // Auth
 // ============================================================
 
