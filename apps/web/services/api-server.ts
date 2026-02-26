@@ -5,7 +5,6 @@
  * - 直接使用 BACKEND_URL 调用后端，不走 Next.js rewrites 代理
  * - 不依赖 localStorage（服务端无浏览器环境）
  * - 仅封装公开接口（不需要 auth token）
- * - 内置 Next.js fetch cache 控制
  */
 
 import type {
@@ -26,18 +25,10 @@ const BACKEND_URL = process.env.BACKEND_URL || "http://localhost:8083"
 // Core request
 // ============================================================
 
-async function serverRequest<T>(
-  path: string,
-  options?: { revalidate?: number | false; tags?: string[] }
-): Promise<T> {
-  const { revalidate = 60, tags } = options ?? {}
-
+async function serverRequest<T>(path: string): Promise<T> {
   const res = await fetch(`${BACKEND_URL}/api${path}`, {
     headers: { "Content-Type": "application/json" },
-    next: {
-      ...(revalidate !== false ? { revalidate } : {}),
-      ...(tags ? { tags } : {}),
-    },
+    cache: "no-store",
   })
 
   if (!res.ok) {
@@ -70,16 +61,12 @@ export async function getProducts(params?: {
   if (params?.keyword) sp.set("keyword", params.keyword)
   const qs = sp.toString()
   return serverRequest<PaginatedData<ProductCard>>(
-    `/products${qs ? `?${qs}` : ""}`,
-    { revalidate: 60, tags: ["products"] }
+    `/products${qs ? `?${qs}` : ""}`
   )
 }
 
 export async function getProductDetail(id: string): Promise<ProductDetail> {
-  return serverRequest<ProductDetail>(
-    `/products/${id}`,
-    { revalidate: 60, tags: [`product-${id}`] }
-  )
+  return serverRequest<ProductDetail>(`/products/${id}`)
 }
 
 // ============================================================
@@ -87,10 +74,7 @@ export async function getProductDetail(id: string): Promise<ProductDetail> {
 // ============================================================
 
 export async function getCategories(): Promise<Category[]> {
-  return serverRequest<Category[]>(
-    "/categories",
-    { revalidate: 60, tags: ["categories"] }
-  )
+  return serverRequest<Category[]>("/categories")
 }
 
 // ============================================================
@@ -98,10 +82,7 @@ export async function getCategories(): Promise<Category[]> {
 // ============================================================
 
 export async function getPaymentChannels(): Promise<PaymentChannelItem[]> {
-  return serverRequest<PaymentChannelItem[]>(
-    "/payment-channels",
-    { revalidate: 60, tags: ["payment-channels"] }
-  )
+  return serverRequest<PaymentChannelItem[]>("/payment-channels")
 }
 
 // ============================================================
@@ -109,10 +90,7 @@ export async function getPaymentChannels(): Promise<PaymentChannelItem[]> {
 // ============================================================
 
 export async function getSiteConfig(): Promise<SiteConfig> {
-  return serverRequest<SiteConfig>(
-    "/site/config",
-    { revalidate: 60, tags: ["site-config"] }
-  )
+  return serverRequest<SiteConfig>("/site/config")
 }
 
 // ============================================================
@@ -120,8 +98,5 @@ export async function getSiteConfig(): Promise<SiteConfig> {
 // ============================================================
 
 export async function getCurrencies(): Promise<CurrencyItem[]> {
-  return serverRequest<CurrencyItem[]>(
-    "/currencies",
-    { revalidate: 60, tags: ["currencies"] }
-  )
+  return serverRequest<CurrencyItem[]>("/currencies")
 }

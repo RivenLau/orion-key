@@ -67,10 +67,13 @@ const MAINTENANCE_EXEMPT_PATHS = ["/login", "/register"]
 
 interface StoreShellProps {
   siteName: string
+  footerText: string
+  contactEmail: string
+  githubUrl: string
   children: React.ReactNode
 }
 
-export function StoreShell({ siteName, children }: StoreShellProps) {
+export function StoreShell({ siteName, footerText, contactEmail, githubUrl, children }: StoreShellProps) {
   const { config, isLoading } = useSiteConfig()
   const { user, isLoggedIn, authLoaded } = useAuth()
   const pathname = usePathname()
@@ -92,7 +95,7 @@ export function StoreShell({ siteName, children }: StoreShellProps) {
       <AnnouncementBar />
       <StoreHeader siteName={siteName} />
       <main className="mx-auto w-full max-w-7xl flex-1 px-4 py-6 lg:px-6">{children}</main>
-      <StoreFooter />
+      <StoreFooter footerText={footerText} contactEmail={contactEmail} githubUrl={githubUrl} />
     </div>
   )
 }

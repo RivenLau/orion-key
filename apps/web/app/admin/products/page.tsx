@@ -6,7 +6,7 @@ import { toast } from "sonner"
 import { cn, getCurrencySymbol } from "@/lib/utils"
 import { Modal } from "@/components/ui/modal"
 import { useLocale } from "@/lib/context"
-import { adminProductApi, adminCategoryApi, adminCardKeyApi, currencyApi, withMockFallback, revalidateCache } from "@/services/api"
+import { adminProductApi, adminCategoryApi, adminCardKeyApi, currencyApi, withMockFallback } from "@/services/api"
 import { mockCategories } from "@/lib/mock-data"
 import type { ProductDetail, Category, ProductSpec, CurrencyItem } from "@/types"
 
@@ -170,7 +170,6 @@ export default function AdminProductsPage() {
       )
       toast.success("删除成功")
       setShowDeleteConfirm(null)
-      revalidateCache("/", `/product/${id}`)
       await fetchProducts()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "删除失败")
@@ -184,7 +183,6 @@ export default function AdminProductsPage() {
         () => null
       )
       toast.success(product.is_enabled === false ? "已上架" : "已下架")
-      revalidateCache("/", `/product/${product.id}`)
       await fetchProducts()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "操作失败")
@@ -277,7 +275,6 @@ export default function AdminProductsPage() {
 
       toast.success("保存成功")
       handleCloseModal()
-      revalidateCache("/", ...(editingProduct ? [`/product/${editingProduct.id}`] : []))
       await fetchProducts()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")

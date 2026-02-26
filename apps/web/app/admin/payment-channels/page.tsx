@@ -5,7 +5,7 @@ import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, X, AlertCircle, ChevronDow
 import { cn } from "@/lib/utils"
 import { useLocale } from "@/lib/context"
 import { toast } from "sonner"
-import { adminPaymentApi, withMockFallback, revalidateCache } from "@/services/api"
+import { adminPaymentApi, withMockFallback } from "@/services/api"
 import { mockPaymentChannels } from "@/lib/mock-data"
 import { Modal } from "@/components/ui/modal"
 import type { PaymentChannelItem, PaymentChannelConfig, ProviderType } from "@/types"
@@ -271,7 +271,6 @@ export default function AdminPaymentChannelsPage() {
       }
       toast.success("保存成功")
       handleCloseModal()
-      revalidateCache("/")
       await fetchChannels()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")
@@ -288,7 +287,6 @@ export default function AdminPaymentChannelsPage() {
       )
       toast.success("删除成功")
       setShowDeleteConfirm(null)
-      revalidateCache("/")
       await fetchChannels()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "删除失败")
@@ -302,7 +300,6 @@ export default function AdminPaymentChannelsPage() {
         () => null
       )
       toast.success(channel.is_enabled ? "已禁用" : "已启用")
-      revalidateCache("/")
       await fetchChannels()
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "操作失败")
