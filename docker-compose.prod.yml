@@ -35,6 +35,10 @@ services:
     ports:
       - "127.0.0.1:8083:8083"
 
+    # 容器时区：统一使用北京时间，确保订单时间、日志时间与用户一致
+    environment:
+      - TZ=Asia/Shanghai
+
     # 从 .env 文件加载环境变量到容器内
     # Spring Boot 的 application.yml 用 ${DB_URL:默认值} 语法读取这些变量
     env_file: .env
@@ -54,9 +58,11 @@ services:
     ports:
       - "127.0.0.1:3000:3000"
 
-    # 单独设置环境变量（Next.js SSR 调用后端时使用）
-    # "api" 是上面后端 service 的名字，Docker Compose 网络内可以用 service 名代替 IP
+    # 环境变量
+    # TZ: 容器时区统一北京时间
+    # BACKEND_URL: Next.js SSR 调用后端时使用（"api" 是后端 service 名，Docker 网络内互通）
     environment:
+      - TZ=Asia/Shanghai
       - BACKEND_URL=http://api:8083
 
     # 依赖声明：确保 api 容器先启动

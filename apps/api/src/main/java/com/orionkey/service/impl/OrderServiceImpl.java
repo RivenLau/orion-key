@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.math.BigDecimal;
+import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
 
@@ -199,6 +200,13 @@ public class OrderServiceImpl implements OrderService {
         result.put("order_id", order.getId());
         result.put("status", order.getStatus().name());
         result.put("expires_at", order.getExpiresAt());
+        // 返回服务端计算的剩余秒数，前端倒计时以此为准，不受客户端时钟影响
+        if (order.getStatus() == OrderStatus.PENDING) {
+            long remainingSeconds = Duration.between(LocalDateTime.now(), order.getExpiresAt()).getSeconds();
+            result.put("remaining_seconds", Math.max(0, remainingSeconds));
+        } else {
+            result.put("remaining_seconds", 0);
+        }
         if (order.getStatus() == OrderStatus.PENDING && order.getPaymentUrl() != null) {
             result.put("payment_url", order.getPaymentUrl());
         }

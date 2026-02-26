@@ -70,23 +70,11 @@ export default function StoreLayout({ children }: { children: React.ReactNode })
   const { user, isLoggedIn, authLoaded } = useAuth()
   const pathname = usePathname()
 
-  // Loading Gate：siteConfig 或 auth 未就绪前显示骨架屏，
-  if (isLoading || !authLoaded) {
-    return (
-      <div className="flex min-h-screen flex-col">
-        <header className="sticky top-0 z-50 border-b border-border bg-background/95 backdrop-blur">
-          <div className="mx-auto flex h-14 max-w-7xl items-center px-4 lg:px-6" />
-        </header>
-        <main className="flex flex-1 items-center justify-center">
-          <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
-        </main>
-      </div>
-    )
-  }
-
+  // siteConfig 就绪后才判断维护模式（加载中不阻塞页面内容）
+  const configReady = !isLoading && !!config
   const isExempt = MAINTENANCE_EXEMPT_PATHS.includes(pathname)
-  const isAdmin = isLoggedIn && user?.role === "ADMIN"
-  const isMaintenance = config?.maintenance_enabled
+  const isAdmin = authLoaded && isLoggedIn && user?.role === "ADMIN"
+  const isMaintenance = configReady && config?.maintenance_enabled
 
   // Maintenance mode: block non-admin users on non-exempt pages
   if (isMaintenance && !isAdmin && !isExempt) {

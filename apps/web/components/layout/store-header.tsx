@@ -10,7 +10,7 @@ import { cn } from "@/lib/utils"
 export function StoreHeader() {
   const { t, locale, setLocale } = useLocale()
   const { setTheme, resolvedTheme } = useTheme()
-  const { isLoggedIn, user, logout } = useAuth()
+  const { isLoggedIn, user, logout, authLoaded } = useAuth()
   const { colorScheme, setColorScheme } = useColorScheme()
   const { itemCount: cartItemCount } = useCart()
   const { config: siteConfig } = useSiteConfig()
@@ -221,8 +221,10 @@ export function StoreHeader() {
             )}
           </Link>
 
-          {/* User / Auth */}
-          {isLoggedIn ? (
+          {/* User / Auth — auth 未就绪时显示占位，避免登录按钮闪烁 */}
+          {!authLoaded ? (
+            <div className="h-9 w-9 animate-pulse rounded-md bg-muted" />
+          ) : isLoggedIn ? (
             <div className="relative">
               <button
                 onClick={() => setUserMenuOpen(!userMenuOpen)}

@@ -1,5 +1,6 @@
 "use client"
 
+import Image from "next/image"
 import Link from "next/link"
 import { Zap, Package, AlertTriangle } from "lucide-react"
 import type { ProductCard as ProductCardType } from "@/types"
@@ -29,13 +30,15 @@ export function ProductCard({ product }: ProductCardProps) {
       {/* Image */}
       <Link
         href={productUrl}
-        className="relative block aspect-[4/3.2] cursor-pointer bg-muted"
+        className="relative block aspect-[4/3.2] cursor-pointer overflow-hidden bg-muted"
       >
         {product.cover_url ? (
-          <img
-            src={product.cover_url || "/placeholder.svg"}
+          <Image
+            src={product.cover_url}
             alt={product.title}
-            className="h-full w-full object-cover transition-transform duration-300 will-change-transform hover:scale-105"
+            fill
+            className="object-cover transition-transform duration-300 will-change-transform group-hover/card:scale-105"
+            sizes="(max-width: 768px) 100vw, (max-width: 1024px) 50vw, 33vw"
           />
         ) : (
           <div className="flex h-full w-full items-center justify-center bg-gradient-to-br from-muted to-muted/50">

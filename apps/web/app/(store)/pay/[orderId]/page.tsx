@@ -26,12 +26,6 @@ const PAYMENT_TIMEOUT = 15 * 60 // 15 minutes in seconds
 const POLL_INTERVAL = 3000 // 3 seconds
 const MANUAL_REFRESH_COOLDOWN = 10 // 10 seconds
 
-/** 从 expires_at 时间戳计算剩余秒数 */
-function calcTimeLeft(expiresAt: string): number {
-  const remaining = Math.floor((new Date(expiresAt).getTime() - Date.now()) / 1000)
-  return Math.max(0, remaining)
-}
-
 export default function PaymentPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
   const { t } = useLocale()
@@ -57,12 +51,12 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       setQrcodeUrl(decodeURIComponent(qrFromParam))
     }
 
-    // 无论是否有 qr 参数，都需要从 API 获取 expires_at 计算倒计时
+    // 从 API 获取服务端计算的 remaining_seconds，不依赖客户端时钟
     async function fetchOrderInfo() {
       try {
         const result = await orderApi.getStatus(orderId)
-        if (result.expires_at) {
-          setTimeLeft(calcTimeLeft(result.expires_at))
+        if (result.remaining_seconds !== undefined) {
+          setTimeLeft(result.remaining_seconds)
         }
         if (!qrFromParam && result.payment_url) {
           setQrcodeUrl(result.payment_url)
@@ -99,11 +93,11 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       try {
         const result = await withMockFallback(
           () => orderApi.getStatus(orderId),
-          () => ({ order_id: orderId, status: "PENDING" as const, expires_at: "" })
+          () => ({ order_id: orderId, status: "PENDING" as const, expires_at: "", remaining_seconds: 0 })
         )
         // 同步服务端倒计时，防止客户端时间漂移
-        if (result.expires_at) {
-          setTimeLeft(calcTimeLeft(result.expires_at))
+        if (result.remaining_seconds !== undefined) {
+          setTimeLeft(result.remaining_seconds)
         }
         if (result.status !== "PENDING") {
           setStatus(result.status)
@@ -133,7 +127,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     try {
       const result = await withMockFallback(
         () => orderApi.getStatus(orderId),
-        () => ({ order_id: orderId, status: "PENDING" as const, expires_at: "" })
+        () => ({ order_id: orderId, status: "PENDING" as const, expires_at: "", remaining_seconds: 0 })
       )
       if (result.status !== "PENDING") {
         setStatus(result.status)

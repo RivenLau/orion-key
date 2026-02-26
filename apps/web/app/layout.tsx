@@ -9,8 +9,21 @@ import "./globals.css"
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
 
 export const metadata: Metadata = {
-  title: "Orion Key - Auto Card Delivery",
+  metadataBase: new URL(process.env.NEXT_PUBLIC_BASE_URL || "http://localhost:3000"),
+  title: {
+    template: "%s | Orion Key",
+    default: "Orion Key - Auto Card Delivery",
+  },
   description: "Automated virtual goods card delivery platform",
+  robots: { index: true, follow: true },
+  openGraph: {
+    type: "website",
+    locale: "zh_CN",
+    siteName: "Orion Key",
+  },
+  twitter: {
+    card: "summary_large_image",
+  },
 }
 
 export default function RootLayout({

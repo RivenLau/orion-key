@@ -276,7 +276,7 @@ export const orderApi = {
   createFromCart: (data: CreateCartOrderRequest) =>
     request<CreateOrderResult>("/orders/from-cart", { method: "POST", body: JSON.stringify(data) }),
   getStatus: (orderId: string) =>
-    request<{ order_id: string; status: OrderStatus; expires_at: string; payment_url?: string }>(`/orders/${orderId}/status`),
+    request<{ order_id: string; status: OrderStatus; expires_at: string; remaining_seconds: number; payment_url?: string }>(`/orders/${orderId}/status`),
   refreshStatus: (orderId: string) =>
     request<{ status: OrderStatus }>(`/orders/${orderId}/refresh`, { method: "POST" }),
   query: (data: { order_ids?: string[]; emails?: string[] }) =>
