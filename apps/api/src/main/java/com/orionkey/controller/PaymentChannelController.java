@@ -22,7 +22,7 @@ public class PaymentChannelController {
     @GetMapping
     public ApiResponse<?> listEnabledChannels() {
         List<Map<String, Object>> channels = paymentChannelRepository
-                .findByIsEnabledAndIsDeletedOrderBySortOrderAsc(true, 0)
+                .findByEnabledAndIsDeletedOrderBySortOrderAsc(true, 0)
                 .stream()
                 .map(this::toPublicMap)
                 .toList();

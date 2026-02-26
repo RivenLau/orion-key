@@ -34,7 +34,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
 
     long countByClientIpAndStatus(String clientIp, OrderStatus status);
 
-    @Query("SELECT o FROM Order o WHERE o.isRiskFlagged = true ORDER BY o.createdAt DESC")
+    @Query("SELECT o FROM Order o WHERE o.riskFlagged = true ORDER BY o.createdAt DESC")
     Page<Order> findRiskFlaggedOrders(Pageable pageable);
 
     // Dashboard aggregate queries
@@ -54,7 +54,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
             "(:status IS NULL OR o.status = :status) " +
             "AND (:orderType IS NULL OR o.orderType = :orderType) " +
             "AND (:paymentMethod IS NULL OR o.paymentMethod = :paymentMethod) " +
-            "AND (:isRiskFlagged IS NULL OR o.isRiskFlagged = :isRiskFlagged) " +
+            "AND (:isRiskFlagged IS NULL OR o.riskFlagged = :isRiskFlagged) " +
             "ORDER BY o.createdAt DESC")
     Page<Order> findAdminOrders(@Param("status") OrderStatus status,
                                 @Param("orderType") OrderType orderType,
@@ -67,7 +67,7 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
             "(:status IS NULL OR o.status = :status) " +
             "AND (:orderType IS NULL OR o.orderType = :orderType) " +
             "AND (:paymentMethod IS NULL OR o.paymentMethod = :paymentMethod) " +
-            "AND (:isRiskFlagged IS NULL OR o.isRiskFlagged = :isRiskFlagged) " +
+            "AND (:isRiskFlagged IS NULL OR o.riskFlagged = :isRiskFlagged) " +
             "AND (str(o.id) LIKE :keywordPattern OR o.email LIKE :keywordPattern) " +
             "ORDER BY o.createdAt DESC")
     Page<Order> findAdminOrdersByKeyword(@Param("status") OrderStatus status,

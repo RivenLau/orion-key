@@ -22,7 +22,7 @@ public class CurrencyController {
     @GetMapping
     public ApiResponse<?> listEnabledCurrencies() {
         List<Map<String, Object>> currencies = currencyRepository
-                .findByIsEnabledOrderBySortOrderAsc(true)
+                .findByEnabledOrderBySortOrderAsc(true)
                 .stream()
                 .map(this::toMap)
                 .toList();

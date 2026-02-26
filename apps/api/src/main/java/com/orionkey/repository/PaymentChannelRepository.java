@@ -11,7 +11,7 @@ public interface PaymentChannelRepository extends JpaRepository<PaymentChannel, 
 
     List<PaymentChannel> findByIsDeletedOrderBySortOrderAsc(int isDeleted);
 
-    List<PaymentChannel> findByIsEnabledAndIsDeletedOrderBySortOrderAsc(boolean isEnabled, int isDeleted);
+    List<PaymentChannel> findByEnabledAndIsDeletedOrderBySortOrderAsc(boolean enabled, int isDeleted);
 
     Optional<PaymentChannel> findByChannelCodeAndIsDeleted(String channelCode, int isDeleted);
 

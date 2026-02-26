@@ -27,7 +27,7 @@ public class ProductSpec extends BaseEntity {
     private BigDecimal price;
 
     @Column(name = "is_visible")
-    private boolean isVisible = true;
+    private boolean visible = true;
 
     private int sortOrder = 0;
 

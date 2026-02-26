@@ -12,13 +12,13 @@ import java.util.UUID;
 public interface ProductRepository extends JpaRepository<Product, UUID> {
 
     // 首页商品列表 — 无搜索词
-    @Query("SELECT p FROM Product p WHERE p.isDeleted = 0 AND p.isEnabled = true " +
+    @Query("SELECT p FROM Product p WHERE p.isDeleted = 0 AND p.enabled = true " +
             "AND (:categoryId IS NULL OR p.categoryId = :categoryId)")
     Page<Product> findPublicProducts(@Param("categoryId") UUID categoryId,
                                      Pageable pageable);
 
     // 首页商品列表 — 带搜索词（keyword 保证非 null）
-    @Query("SELECT p FROM Product p WHERE p.isDeleted = 0 AND p.isEnabled = true " +
+    @Query("SELECT p FROM Product p WHERE p.isDeleted = 0 AND p.enabled = true " +
             "AND (:categoryId IS NULL OR p.categoryId = :categoryId) " +
             "AND LOWER(p.title) LIKE :keywordPattern")
     Page<Product> findPublicProductsByKeyword(@Param("categoryId") UUID categoryId,
@@ -28,7 +28,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     // 管理后台商品列表 — 无搜索词
     @Query("SELECT p FROM Product p WHERE p.isDeleted = 0 " +
             "AND (:categoryId IS NULL OR p.categoryId = :categoryId) " +
-            "AND (:isEnabled IS NULL OR p.isEnabled = :isEnabled)")
+            "AND (:isEnabled IS NULL OR p.enabled = :isEnabled)")
     Page<Product> findAdminProducts(@Param("categoryId") UUID categoryId,
                                     @Param("isEnabled") Boolean isEnabled,
                                     Pageable pageable);
@@ -37,7 +37,7 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
     @Query("SELECT p FROM Product p WHERE p.isDeleted = 0 " +
             "AND (:categoryId IS NULL OR p.categoryId = :categoryId) " +
             "AND LOWER(p.title) LIKE :keywordPattern " +
-            "AND (:isEnabled IS NULL OR p.isEnabled = :isEnabled)")
+            "AND (:isEnabled IS NULL OR p.enabled = :isEnabled)")
     Page<Product> findAdminProductsByKeyword(@Param("categoryId") UUID categoryId,
                                              @Param("keywordPattern") String keywordPattern,
                                              @Param("isEnabled") Boolean isEnabled,

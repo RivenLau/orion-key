@@ -45,7 +45,7 @@ public class Product extends BaseEntity {
     private boolean wholesaleEnabled = false;
 
     @Column(name = "is_enabled")
-    private boolean isEnabled = true;
+    private boolean enabled = true;
 
     private int sortOrder = 0;
 

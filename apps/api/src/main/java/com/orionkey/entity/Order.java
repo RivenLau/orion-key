@@ -55,7 +55,7 @@ public class Order extends BaseEntity {
     private String idempotencyKey;
 
     @Column(name = "is_risk_flagged")
-    private boolean isRiskFlagged = false;
+    private boolean riskFlagged = false;
 
     private String clientIp;
 

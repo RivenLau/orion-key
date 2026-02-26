@@ -31,7 +31,7 @@ public class PaymentChannel extends BaseEntity {
     private String configData;
 
     @Column(name = "is_enabled")
-    private boolean isEnabled = true;
+    private boolean enabled = true;
 
     private int sortOrder = 0;
 
