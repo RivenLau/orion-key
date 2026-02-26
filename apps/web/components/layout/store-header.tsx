@@ -7,7 +7,11 @@ import { ShoppingCart, User, LogIn, Menu, X, Globe, Moon, Sun, Package, Search, 
 import { useAuth, useLocale, useTheme, useColorScheme, useSearch, useCart, useSiteConfig, COLOR_SCHEMES, type SortKey } from "@/lib/context"
 import { cn } from "@/lib/utils"
 
-export function StoreHeader() {
+interface StoreHeaderProps {
+  siteName?: string
+}
+
+export function StoreHeader({ siteName }: StoreHeaderProps) {
   const { t, locale, setLocale } = useLocale()
   const { setTheme, resolvedTheme } = useTheme()
   const { isLoggedIn, user, logout, authLoaded } = useAuth()
@@ -93,7 +97,7 @@ export function StoreHeader() {
         <div className="flex min-w-0 flex-1 items-center">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 text-foreground">
             <Package className="h-6 w-6 text-primary" />
-            <span className="hidden text-lg font-extrabold tracking-tight sm:inline">{siteConfig?.site_name}</span>
+            <span className="hidden text-lg font-extrabold tracking-tight sm:inline">{siteName || siteConfig?.site_name}</span>
           </Link>
         </div>
 
