@@ -84,10 +84,10 @@ export function AdminSidebar() {
         {/* Logo area */}
         <div className="flex h-16 items-center justify-between border-b border-border px-4">
           {!collapsed && (
-            <Link href="/" className="flex items-center gap-2" title={t("admin.backToSite")}>
+            <a href="/" className="flex items-center gap-2" title={t("admin.backToSite")}>
               <Package className="h-6 w-6 text-primary" />
               <span className="font-semibold text-foreground">{siteConfig?.site_name}</span>
-            </Link>
+            </a>
           )}
           <button
             type="button"
