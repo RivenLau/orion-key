@@ -114,6 +114,12 @@
                     </excludes>
                 </configuration>
             </plugin>
+            <!-- Jib: 直接从 Maven 构建 Docker 镜像并推送到 GHCR（无需 Docker daemon） -->
+            <plugin>
+                <groupId>com.google.cloud.tools</groupId>
+                <artifactId>jib-maven-plugin</artifactId>
+                <version>3.5.1</version>
+            </plugin>
         </plugins>
     </build>
 </project>

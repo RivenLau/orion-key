@@ -1,0 +1,66 @@
+# ===================================================================
+# Orion Key 生产环境 Docker Compose 配置
+# ===================================================================
+#
+# 什么是 Docker Compose？
+#   一个管理多个 Docker 容器的工具。用一个 YAML 文件声明所有容器的配置，
+#   然后用一条命令统一启动、停止、查看日志。
+#
+# 核心命令（在 docker-compose.yml 所在目录执行）：
+#   docker compose pull           拉取最新镜像
+#   docker compose up -d          后台启动所有容器
+#   docker compose ps             查看容器状态
+#   docker compose logs -f        实时查看所有日志
+#   docker compose down           停止并移除所有容器
+#
+# 网络说明：
+#   Docker Compose 自动为所有 services 创建一个共享网络。
+#   容器间可以通过 service 名称互相访问（如 web 容器用 http://api:8083 访问 api 容器）。
+#   无需手动创建 docker network。
+#
+# 环境变量加载顺序：
+#   .env 文件 → docker compose 读取 → 注入到容器 → Spring Boot / Next.js 读取
+#
+# ===================================================================
+
+services:
+
+  # ── 后端 API 容器 ──
+  api:
+    # 镜像地址（由 CI/CD 自动更新 .env 中的 API_IMAGE）
+    image: ${API_IMAGE:-ghcr.io/OWNER/orion-key-api:latest}
+
+    # 端口映射：宿主机端口:容器端口
+    # 127.0.0.1 前缀 = 仅本机可访问（外部必须经过 Nginx，不会暴露到公网）
+    ports:
+      - "127.0.0.1:8083:8083"
+
+    # 从 .env 文件加载环境变量到容器内
+    # Spring Boot 的 application.yml 用 ${DB_URL:默认值} 语法读取这些变量
+    env_file: .env
+
+    # 卷挂载：宿主机目录 ↔ 容器目录
+    # 作用：上传的文件存储在宿主机，容器删除/重建后数据不会丢失
+    volumes:
+      - ./uploads:/app/uploads
+
+    # 容器崩溃或服务器重启后自动恢复（除非手动 docker compose stop）
+    restart: unless-stopped
+
+  # ── 前端 Web 容器 ──
+  web:
+    image: ${WEB_IMAGE:-ghcr.io/OWNER/orion-key-web:latest}
+
+    ports:
+      - "127.0.0.1:3000:3000"
+
+    # 单独设置环境变量（Next.js SSR 调用后端时使用）
+    # "api" 是上面后端 service 的名字，Docker Compose 网络内可以用 service 名代替 IP
+    environment:
+      - BACKEND_URL=http://api:8083
+
+    # 依赖声明：确保 api 容器先启动
+    depends_on:
+      - api
+
+    restart: unless-stopped

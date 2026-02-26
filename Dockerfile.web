@@ -1,0 +1,100 @@
+# ===================================================================
+# Orion Key 前端 Docker 镜像构建文件（多阶段构建）
+# ===================================================================
+#
+# 什么是 Docker 镜像？
+#   镜像 = 一个"打包好的运行环境"，包含代码、依赖、配置，可以在任何装了 Docker 的机器上运行。
+#
+# 什么是多阶段构建？
+#   把"构建"和"运行"分成两个阶段：
+#     Stage 1 (builder): 安装所有依赖 + 编译 Next.js → 体积大（~1GB+）
+#     Stage 2 (runner):  只复制编译产物，丢弃源码和开发依赖 → 体积小（~150MB）
+#   好处：最终镜像非常精简，减少安全攻击面和传输时间。
+#
+# ===================================================================
+
+# ── Stage 1: 构建阶段 ──
+
+# FROM: 指定基础镜像
+#   node:22-alpine = 带 Node.js 22 的 Alpine Linux（一个极精简的 Linux 发行版，~5MB）
+#   AS builder = 给这个阶段取名叫 "builder"，后面可以用 --from=builder 引用它的产物
+FROM node:22-alpine AS builder
+
+# corepack 是 Node.js 内置的包管理器管理工具
+# 启用它才能使用 pnpm（本项目使用 pnpm 管理依赖）
+RUN corepack enable
+
+# WORKDIR: 设置容器内的工作目录（类似 cd，不存在会自动创建）
+# 后续所有命令都在 /app 目录下执行
+WORKDIR /app
+
+# ── 依赖安装（利用 Docker 层缓存优化构建速度）──
+#
+# Docker 的核心优化机制："层缓存"
+#   Docker 构建镜像时，每条指令生成一个"层"。如果某一层的输入文件没变，
+#   Docker 会直接复用缓存，跳过执行。
+#
+# 策略：先只复制依赖声明文件 → 安装依赖 → 再复制源码
+#   这样当你只改了业务代码（没改依赖），Docker 会跳过耗时的 pnpm install，
+#   直接从"复制源码"这一步开始，大幅加速构建。
+
+# 复制 monorepo 根配置和前端的 package.json
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
+COPY apps/web/package.json ./apps/web/
+
+# --frozen-lockfile: 严格按锁文件安装，保证所有环境的依赖版本完全一致
+RUN pnpm install --frozen-lockfile
+
+# ── 源码复制与构建 ──
+
+# 现在复制实际源码（这一步会在代码变更时重新执行，但依赖层已缓存）
+COPY apps/web/ ./apps/web/
+COPY packages/ ./packages/
+
+# 构建 Next.js 生产版本
+# --filter @orion-key/web: pnpm 工作区过滤器，只构建前端包
+# 构建产物在 apps/web/.next/ 目录下
+RUN pnpm --filter @orion-key/web build
+
+
+# ── Stage 2: 运行阶段 ──
+
+# 从一个全新的基础镜像开始（不继承 Stage 1 的源码和 node_modules）
+FROM node:22-alpine AS runner
+WORKDIR /app
+
+# 告诉 Node.js 以生产模式运行（禁用开发调试功能，优化性能）
+ENV NODE_ENV=production
+
+# 安全最佳实践：创建非 root 用户
+# 生产环境永远不要以 root 运行应用，防止容器逃逸时获得宿主机 root 权限
+RUN addgroup --system --gid 1001 nodejs \
+ && adduser --system --uid 1001 nextjs
+
+# --from=builder: 从 Stage 1 的构建产物中复制文件（不是从宿主机）
+#
+# Next.js standalone 模式会生成一个独立的 server.js + 最小化的 node_modules
+# 不需要完整的 node_modules 目录，体积从 ~500MB 缩小到 ~30MB
+#
+# 需要复制三部分：
+#   1. public/     - 静态资源（favicon、图片等）
+#   2. standalone/ - 可独立运行的 Node.js 服务端
+#   3. static/     - Next.js 编译后的前端静态文件（JS/CSS）
+COPY --from=builder /app/apps/web/public ./apps/web/public
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/standalone ./
+COPY --from=builder --chown=nextjs:nodejs /app/apps/web/.next/static ./apps/web/.next/static
+
+# 切换到非 root 用户
+USER nextjs
+
+# EXPOSE: 声明容器内应用监听的端口（仅作文档用途，实际端口映射由 docker run -p 控制）
+EXPOSE 3000
+
+# 设置 Next.js 运行参数
+#   PORT=3000       - 监听端口
+#   HOSTNAME=0.0.0.0 - 监听所有网络接口（必须，否则容器外无法访问）
+ENV PORT=3000 HOSTNAME="0.0.0.0"
+
+# CMD: 容器启动时执行的命令
+# 运行 Next.js standalone 服务端
+CMD ["node", "apps/web/server.js"]

@@ -1,0 +1,22 @@
+# Docker 构建时忽略的文件/目录（类似 .gitignore）
+# 减小构建上下文体积，加速镜像构建
+
+# 版本控制
+.git/
+
+# 依赖目录（容器内会重新安装）
+**/node_modules/
+
+# 构建产物（容器内会重新构建）
+**/.next/
+apps/api/target/
+
+# 后端代码（前端 Docker 镜像不需要）
+apps/api/
+
+# 非代码文件
+tmp/
+ui_picture/
+docs/
+.claude/
+.idea/
