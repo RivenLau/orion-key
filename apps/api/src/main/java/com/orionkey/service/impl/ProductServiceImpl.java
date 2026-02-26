@@ -35,7 +35,8 @@ public class ProductServiceImpl implements ProductService {
 
     @Override
     public PageResult<?> listPublicProducts(UUID categoryId, String keyword, int page, int pageSize) {
-        var pageable = PageRequest.of(page - 1, pageSize, Sort.by("sortOrder").ascending());
+        var pageable = PageRequest.of(page - 1, pageSize,
+                Sort.by("sortOrder").ascending().and(Sort.by("createdAt").descending()));
         Page<Product> productPage;
         if (keyword != null && !keyword.isBlank()) {
             productPage = productRepository.findPublicProductsByKeyword(categoryId, "%" + keyword.toLowerCase() + "%", pageable);
@@ -241,6 +242,8 @@ public class ProductServiceImpl implements ProductService {
         map.put("stock_available", stockAvailable);
         map.put("has_specs", !specs.isEmpty());
         map.put("delivery_type", p.getDeliveryType());
+        map.put("sales_count", orderItemRepository.sumQuantityByProductId(p.getId()));
+        map.put("created_at", p.getCreatedAt());
         return map;
     }
 

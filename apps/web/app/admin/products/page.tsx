@@ -559,12 +559,20 @@ export default function AdminProductsPage() {
                   <p className="text-xs text-muted-foreground">建议 1:1 正方形图片，支持 JPG/PNG/GIF/WebP，用于商品卡和详情页展示</p>
                 </div>
               </div>
-              {/* 低库存预警 + 上架状态 */}
+              {/* 排序权重 + 低库存预警 */}
               <div className="grid grid-cols-2 gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-foreground">排序权重</label>
+                  <input type="number" className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0" value={formData.sort_order} onChange={(e) => setFormData({ ...formData, sort_order: e.target.value })} />
+                  <p className="text-xs text-muted-foreground">数字越小越靠前，默认为 0</p>
+                </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-foreground">{t("admin.lowStockAlert")}</label>
                   <input type="number" className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="10" value={formData.low_stock_threshold} onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })} />
                 </div>
+              </div>
+              {/* 上架状态 */}
+              <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-foreground">{t("admin.listingStatus")}</label>
                   <div className="flex h-10 items-center gap-2">
