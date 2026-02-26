@@ -6,12 +6,7 @@ export default async function StoreLayout({ children }: { children: React.ReactN
   const config = await getSiteConfig().catch(() => null)
 
   return (
-    <StoreShell
-      siteName={config?.site_name || ""}
-      footerText={config?.footer_text || ""}
-      contactEmail={config?.contact_email || ""}
-      githubUrl={config?.github_url || ""}
-    >
+    <StoreShell siteName={config?.site_name || ""}>
       {children}
     </StoreShell>
   )
