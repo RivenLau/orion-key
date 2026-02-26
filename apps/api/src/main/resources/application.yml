@@ -38,8 +38,8 @@ security:
 
 # Upload
 upload:
-  path: ${UPLOAD_PATH:/data/orion-key/uploads}
-  url-prefix: /uploads
+  path: ${UPLOAD_PATH:./uploads}
+  url-prefix: ${UPLOAD_URL_PREFIX:/api/uploads}
 
 # Logging
 logging:

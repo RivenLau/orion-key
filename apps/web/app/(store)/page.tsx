@@ -117,11 +117,11 @@ export default function HomePage() {
         <div className="scheme-blob pointer-events-none absolute -right-16 bottom-0 h-32 w-48 rounded-full blur-3xl opacity-60" />
         <h1 className="relative text-balance text-2xl font-extrabold tracking-tight sm:text-3xl">
           <span className="scheme-gradient-text">
-            {siteConfig?.site_slogan || t("home.heroTitle")}
+            {siteConfig?.site_slogan}
           </span>
         </h1>
         <p className="relative mt-3 text-sm text-muted-foreground">
-          {siteConfig?.site_description || t("home.heroSub")}
+          {siteConfig?.site_description}
         </p>
       </section>
 

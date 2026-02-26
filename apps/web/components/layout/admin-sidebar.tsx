@@ -86,7 +86,7 @@ export function AdminSidebar() {
           {!collapsed && (
             <Link href="/" className="flex items-center gap-2" title={t("admin.backToSite")}>
               <Package className="h-6 w-6 text-primary" />
-              <span className="font-semibold text-foreground">{siteConfig?.site_name || "Orion Key"}</span>
+              <span className="font-semibold text-foreground">{siteConfig?.site_name}</span>
             </Link>
           )}
           <button
