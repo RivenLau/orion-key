@@ -49,7 +49,6 @@ RUN pnpm install --frozen-lockfile
 
 # 现在复制实际源码（这一步会在代码变更时重新执行，但依赖层已缓存）
 COPY apps/web/ ./apps/web/
-COPY packages/ ./packages/
 
 # 构建 Next.js 生产版本
 # --filter @orion-key/web: pnpm 工作区过滤器，只构建前端包
