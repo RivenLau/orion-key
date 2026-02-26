@@ -10,33 +10,24 @@ function GithubIcon({ className }: { className?: string }) {
   )
 }
 
-interface StoreFooterProps {
-  footerText?: string
-  contactEmail?: string
-  githubUrl?: string
-}
-
-export function StoreFooter({ footerText, contactEmail, githubUrl }: StoreFooterProps) {
+export function StoreFooter() {
+  const { t } = useLocale()
   const { config } = useSiteConfig()
-
-  const text = footerText || config?.footer_text
-  const email = contactEmail || config?.contact_email
-  const github = githubUrl || config?.github_url
 
   return (
     <footer className="border-t border-border bg-muted/40">
       <div className="mx-auto flex h-14 max-w-7xl items-center justify-center gap-4 px-4 lg:px-6">
         <p className="text-sm text-muted-foreground">
-          {text}
+          {config?.footer_text}
         </p>
-        {email && (
-          <a href={`mailto:${email}`} className="text-xs text-muted-foreground hover:text-foreground">
-            {email}
+        {config?.contact_email && (
+          <a href={`mailto:${config.contact_email}`} className="text-xs text-muted-foreground hover:text-foreground">
+            {config.contact_email}
           </a>
         )}
-        {github && (
+        {config?.github_url && (
           <a
-            href={github}
+            href={config.github_url}
             target="_blank"
             rel="noopener noreferrer"
             className="text-muted-foreground transition-colors hover:text-foreground"
