@@ -16,7 +16,7 @@ const nextConfig = {
   },
   // 开发模式: 将 /api/* 代理到 Spring Boot 后端（含上传文件 /api/uploads/*）
   async rewrites() {
-    const backendUrl = process.env.BACKEND_URL || "http://localhost:8082"
+    const backendUrl = process.env.BACKEND_URL || "http://localhost:8083"
     return [
       {
         source: "/api/:path*",
