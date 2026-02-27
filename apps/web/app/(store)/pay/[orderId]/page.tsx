@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from "react"
 import { use } from "react"
 import Link from "next/link"
-import { useSearchParams } from "next/navigation"
+import { useSearchParams, useRouter } from "next/navigation"
 import {
   Clock,
   CheckCircle2,
@@ -30,6 +30,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   const { t } = useLocale()
   const searchParams = useSearchParams()
 
+  const router = useRouter()
   const { refreshCart } = useCart()
 
   const [status, setStatus] = useState<OrderStatus>("PENDING")
@@ -171,7 +172,19 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     return `${m.toString().padStart(2, "0")}:${s.toString().padStart(2, "0")}`
   }
 
-  // Success state
+  // Success state — 倒计时自动跳转订单查询页
+  const [redirectCount, setRedirectCount] = useState(5)
+
+  useEffect(() => {
+    if (status !== "PAID" && status !== "DELIVERED") return
+    if (redirectCount <= 0) {
+      router.push(`/order/query?orderId=${orderId}`)
+      return
+    }
+    const timer = setTimeout(() => setRedirectCount((prev) => prev - 1), 1000)
+    return () => clearTimeout(timer)
+  }, [status, redirectCount, orderId, router])
+
   if (status === "PAID" || status === "DELIVERED") {
     return (
       <div className="mx-auto flex max-w-md flex-col items-center py-16">
@@ -179,7 +192,10 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           <CheckCircle2 className="h-12 w-12 text-emerald-600 dark:text-emerald-400" />
         </div>
         <h1 className="mb-2 text-xl font-bold text-foreground">{t("payment.success")}</h1>
-        <p className="mb-6 text-sm text-muted-foreground">{t("payment.successDesc")}</p>
+        <p className="mb-4 text-sm text-muted-foreground">
+          {t("payment.successDesc").replace("{seconds}", String(redirectCount))}
+        </p>
+        <p className="mb-6 text-xs text-muted-foreground/70">{t("payment.successRedirectHint")}</p>
         <Link
           href={`/order/query?orderId=${orderId}`}
           className="inline-flex h-10 items-center rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"

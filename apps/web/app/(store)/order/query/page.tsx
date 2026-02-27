@@ -77,14 +77,20 @@ export default function OrderQueryPage() {
 
       setOrders(found)
 
-      // Auto-deliver for DELIVERED orders
-      const deliveredIds = found.filter(o => o.status === "DELIVERED").map(o => o.id)
-      if (deliveredIds.length > 0) {
+      // Auto-deliver: PAID 触发发货分配卡密，DELIVERED 幂等返回已分配卡密
+      const deliverableIds = found.filter(o => o.status === "PAID" || o.status === "DELIVERED").map(o => o.id)
+      if (deliverableIds.length > 0) {
         const delivered = await withMockFallback(
-          () => orderApi.deliver({ order_ids: deliveredIds }),
-          () => mockDeliver(deliveredIds)
+          () => orderApi.deliver({ order_ids: deliverableIds }),
+          () => mockDeliver(deliverableIds)
         )
         setDeliverResults(delivered)
+        // deliver 可能将 PAID 变为 DELIVERED，同步更新本地订单状态
+        const statusMap = new Map(delivered.map(d => [d.order_id, d.status]))
+        setOrders(prev => prev.map(o => {
+          const newStatus = statusMap.get(o.id)
+          return newStatus && newStatus !== o.status ? { ...o, status: newStatus } : o
+        }))
       }
 
       // Save to recent queries
