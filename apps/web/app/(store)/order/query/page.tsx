@@ -194,50 +194,7 @@ export default function OrderQueryPage() {
         </div>
       </div>
 
-      {/* Recent Queries */}
-      {recentQueries.length > 0 && (
-        <div className="rounded-lg border border-border bg-card p-4">
-          <div className="mb-3 flex items-center justify-between">
-            <h2 className="text-sm font-semibold text-foreground">{t("order.recentOrders")}</h2>
-          </div>
-          <p className="mb-3 text-xs text-muted-foreground">{t("order.recentOrdersDesc")}</p>
-
-          <div className="space-y-2">
-            {recentQueries.map((recent) => (
-              <div
-                key={recent.value}
-                className="flex items-center justify-between rounded-lg border border-border bg-background p-3 transition-colors hover:border-primary/30 hover:bg-accent"
-              >
-                <button
-                  onClick={() => quickQuery(recent.value)}
-                  className="flex flex-1 items-center gap-3 text-left"
-                >
-                  <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
-                  <div className="flex-1 min-w-0">
-                    <p className="font-mono text-sm font-medium text-foreground truncate">
-                      {recent.value.length > 30 ? `${recent.value.slice(0, 12)}...${recent.value.slice(-8)}` : recent.value}
-                    </p>
-                    <p className="text-xs text-muted-foreground">
-                      {formatTimeAgo(recent.timestamp)}
-                    </p>
-                  </div>
-                </button>
-                <button
-                  onClick={(e) => {
-                    e.stopPropagation()
-                    setDeleteConfirm(recent.value)
-                  }}
-                  className="ml-2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-                >
-                  <X className="h-4 w-4" />
-                </button>
-              </div>
-            ))}
-          </div>
-        </div>
-      )}
-
-      {/* Results */}
+      {/* Results — 有查询结果时优先展示在最近订单上方 */}
       {isSearching && (
         <div className="flex items-center justify-center py-12">
           <div className="h-6 w-6 animate-spin rounded-full border-2 border-primary border-t-transparent" />
@@ -343,6 +300,49 @@ export default function OrderQueryPage() {
           </div>
         )
       })}
+
+      {/* Recent Queries — 无查询结果时显示，有结果时自动隐藏 */}
+      {recentQueries.length > 0 && orders.length === 0 && !isSearching && (
+        <div className="rounded-lg border border-border bg-card p-4">
+          <div className="mb-3 flex items-center justify-between">
+            <h2 className="text-sm font-semibold text-foreground">{t("order.recentOrders")}</h2>
+          </div>
+          <p className="mb-3 text-xs text-muted-foreground">{t("order.recentOrdersDesc")}</p>
+
+          <div className="space-y-2">
+            {recentQueries.map((recent) => (
+              <div
+                key={recent.value}
+                className="flex items-center justify-between rounded-lg border border-border bg-background p-3 transition-colors hover:border-primary/30 hover:bg-accent"
+              >
+                <button
+                  onClick={() => quickQuery(recent.value)}
+                  className="flex flex-1 items-center gap-3 text-left"
+                >
+                  <Clock className="h-4 w-4 shrink-0 text-muted-foreground" />
+                  <div className="flex-1 min-w-0">
+                    <p className="font-mono text-sm font-medium text-foreground truncate">
+                      {recent.value.length > 30 ? `${recent.value.slice(0, 12)}...${recent.value.slice(-8)}` : recent.value}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      {formatTimeAgo(recent.timestamp)}
+                    </p>
+                  </div>
+                </button>
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation()
+                    setDeleteConfirm(recent.value)
+                  }}
+                  className="ml-2 rounded p-1 text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+                >
+                  <X className="h-4 w-4" />
+                </button>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Delete Confirmation Dialog */}
       <Modal open={deleteConfirm !== null} onClose={() => setDeleteConfirm(null)} className="max-w-md">
