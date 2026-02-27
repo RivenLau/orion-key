@@ -152,6 +152,15 @@ public class OrderServiceImpl implements OrderService {
                     .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
                     .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在或已下架"));
 
+            // Advisory stock check (same pattern as createDirectOrder)
+            long available = ci.getSpecId() != null
+                    ? cardKeyRepository.countByProductIdAndSpecIdAndStatus(ci.getProductId(), ci.getSpecId(), CardKeyStatus.AVAILABLE)
+                    : cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(ci.getProductId(), CardKeyStatus.AVAILABLE);
+            if (available < ci.getQuantity()) {
+                throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK,
+                        "商品「" + product.getTitle() + "」库存不足");
+            }
+
             BigDecimal unitPrice = getUnitPrice(product, ci.getSpecId(), ci.getQuantity());
             BigDecimal subtotal = unitPrice.multiply(BigDecimal.valueOf(ci.getQuantity()));
             totalAmount = totalAmount.add(subtotal);

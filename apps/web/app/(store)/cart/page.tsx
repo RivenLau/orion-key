@@ -118,11 +118,15 @@ export default function CartPage() {
                   </span>
                   <button
                     onClick={() => handleUpdateQuantity(item.id, item.quantity + 1)}
-                    className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground hover:bg-accent"
+                    className="inline-flex h-7 w-7 items-center justify-center text-muted-foreground hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+                    disabled={item.stock_available != null && item.quantity >= item.stock_available}
                   >
                     <Plus className="h-3 w-3" />
                   </button>
                 </div>
+                {item.stock_available != null && item.quantity > item.stock_available && (
+                  <p className="text-xs text-destructive">{t("product.stockInsufficient")}</p>
+                )}
               </div>
             </div>
 
