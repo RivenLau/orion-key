@@ -11,7 +11,7 @@
 -- ────────────────────────────────────────
 INSERT INTO users (id, username, email, password_hash, role, points, is_deleted, created_at, updated_at)
 SELECT gen_random_uuid(), 'admin', 'admin@orionkey.com',
-       '$2a$10$Mj1KtVw.5d/Q7tZXuCu8ouHQ4.UBoyfdZGd8zl8cjnldBIst/pooa',
+       '123456',
        'ADMIN', 0, 0, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
@@ -26,22 +26,26 @@ WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'site_name');
 
 -- 站点标语，显示在首页 Hero 区域
 INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
-SELECT gen_random_uuid(), 'site_slogan', 'Unlock Your AI Potential', 'site', NOW(), NOW()
+SELECT gen_random_uuid(), 'site_slogan', 'Instant Keys, Anytime', 'site', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'site_slogan');
 
 -- 站点描述，显示在首页副标题 / SEO
 INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
-SELECT gen_random_uuid(), 'site_description', 'ChatGPT / Claude / Midjourney 等 AI 账号与密钥，自动发货，安全可靠', 'site', NOW(), NOW()
+SELECT gen_random_uuid(), 'site_description', 'Automated delivery, available 24/7.', 'site', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'site_description');
 
--- GitHub 仓库地址，显示在页脚（留空则不显示）
+-- 页脚（留空则不显示）
 INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
-SELECT gen_random_uuid(), 'github_url', '', 'site', NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'github_url');
+SELECT gen_random_uuid(), 'footer_text', '由开源 Orion Key 提供服务', 'site', NOW(), NOW()
+    WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'footer_text');
+
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'github_url', 'https://github.com/RivenLau/orion-key', 'site', NOW(), NOW()
+    WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'github_url');
 
 -- 积分功能总开关 (true/false)
 INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
-SELECT gen_random_uuid(), 'points_enabled', 'true', 'site', NOW(), NOW()
+SELECT gen_random_uuid(), 'points_enabled', 'false', 'site', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'points_enabled');
 
 -- 积分倍率：每消费 1 元获得的积分数
@@ -95,33 +99,12 @@ WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'max_pending_ord
 
 -- 未支付订单自动过期时间（分钟）
 INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
-SELECT gen_random_uuid(), 'order_expire_minutes', '30', 'risk', NOW(), NOW()
+SELECT gen_random_uuid(), 'order_expire_minutes', '15', 'risk', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'order_expire_minutes');
 
--- ────────────────────────────────────────
--- 4. 支付渠道（易支付聚合支付）
--- ────────────────────────────────────────
--- Migrate legacy uppercase channel codes to lowercase
-UPDATE payment_channels SET channel_code = 'wechat' WHERE channel_code = 'WECHAT';
-UPDATE payment_channels SET channel_code = 'alipay' WHERE channel_code = 'ALIPAY';
-
--- Backfill provider_type for existing rows (JPA ddl-auto will create the column)
-UPDATE payment_channels SET provider_type = 'epay' WHERE provider_type IS NULL;
-
-INSERT INTO payment_channels (id, channel_code, channel_name, provider_type, config_data, is_enabled, sort_order, is_deleted, created_at, updated_at)
-SELECT gen_random_uuid(), 'wechat', '微信支付', 'epay',
-       '{"pid":"YOUR_PID","key":"YOUR_KEY","api_url":"https://pay.example.com/","notify_url":"https://yourdomain.com/api/payments/webhook/epay","return_url":"https://yourdomain.com/pay"}',
-       false, 1, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM payment_channels WHERE channel_code = 'wechat');
-
-INSERT INTO payment_channels (id, channel_code, channel_name, provider_type, config_data, is_enabled, sort_order, is_deleted, created_at, updated_at)
-SELECT gen_random_uuid(), 'alipay', '支付宝', 'epay',
-       '{"pid":"YOUR_PID","key":"YOUR_KEY","api_url":"https://pay.example.com/","notify_url":"https://yourdomain.com/api/payments/webhook/epay","return_url":"https://yourdomain.com/pay"}',
-       false, 2, 0, NOW(), NOW()
-WHERE NOT EXISTS (SELECT 1 FROM payment_channels WHERE channel_code = 'alipay');
 
 -- ────────────────────────────────────────
--- 5. 货币类型
+-- 4. 货币类型
 -- ────────────────────────────────────────
 INSERT INTO currencies (id, code, name, symbol, is_enabled, sort_order, created_at, updated_at)
 SELECT gen_random_uuid(), 'CNY', '人民币', '¥', true, 1, NOW(), NOW()
@@ -144,7 +127,7 @@ SELECT gen_random_uuid(), 'GBP', '英镑', '£', true, 5, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM currencies WHERE code = 'GBP');
 
 -- ────────────────────────────────────────
--- 6. 测试数据：商品分类 + 商品 + 卡密（开发/演示用，生产可删除此段）
+-- 5. 测试数据：商品分类 + 商品 + 卡密（开发/演示用，生产可删除此段）
 -- ────────────────────────────────────────
 
 -- 分类：游戏充值
@@ -234,3 +217,5 @@ INSERT INTO card_keys (id, product_id, content, status, created_at, updated_at)
 SELECT gen_random_uuid(), 'b0000000-0000-0000-0000-000000000006'::uuid, 'SPOTIFY-TEST-' || i, 'AVAILABLE', NOW(), NOW()
 FROM generate_series(1, 3) AS i
 WHERE NOT EXISTS (SELECT 1 FROM card_keys WHERE content = 'SPOTIFY-TEST-1' AND product_id = 'b0000000-0000-0000-0000-000000000006'::uuid);
+
+commit;

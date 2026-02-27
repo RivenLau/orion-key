@@ -28,15 +28,15 @@ import type { TranslationKey } from "@/lib/i18n"
 
 const navItems: { labelKey: TranslationKey; href: string; icon: typeof LayoutDashboard }[] = [
   { labelKey: "admin.dashboard", href: "/admin/dashboard", icon: LayoutDashboard },
-  { labelKey: "admin.products", href: "/admin/products", icon: Package },
   { labelKey: "admin.categories", href: "/admin/categories", icon: FolderTree },
+  { labelKey: "admin.products", href: "/admin/products", icon: Package },
   { labelKey: "admin.cardKeys", href: "/admin/card-keys", icon: KeyRound },
   { labelKey: "admin.orders", href: "/admin/orders", icon: ShoppingCart },
   { labelKey: "admin.users", href: "/admin/users", icon: Users },
   { labelKey: "admin.payment", href: "/admin/payment-channels", icon: CreditCard },
   { labelKey: "admin.siteConfig", href: "/admin/site-config", icon: Settings },
-  { labelKey: "admin.logs", href: "/admin/operation-logs", icon: ScrollText },
   { labelKey: "admin.risk", href: "/admin/risk", icon: ShieldAlert },
+  { labelKey: "admin.logs", href: "/admin/operation-logs", icon: ScrollText },
 ]
 
 export function AdminSidebar() {

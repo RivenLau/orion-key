@@ -22,7 +22,6 @@ import type { OrderStatus } from "@/types"
 import { cn } from "@/lib/utils"
 import { PaymentIcon, getPaymentLabel, getPaymentBrandColor, getPaymentScanHint } from "@/components/shared/payment-icon"
 
-const PAYMENT_TIMEOUT = 15 * 60 // 15 minutes in seconds
 const POLL_INTERVAL = 3000 // 3 seconds
 const MANUAL_REFRESH_COOLDOWN = 10 // 10 seconds
 
@@ -34,7 +33,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   const { refreshCart } = useCart()
 
   const [status, setStatus] = useState<OrderStatus>("PENDING")
-  const [timeLeft, setTimeLeft] = useState(PAYMENT_TIMEOUT)
+  const [timeLeft, setTimeLeft] = useState(-1) // -1 = 等待服务端返回真实倒计时，避免闪屏
   const [refreshCooldown, setRefreshCooldown] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [qrcodeUrl, setQrcodeUrl] = useState<string>("")
@@ -71,9 +70,9 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     fetchOrderInfo()
   }, [orderId, searchParams])
 
-  // Countdown timer
+  // Countdown timer — 仅在服务端返回真实倒计时后才开始递减
   useEffect(() => {
-    if (status !== "PENDING") return
+    if (status !== "PENDING" || timeLeft < 0) return
     const timer = setInterval(() => {
       setTimeLeft((prev) => {
         if (prev <= 1) {
@@ -84,7 +83,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       })
     }, 1000)
     return () => clearInterval(timer)
-  }, [status])
+  }, [status, timeLeft < 0])
 
   // Auto polling for payment status
   useEffect(() => {
@@ -144,6 +143,28 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     }
   }, [refreshCooldown, isRefreshing, orderId, t])
 
+  const copyToClipboard = useCallback((text: string) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => toast.success(t("order.copied")),
+        () => fallbackCopy(text)
+      )
+    } else {
+      fallbackCopy(text)
+    }
+    function fallbackCopy(val: string) {
+      const ta = document.createElement("textarea")
+      ta.value = val
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand("copy")
+      document.body.removeChild(ta)
+      toast.success(t("order.copied"))
+    }
+  }, [t])
+
   const formatTime = (seconds: number) => {
     const m = Math.floor(seconds / 60)
     const s = seconds % 60
@@ -202,10 +223,10 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           <span
             className={cn(
               "font-mono text-lg font-bold",
-              timeLeft < 120 ? "text-destructive" : "text-foreground"
+              timeLeft >= 0 && timeLeft < 120 ? "text-destructive" : "text-foreground"
             )}
           >
-            {formatTime(timeLeft)}
+            {timeLeft < 0 ? "--:--" : formatTime(timeLeft)}
           </span>
         </div>
 
@@ -254,13 +275,17 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
         <div className="flex w-full items-center justify-between border-t border-border pt-4 text-sm">
           <span className="text-muted-foreground">{t("payment.orderNo")}</span>
           <span className="flex items-center gap-1 font-mono text-xs text-foreground">
-            {orderId.length > 20 ? `${orderId.slice(0, 8)}...${orderId.slice(-8)}` : orderId}
+            <span
+              className="cursor-pointer select-all rounded px-0.5 transition-colors hover:bg-accent"
+              title={orderId}
+              onClick={() => copyToClipboard(orderId)}
+            >
+              {orderId.length > 20 ? `${orderId.slice(0, 8)}...${orderId.slice(-8)}` : orderId}
+            </span>
             <button
-              onClick={() => {
-                navigator.clipboard.writeText(orderId)
-                toast.success(t("order.copied"))
-              }}
-              className="text-muted-foreground hover:text-foreground"
+              type="button"
+              onClick={() => copyToClipboard(orderId)}
+              className="text-muted-foreground hover:text-foreground transition-colors"
             >
               <Copy className="h-3.5 w-3.5" />
             </button>
