@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { useLocale } from "@/lib/context"
 import { useAuth } from "@/lib/context"
 import { useRequireAuth } from "@/lib/hooks"
-import { userApi, withMockFallback } from "@/services/api"
+import { userApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockPointsData } from "@/lib/mock-data"
 import type { PointRecord } from "@/types"
 import { cn } from "@/lib/utils"
@@ -123,8 +123,7 @@ function ChangePasswordForm() {
       toast.success(t("common.success"))
       setForm({ oldPassword: "", newPassword: "", confirmNew: "" })
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.error")
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, t))
     } finally {
       setIsLoading(false)
     }

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation"
 import { Trash2, Minus, Plus, ShoppingCart, ArrowRight, Package } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useCart } from "@/lib/context"
+import { getApiErrorMessage } from "@/services/api"
 import { cn } from "@/lib/utils"
 
 export default function CartPage() {
@@ -19,8 +20,7 @@ export default function CartPage() {
     try {
       await updateItem(itemId, qty)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.error")
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, t))
     }
   }
 
@@ -29,8 +29,7 @@ export default function CartPage() {
       await removeItem(itemId)
       toast.success(t("cart.remove"))
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.error")
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, t))
     }
   }
 

@@ -6,6 +6,7 @@ export interface ApiResponse<T = unknown> {
   code: number
   message: string
   data: T
+  params?: Record<string, string | number>
 }
 
 export interface Pagination {

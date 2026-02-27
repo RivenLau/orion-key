@@ -22,7 +22,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiResponse<Void>> handleBusiness(BusinessException e) {
         log.warn("Business exception: code={}, message={}", e.getCode(), e.getMessage());
         return ResponseEntity.status(e.getHttpStatus())
-                .body(ApiResponse.error(e.getCode(), e.getMessage()));
+                .body(ApiResponse.error(e.getCode(), e.getMessage(), e.getParams()));
     }
 
     @ExceptionHandler(MethodArgumentNotValidException.class)
@@ -37,19 +37,19 @@ public class GlobalExceptionHandler {
     @ExceptionHandler(AuthenticationException.class)
     public ResponseEntity<ApiResponse<Void>> handleAuth(AuthenticationException e) {
         return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
-                .body(ApiResponse.error(ErrorCode.UNAUTHORIZED, "未登录或会话已过期，请重新登录"));
+                .body(ApiResponse.error(ErrorCode.UNAUTHORIZED, "Not logged in or session expired"));
     }
 
     @ExceptionHandler(AccessDeniedException.class)
     public ResponseEntity<ApiResponse<Void>> handleAccessDenied(AccessDeniedException e) {
         return ResponseEntity.status(HttpStatus.FORBIDDEN)
-                .body(ApiResponse.error(ErrorCode.FORBIDDEN, "无权限访问"));
+                .body(ApiResponse.error(ErrorCode.FORBIDDEN, "Access denied"));
     }
 
     @ExceptionHandler(Exception.class)
     public ResponseEntity<ApiResponse<Void>> handleGeneral(Exception e) {
         log.error("Unexpected error", e);
         return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR)
-                .body(ApiResponse.error(ErrorCode.SERVER_ERROR, "系统异常，请稍后重试"));
+                .body(ApiResponse.error(ErrorCode.SERVER_ERROR, "System error, please try again later"));
     }
 }

@@ -167,7 +167,7 @@ public class ProductServiceImpl implements ProductService {
     public void updateSpec(UUID productId, UUID specId, Map<String, Object> req) {
         ProductSpec spec = productSpecRepository.findById(specId)
                 .filter(s -> s.getProductId().equals(productId) && s.getIsDeleted() == 0)
-                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "规格不存在"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SPEC_NOT_FOUND, "规格不存在"));
         if (req.containsKey("name")) spec.setName((String) req.get("name"));
         if (req.containsKey("price")) spec.setPrice(new BigDecimal(req.get("price").toString()));
         if (req.containsKey("is_visible")) spec.setVisible((boolean) req.get("is_visible"));
@@ -180,7 +180,7 @@ public class ProductServiceImpl implements ProductService {
     public void deleteSpec(UUID productId, UUID specId) {
         ProductSpec spec = productSpecRepository.findById(specId)
                 .filter(s -> s.getProductId().equals(productId))
-                .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "规格不存在"));
+                .orElseThrow(() -> new BusinessException(ErrorCode.SPEC_NOT_FOUND, "规格不存在"));
         spec.setIsDeleted(1);
         productSpecRepository.save(spec);
     }

@@ -63,7 +63,8 @@ public class OrderServiceImpl implements OrderService {
                 ? cardKeyRepository.countByProductIdAndSpecIdAndStatus(productId, specId, CardKeyStatus.AVAILABLE)
                 : cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(productId, CardKeyStatus.AVAILABLE);
         if (available < quantity) {
-            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足");
+            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK, "库存不足",
+                    Map.of("available", available));
         }
 
         BigDecimal unitPrice = getUnitPrice(product, specId, quantity);
@@ -158,7 +159,8 @@ public class OrderServiceImpl implements OrderService {
                     : cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(ci.getProductId(), CardKeyStatus.AVAILABLE);
             if (available < ci.getQuantity()) {
                 throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK,
-                        "商品「" + product.getTitle() + "」库存不足");
+                        "商品「" + product.getTitle() + "」库存不足",
+                        Map.of("available", available, "title", product.getTitle()));
             }
 
             BigDecimal unitPrice = getUnitPrice(product, ci.getSpecId(), ci.getQuantity());

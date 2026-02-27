@@ -47,9 +47,11 @@ const API_BASE = process.env.NEXT_PUBLIC_API_BASE || "/api"
 
 class ApiError extends Error {
   code: number
-  constructor(code: number, message: string) {
+  params?: Record<string, string | number>
+  constructor(code: number, message: string, params?: Record<string, string | number>) {
     super(message)
     this.code = code
+    this.params = params
     this.name = "ApiError"
   }
 }
@@ -160,13 +162,13 @@ async function request<T>(
       handleUnauthorized()
     }
     const body = await res.json().catch(() => ({ code: res.status, message: res.statusText }))
-    throw new ApiError(body.code || res.status, body.message || res.statusText)
+    throw new ApiError(body.code || res.status, body.message || res.statusText, body.params)
   }
 
   const body: ApiResponse<T> = await res.json()
 
   if (body.code !== 0) {
-    throw new ApiError(body.code, body.message)
+    throw new ApiError(body.code, body.message, body.params)
   }
 
   return body.data
@@ -190,13 +192,13 @@ async function uploadRequest<T>(path: string, formData: FormData): Promise<T> {
       handleUnauthorized()
     }
     const body = await res.json().catch(() => ({ code: res.status, message: res.statusText }))
-    throw new ApiError(body.code || res.status, body.message || res.statusText)
+    throw new ApiError(body.code || res.status, body.message || res.statusText, body.params)
   }
 
   const body: ApiResponse<T> = await res.json()
 
   if (body.code !== 0) {
-    throw new ApiError(body.code, body.message)
+    throw new ApiError(body.code, body.message, body.params)
   }
 
   return body.data
@@ -530,3 +532,66 @@ export const adminRiskApi = {
 }
 
 export { ApiError }
+
+// ============================================================
+// Error code → i18n key mapping
+// ============================================================
+
+// 只映射用户可见的前台错误码，后台管理页面不映射（后台统一中文界面）
+const ERROR_CODE_I18N: Record<number, string> = {
+  // 通用
+  10002: "error.unauthorized",
+  10003: "error.forbidden",
+  10005: "error.tooManyRequests",
+  10006: "error.serverError",
+  10007: "error.maintenance",
+  // Auth
+  20001: "error.usernameExists",
+  20002: "error.emailExists",
+  20003: "error.captchaInvalid",
+  20004: "error.invalidCredentials",
+  20005: "error.oldPasswordWrong",
+  20006: "error.accountDisabled",
+  // Product
+  30001: "error.productNotFound",
+  30002: "error.insufficientStock",
+  30003: "error.specNotFound",
+  30004: "error.purchaseLimitExceeded",
+  // Order
+  40001: "error.orderNotFound",
+  40002: "error.orderExpired",
+  40003: "error.orderNotPaid",
+  40004: "error.orderOutOfStock",
+  40005: "error.orderProcessing",
+  40006: "error.purchaseLimitPerUser",
+  40007: "error.unpaidOrderExists",
+  40008: "error.cartEmpty",
+  // Payment
+  50001: "error.channelUnavailable",
+}
+
+/**
+ * 从 API 错误中提取用户可见的提示文案。
+ * 已映射 → i18n 文案 + 参数插值
+ * 未映射 → 后端原始 message（兜底，不丢信息）
+ * 非 ApiError → 原始 error message
+ */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+export function getApiErrorMessage(err: unknown, t: (key: any) => string): string {
+  if (err instanceof ApiError) {
+    const i18nKey = ERROR_CODE_I18N[err.code]
+    if (i18nKey) {
+      let msg = t(i18nKey)
+      // 参数插值: {available} → 实际值
+      if (err.params) {
+        for (const [k, v] of Object.entries(err.params)) {
+          msg = msg.replace(`{${k}}`, String(v))
+        }
+      }
+      return msg
+    }
+    // 未映射的 code → 直接返回后端原始 message（兜底，不丢信息）
+    return err.message
+  }
+  return err instanceof Error ? err.message : t("common.error")
+}

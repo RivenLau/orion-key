@@ -371,12 +371,29 @@ export function AppProviders({ children }: { children: ReactNode }) {
   }, [refreshCart])
 
   const updateItem = useCallback(async (itemId: string, quantity: number) => {
-    await withMockFallback(
-      () => cartApi.updateItem(itemId, quantity),
-      () => null
+    // Optimistic update: 立即更新本地状态，避免等待 API 往返导致页面刷新
+    const prevItems = [...cartItems]
+    const prevTotal = cartTotal
+    const optimisticItems = cartItems.map(item =>
+      item.id === itemId
+        ? { ...item, quantity, subtotal: item.unit_price * quantity }
+        : item
     )
-    await refreshCart()
-  }, [refreshCart])
+    setCartItems(optimisticItems)
+    setCartTotal(optimisticItems.reduce((sum, item) => sum + item.subtotal, 0))
+
+    try {
+      await withMockFallback(
+        () => cartApi.updateItem(itemId, quantity),
+        () => null
+      )
+    } catch (err) {
+      // API 失败（如库存不足）→ 回滚到之前的状态
+      setCartItems(prevItems)
+      setCartTotal(prevTotal)
+      throw err
+    }
+  }, [cartItems, cartTotal])
 
   const removeItem = useCallback(async (itemId: string) => {
     await withMockFallback(

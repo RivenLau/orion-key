@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { Zap, Minus, Plus, ShoppingCart, Package, TrendingUp } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useAuth, useCart } from "@/lib/context"
-import { orderApi, withMockFallback } from "@/services/api"
+import { orderApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockCreateOrder } from "@/lib/mock-data"
 import { cn, validateEmail, generateIdempotencyKey, getCurrencySymbol } from "@/lib/utils"
 import { PaymentSelector } from "@/components/shared/payment-selector"
@@ -91,8 +91,7 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
       const payUrl = `/pay/${result.payment.order_id}?method=${selectedPayment}${qr ? `&qr=${encodeURIComponent(qr)}` : ""}`
       router.push(payUrl)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.error")
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, t))
     } finally {
       setSubmitting(false)
     }
@@ -112,8 +111,7 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
       })
       toast.success(t("product.addToCart"))
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.error")
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, t))
     }
   }
 

@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation"
 import { Eye, EyeOff, UserPlus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale } from "@/lib/context"
-import { authApi, withMockFallback } from "@/services/api"
+import { authApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockCaptcha } from "@/lib/mock-data"
 
 export default function RegisterPage() {
@@ -77,8 +77,7 @@ export default function RegisterPage() {
       toast.success(t("auth.registerSuccess"))
       router.push("/login")
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.error")
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, t))
       // Refresh captcha after failed attempt
       fetchCaptcha()
       setForm((prev) => ({ ...prev, captcha: "" }))

@@ -24,6 +24,8 @@ public final class ErrorCode {
     // ── Product 30001~30099 ──
     public static final int PRODUCT_NOT_FOUND = 30001;
     public static final int INSUFFICIENT_STOCK = 30002;
+    public static final int SPEC_NOT_FOUND = 30003;
+    public static final int PURCHASE_LIMIT_EXCEEDED = 30004;
 
     // ── Order 40001~40099 ──
     public static final int ORDER_NOT_FOUND = 40001;

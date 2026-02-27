@@ -6,7 +6,7 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, LogIn } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useAuth, useCart } from "@/lib/context"
-import { setToken, authApi, withMockFallback } from "@/services/api"
+import { setToken, authApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockLogin } from "@/lib/mock-data"
 
 export default function LoginPage() {
@@ -49,8 +49,7 @@ export default function LoginPage() {
       toast.success(t("auth.loginSuccess"))
       router.push(redirectTo || "/")
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.error")
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, t))
     } finally {
       setIsLoading(false)
     }

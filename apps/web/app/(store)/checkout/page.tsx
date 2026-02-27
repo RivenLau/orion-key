@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation"
 import { ShoppingBag, Mail, CreditCard, Lock } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useCart } from "@/lib/context"
-import { orderApi, paymentApi, withMockFallback } from "@/services/api"
+import { orderApi, paymentApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockPaymentChannels, mockCreateOrder } from "@/lib/mock-data"
 import { validateEmail, generateIdempotencyKey } from "@/lib/utils"
 import { PaymentSelector } from "@/components/shared/payment-selector"
@@ -78,8 +78,7 @@ export default function CheckoutPage() {
       const payUrl = `/pay/${result.payment.order_id}?method=${selectedPayment}${qr ? `&qr=${encodeURIComponent(qr)}` : ""}`
       router.push(payUrl)
     } catch (err: unknown) {
-      const message = err instanceof Error ? err.message : t("common.error")
-      toast.error(message)
+      toast.error(getApiErrorMessage(err, t))
     } finally {
       setSubmitting(false)
     }
