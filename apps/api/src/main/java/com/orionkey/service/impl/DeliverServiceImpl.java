@@ -7,6 +7,7 @@ import com.orionkey.entity.*;
 import com.orionkey.exception.BusinessException;
 import com.orionkey.repository.*;
 import com.orionkey.service.DeliverService;
+import com.orionkey.service.EmailService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ public class DeliverServiceImpl implements DeliverService {
     private final UserRepository userRepository;
     private final PointsLogRepository pointsLogRepository;
     private final SiteConfigRepository siteConfigRepository;
+    private final EmailService emailService;
 
     @Override
     @SuppressWarnings("unchecked")
@@ -120,6 +122,9 @@ public class DeliverServiceImpl implements DeliverService {
 
                     // Award points
                     awardPoints(order);
+
+                    // Send delivery email (async, non-blocking)
+                    emailService.sendDeliveryEmail(orderId);
 
                     result.put("status", "DELIVERED");
                     result.put("groups", buildCardKeyGroups(orderId));

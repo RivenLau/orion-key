@@ -4,6 +4,8 @@ server:
     context-path: /api
 
 spring:
+  autoconfigure:
+    exclude: org.springframework.boot.autoconfigure.security.servlet.UserDetailsServiceAutoConfiguration
   datasource:
     url: ${DB_URL:jdbc:postgresql://localhost:5432/db}
     username: ${DB_USERNAME:postgres}
@@ -22,6 +24,17 @@ spring:
     date-format: yyyy-MM-dd HH:mm:ss
     time-zone: Asia/Shanghai
     default-property-inclusion: non_null  # 跳过JSON序列化时的空值字段
+  mail:
+    host: ${MAIL_HOST:mail.example.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:noreply@example.com}
+    password: ${MAIL_PASSWORD:your_password}
+    properties:
+      mail:
+        smtp:
+          auth: true
+          ssl:
+            enable: true
   servlet:
     multipart:
       max-file-size: 10MB
@@ -40,6 +53,11 @@ security:
 upload:
   path: ${UPLOAD_PATH:./uploads}
   url-prefix: ${UPLOAD_URL_PREFIX:/api/uploads}
+
+# Mail
+mail:
+  enabled: ${MAIL_ENABLED:true}
+  site-url: ${MAIL_SITE_URL:https://example.com}
 
 # Logging
 logging:
