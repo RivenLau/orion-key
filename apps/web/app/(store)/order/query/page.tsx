@@ -75,23 +75,26 @@ export default function OrderQueryPage() {
         () => mockQueryOrders(queryParams)
       )
 
-      setOrders(found)
-
       // Auto-deliver: PAID 触发发货分配卡密，DELIVERED 幂等返回已分配卡密
+      let finalOrders = found
+      let finalDeliver: Awaited<ReturnType<typeof orderApi.deliver>> = []
       const deliverableIds = found.filter(o => o.status === "PAID" || o.status === "DELIVERED").map(o => o.id)
       if (deliverableIds.length > 0) {
-        const delivered = await withMockFallback(
+        finalDeliver = await withMockFallback(
           () => orderApi.deliver({ order_ids: deliverableIds }),
           () => mockDeliver(deliverableIds)
         )
-        setDeliverResults(delivered)
-        // deliver 可能将 PAID 变为 DELIVERED，同步更新本地订单状态
-        const statusMap = new Map(delivered.map(d => [d.order_id, d.status]))
-        setOrders(prev => prev.map(o => {
+        // deliver 可能将 PAID 变为 DELIVERED，同步更新状态
+        const statusMap = new Map(finalDeliver.map(d => [d.order_id, d.status]))
+        finalOrders = found.map(o => {
           const newStatus = statusMap.get(o.id)
           return newStatus && newStatus !== o.status ? { ...o, status: newStatus } : o
-        }))
+        })
       }
+
+      // 所有数据就绪后一次性渲染，避免中间态抖动
+      setOrders(finalOrders)
+      setDeliverResults(finalDeliver)
 
       // Save to recent queries
       if (found.length > 0) {
@@ -175,14 +178,30 @@ export default function OrderQueryPage() {
       {/* Search Form */}
       <div className="rounded-lg border border-border bg-card p-4">
         <div className="flex gap-2">
-          <input
-            type="text"
-            placeholder={t("order.queryPlaceholder")}
-            value={queryValue}
-            onChange={(e) => setQueryValue(e.target.value)}
-            onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-            className="h-10 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-          />
+          <div className="relative flex-1">
+            <input
+              type="text"
+              placeholder={t("order.queryPlaceholder")}
+              value={queryValue}
+              onChange={(e) => setQueryValue(e.target.value)}
+              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
+              className="h-10 w-full rounded-lg border border-input bg-background px-3 pr-8 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+            />
+            {queryValue && (
+              <button
+                type="button"
+                onClick={() => {
+                  setQueryValue("")
+                  setOrders([])
+                  setDeliverResults([])
+                  setSearched(false)
+                }}
+                className="absolute right-2 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted-foreground transition-colors hover:text-foreground"
+              >
+                <X className="h-4 w-4" />
+              </button>
+            )}
+          </div>
           <button
             onClick={() => handleSearch()}
             disabled={isSearching}
