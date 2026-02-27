@@ -1,10 +1,12 @@
 package com.orionkey.service.impl;
 
+import com.orionkey.constant.CardKeyStatus;
 import com.orionkey.constant.ErrorCode;
 import com.orionkey.entity.CartItem;
 import com.orionkey.entity.Product;
 import com.orionkey.entity.ProductSpec;
 import com.orionkey.exception.BusinessException;
+import com.orionkey.repository.CardKeyRepository;
 import com.orionkey.repository.CartItemRepository;
 import com.orionkey.repository.ProductRepository;
 import com.orionkey.repository.ProductSpecRepository;
@@ -23,6 +25,7 @@ public class CartServiceImpl implements CartService {
     private final CartItemRepository cartItemRepository;
     private final ProductRepository productRepository;
     private final ProductSpecRepository productSpecRepository;
+    private final CardKeyRepository cardKeyRepository;
 
     @Override
     @Transactional
@@ -81,8 +84,19 @@ public class CartServiceImpl implements CartService {
             existing = cartItemRepository.findBySessionTokenAndProductIdAndSpecId(resultSessionToken, productId, specId);
         }
 
+        // Advisory stock check: 购物车已有数量 + 新增数量 ≤ 可用库存
+        int existingQty = existing.map(CartItem::getQuantity).orElse(0);
+        int totalQty = existingQty + quantity;
+        long available = specId != null
+                ? cardKeyRepository.countByProductIdAndSpecIdAndStatus(productId, specId, CardKeyStatus.AVAILABLE)
+                : cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(productId, CardKeyStatus.AVAILABLE);
+        if (totalQty > available) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK,
+                    "库存不足，当前库存 " + available + "，购物车已有 " + existingQty);
+        }
+
         if (existing.isPresent()) {
-            existing.get().setQuantity(existing.get().getQuantity() + quantity);
+            existing.get().setQuantity(totalQty);
             cartItemRepository.save(existing.get());
         } else {
             CartItem item = new CartItem();
@@ -103,6 +117,16 @@ public class CartServiceImpl implements CartService {
         CartItem item = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "购物车项不存在"));
         verifyOwnership(item, userId, sessionToken);
+
+        // Advisory stock check
+        long available = item.getSpecId() != null
+                ? cardKeyRepository.countByProductIdAndSpecIdAndStatus(item.getProductId(), item.getSpecId(), CardKeyStatus.AVAILABLE)
+                : cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(item.getProductId(), CardKeyStatus.AVAILABLE);
+        if (quantity > available) {
+            throw new BusinessException(ErrorCode.INSUFFICIENT_STOCK,
+                    "库存不足，当前可用 " + available);
+        }
+
         item.setQuantity(quantity);
         cartItemRepository.save(item);
     }
@@ -173,6 +197,12 @@ public class CartServiceImpl implements CartService {
         map.put("unit_price", unitPrice);
         map.put("quantity", item.getQuantity());
         map.put("subtotal", unitPrice.multiply(BigDecimal.valueOf(item.getQuantity())));
+
+        long stockAvailable = item.getSpecId() != null
+                ? cardKeyRepository.countByProductIdAndSpecIdAndStatus(item.getProductId(), item.getSpecId(), CardKeyStatus.AVAILABLE)
+                : cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(item.getProductId(), CardKeyStatus.AVAILABLE);
+        map.put("stock_available", stockAvailable);
+
         return map;
     }
 }

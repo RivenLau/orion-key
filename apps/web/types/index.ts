@@ -122,6 +122,7 @@ export interface CartItem {
   unit_price: number
   quantity: number
   subtotal: number
+  stock_available?: number
 }
 
 export interface Cart {
