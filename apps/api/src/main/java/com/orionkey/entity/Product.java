@@ -47,6 +47,7 @@ public class Product extends BaseEntity {
     @Column(name = "is_enabled")
     private boolean enabled = true;
 
+    @Column(columnDefinition = "INTEGER DEFAULT 0")
     private int initialSales = 0;
 
     private int sortOrder = 0;
