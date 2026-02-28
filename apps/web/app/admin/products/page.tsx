@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from "react"
 import { Plus, Search, Edit, Trash2, Upload, X, AlertCircle, ChevronDown, EyeOff, Eye, KeyRound, Loader2, ImagePlus } from "lucide-react"
 import { toast } from "sonner"
+import Link from "next/link"
 import { cn, getCurrencySymbol } from "@/lib/utils"
 import { Modal } from "@/components/ui/modal"
 import { useLocale } from "@/lib/context"
@@ -401,15 +402,17 @@ export default function AdminProductsPage() {
                   <tr key={product.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <div className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted">
+                        <Link href={`/product/${product.id}`} target="_blank" className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted hover:opacity-80 transition-opacity">
                           {product.cover_url ? (
                             <img src={product.cover_url} alt={product.title} className="h-full w-full object-cover" />
                           ) : (
                             <div className="flex h-full w-full items-center justify-center text-xs text-muted-foreground">N/A</div>
                           )}
-                        </div>
+                        </Link>
                         <div className="flex flex-col">
-                          <span className="font-medium text-foreground">{product.title}</span>
+                          <Link href={`/product/${product.id}`} target="_blank" className="font-medium text-foreground hover:text-primary hover:underline transition-colors">
+                            {product.title}
+                          </Link>
                           {product.stock_available <= (product.low_stock_threshold ?? 10) && product.stock_available > 0 && (
                             <span className="text-xs text-amber-500 flex items-center gap-1">
                               <AlertCircle className="h-3 w-3" />

@@ -1,5 +1,6 @@
 "use client"
 
+import ReactMarkdown from "react-markdown"
 import { useLocale } from "@/lib/context"
 import type { ProductDetail } from "@/types"
 
@@ -19,7 +20,7 @@ export function ProductDescription({ product }: { product: ProductDetail }) {
 
       {product.detail_md ? (
         <div className="prose prose-sm max-w-none text-muted-foreground dark:prose-invert">
-          {product.detail_md}
+          <ReactMarkdown>{product.detail_md}</ReactMarkdown>
         </div>
       ) : (
         <p className="text-sm text-muted-foreground">{product.description}</p>

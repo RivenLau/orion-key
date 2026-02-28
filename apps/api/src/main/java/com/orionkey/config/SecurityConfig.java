@@ -52,6 +52,7 @@ public class SecurityConfig {
                         .requestMatchers("/payments/webhook/**").permitAll()
                         .requestMatchers("/cart/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/visit/track").permitAll()
                         // Authenticated user endpoints
                         .requestMatchers("/auth/logout").authenticated()
                         .requestMatchers("/user/**").authenticated()

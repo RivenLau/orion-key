@@ -5,6 +5,7 @@ import { usePathname } from "next/navigation"
 import { Wrench, Mail } from "lucide-react"
 import { StoreHeader } from "@/components/layout/store-header"
 import { StoreFooter } from "@/components/layout/store-footer"
+import { VisitTracker } from "@/components/store/visit-tracker"
 import { useSiteConfig, useAuth, useLocale } from "@/lib/context"
 
 function AnnouncementBar() {
@@ -88,6 +89,7 @@ export function StoreShell({ siteName, children }: StoreShellProps) {
 
   return (
     <div className="flex min-h-screen flex-col">
+      <VisitTracker />
       {isMaintenance && isAdmin && <MaintenanceAdminBanner />}
       <AnnouncementBar />
       <StoreHeader siteName={siteName} />
