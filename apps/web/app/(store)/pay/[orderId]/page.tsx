@@ -16,7 +16,7 @@ import {
 } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
 import { toast } from "sonner"
-import { useLocale, useCart } from "@/lib/context"
+import { useLocale, useCart, useSiteConfig } from "@/lib/context"
 import { orderApi, withMockFallback } from "@/services/api"
 import type { OrderStatus } from "@/types"
 import { cn } from "@/lib/utils"
@@ -28,6 +28,7 @@ const MANUAL_REFRESH_COOLDOWN = 10 // 10 seconds
 export default function PaymentPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
   const { t } = useLocale()
+  const { config } = useSiteConfig()
   const searchParams = useSearchParams()
 
   const router = useRouter()
@@ -336,15 +337,17 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           >
             {t("payment.paidButNotDelivered")}
           </Link>
-          <a
-            href="https://t.me/yoursupport"
-            target="_blank"
-            rel="noopener noreferrer"
-            className="flex items-center gap-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-          >
-            {t("payment.contactSupport")}
-            <ExternalLink className="h-3 w-3" />
-          </a>
+          {config?.contact_telegram && (
+            <a
+              href={`https://t.me/${config.contact_telegram.replace(/^@/, "")}`}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              {t("payment.contactSupport")}
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
         </div>
       </div>
     </div>

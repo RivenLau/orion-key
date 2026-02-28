@@ -2,9 +2,9 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { Search, Copy, Download, FileText, CheckCircle2, X, Clock } from "lucide-react"
+import { Search, Copy, Download, FileText, CheckCircle2, X, Clock, HelpCircle, ExternalLink } from "lucide-react"
 import { toast } from "sonner"
-import { useLocale } from "@/lib/context"
+import { useLocale, useSiteConfig } from "@/lib/context"
 import { orderApi, withMockFallback } from "@/services/api"
 import { mockQueryOrders, mockDeliver } from "@/lib/mock-data"
 import { OrderStatusBadge } from "@/components/shared/order-status-badge"
@@ -19,6 +19,7 @@ interface RecentQuery {
 
 export default function OrderQueryPage() {
   const { t } = useLocale()
+  const { config } = useSiteConfig()
   const searchParams = useSearchParams()
   const [queryValue, setQueryValue] = useState("")
   const [orders, setOrders] = useState<OrderBrief[]>([])
@@ -319,6 +320,37 @@ export default function OrderQueryPage() {
           </div>
         )
       })}
+
+      {/* Help — 联系客服提示 */}
+      {(config?.contact_telegram || config?.contact_email) && (
+        <div className="flex flex-col items-center gap-2 pt-2">
+          <div className="flex items-center gap-1 text-xs text-muted-foreground">
+            <HelpCircle className="h-3 w-3" />
+            <span>{t("order.needHelp")}</span>
+          </div>
+          <div className="flex items-center gap-4 text-xs">
+            {config.contact_telegram && (
+              <a
+                href={`https://t.me/${config.contact_telegram.replace(/^@/, "")}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                {t("order.contactTelegram")}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {config.contact_email && (
+              <a
+                href={`mailto:${config.contact_email}`}
+                className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                {t("order.contactEmail")}
+              </a>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Recent Queries — 无查询结果时显示，有结果时自动隐藏 */}
       {recentQueries.length > 0 && orders.length === 0 && !isSearching && (

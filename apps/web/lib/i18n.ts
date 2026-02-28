@@ -125,6 +125,9 @@ const zh = {
   "order.deleteConfirmMessage": "仅删除本地缓存，不影响订单与发货。",
   "order.cancel": "取消",
   "order.delete": "删除",
+  "order.needHelp": "遇到问题？",
+  "order.contactTelegram": "联系 Telegram 客服",
+  "order.contactEmail": "发送邮件",
 
   // Payment
   "payment.title": "支付订单",
@@ -646,6 +649,9 @@ const en: Record<keyof typeof zh, string> = {
   "order.deleteConfirmMessage": "Only removes local cache. Order and delivery are not affected.",
   "order.cancel": "Cancel",
   "order.delete": "Delete",
+  "order.needHelp": "Need help?",
+  "order.contactTelegram": "Contact us on Telegram",
+  "order.contactEmail": "Send email",
 
   // Payment
   "payment.title": "Payment",
