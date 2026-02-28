@@ -4,6 +4,7 @@ import { Inter } from "next/font/google"
 import { Toaster } from "sonner"
 import { AppProviders } from "@/lib/context"
 import { ThemeScript } from "./theme-script"
+import { DynamicFavicon } from "@/components/dynamic-favicon"
 import "./globals.css"
 
 const inter = Inter({ subsets: ["latin"], variable: "--font-inter" })
@@ -38,6 +39,7 @@ export default function RootLayout({
       </head>
       <body className={`${inter.variable} font-sans antialiased`} suppressHydrationWarning>
         <AppProviders>
+          <DynamicFavicon />
           {children}
           <Toaster position="top-center" richColors closeButton />
         </AppProviders>

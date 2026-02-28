@@ -402,7 +402,7 @@ export default function AdminProductsPage() {
                   <tr key={product.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-3">
-                        <Link href={`/product/${product.id}`} target="_blank" className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted hover:opacity-80 transition-opacity">
+                        <Link href={`/product/${product.id}`} className="h-10 w-10 shrink-0 overflow-hidden rounded-lg bg-muted hover:opacity-80 transition-opacity">
                           {product.cover_url ? (
                             <img src={product.cover_url} alt={product.title} className="h-full w-full object-cover" />
                           ) : (
@@ -410,7 +410,7 @@ export default function AdminProductsPage() {
                           )}
                         </Link>
                         <div className="flex flex-col">
-                          <Link href={`/product/${product.id}`} target="_blank" className="font-medium text-foreground hover:text-primary hover:underline transition-colors">
+                          <Link href={`/product/${product.id}`} className="font-medium text-foreground hover:text-primary hover:underline transition-colors">
                             {product.title}
                           </Link>
                           {product.stock_available <= (product.low_stock_threshold ?? 10) && product.stock_available > 0 && (

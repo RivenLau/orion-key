@@ -96,7 +96,11 @@ export function StoreHeader({ siteName }: StoreHeaderProps) {
         {/* Logo -- fixed width to balance right actions */}
         <div className="flex min-w-0 flex-1 items-center">
           <Link href="/" className="flex shrink-0 items-center gap-2.5 text-foreground">
-            <Package className="h-6 w-6 text-primary" />
+            {siteConfig?.logo_url ? (
+              <img src={siteConfig.logo_url} alt={siteName || siteConfig?.site_name || ""} className="h-6 w-6 rounded object-contain" />
+            ) : (
+              <Package className="h-6 w-6 text-primary" />
+            )}
             <span className="hidden text-lg font-extrabold tracking-tight sm:inline">{siteName || siteConfig?.site_name}</span>
           </Link>
         </div>
