@@ -23,7 +23,7 @@ public class CaptchaUtils {
         String captchaId = UUID.randomUUID().toString();
         store.put(captchaId, new CaptchaEntry(captcha.getCode().toLowerCase(), System.currentTimeMillis()));
         cleanup();
-        return new CaptchaResult(captchaId, captcha.getImageBase64());
+        return new CaptchaResult(captchaId, "data:image/png;base64," + captcha.getImageBase64());
     }
 
     public boolean verify(String captchaId, String code) {

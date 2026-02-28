@@ -24,47 +24,31 @@ Automated Digital Goods Delivery Platform
 
 ## 截图预览
 
-<details>
+<details open>
 <summary><b>前台页面</b></summary>
 <br>
 
-| 首页 | 商品详情 |
+| 首页（亮色） | 首页（暗色） |
 |:---:|:---:|
-| ![首页](ui_picture/home.png) | ![商品详情](ui_picture/product_detail.png) |
+| ![首页-亮色](.github/assets/home-light.png) | ![首页-暗色](.github/assets/home-dark.png) |
 
-| 支付页面 | 支付成功 |
+| 商品详情（亮色） | 商品详情（暗色） |
 |:---:|:---:|
-| ![支付](ui_picture/payment.png) | ![支付成功](ui_picture/payment_success.png) |
+| ![详情-亮色](.github/assets/detail-light.png) | ![详情-暗色](.github/assets/detail-dark.png) |
 
-| 订单卡密查询 | 购物车 |
+| 订单查询（亮色） | 订单查询（暗色） |
 |:---:|:---:|
-| ![订单查询](ui_picture/order_key_query_2.png) | ![购物车](ui_picture/shopping_cart.png) |
-
-| 登录 | 注册 |
-|:---:|:---:|
-| ![登录](ui_picture/login.png) | ![注册](ui_picture/register.png) |
+| ![订单查询-亮色](.github/assets/order-light.png) | ![订单查询-暗色](.github/assets/order-dark.png) |
 
 </details>
 
-<details>
+<details open>
 <summary><b>管理后台</b></summary>
 <br>
 
-| 仪表盘 | 商品管理 |
+| Dashboard（亮色） | Dashboard（暗色） |
 |:---:|:---:|
-| ![仪表盘](ui_picture/admin_dashboard.png) | ![商品管理](ui_picture/product_manage.png) |
-
-| 卡密管理 | 订单管理 |
-|:---:|:---:|
-| ![卡密管理](ui_picture/key_manage.png) | ![订单管理](ui_picture/admin_order_manage.png) |
-
-| 支付渠道管理 | 站点设置 |
-|:---:|:---:|
-| ![支付管理](ui_picture/payment_manage.png) | ![站点设置](ui_picture/website_manage2.png) |
-
-| 风控管理 |
-|:---:|
-| ![风控管理](ui_picture/risk_manage1.png) |
+| ![后台-亮色](.github/assets/admin-light.png) | ![后台-暗色](.github/assets/admin-dark.png) |
 
 </details>
 

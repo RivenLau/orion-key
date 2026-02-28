@@ -24,47 +24,31 @@
 
 ## Screenshots
 
-<details>
+<details open>
 <summary><b>Storefront</b></summary>
 <br>
 
-| Home | Product Detail |
+| Home (Light) | Home (Dark) |
 |:---:|:---:|
-| ![Home](ui_picture/home.png) | ![Product Detail](ui_picture/product_detail.png) |
+| ![Home Light](.github/assets/home-light.png) | ![Home Dark](.github/assets/home-dark.png) |
 
-| Payment | Payment Success |
+| Product Detail (Light) | Product Detail (Dark) |
 |:---:|:---:|
-| ![Payment](ui_picture/payment.png) | ![Payment Success](ui_picture/payment_success.png) |
+| ![Detail Light](.github/assets/detail-light.png) | ![Detail Dark](.github/assets/detail-dark.png) |
 
-| Order & Key Query | Shopping Cart |
+| Order Query (Light) | Order Query (Dark) |
 |:---:|:---:|
-| ![Order Query](ui_picture/order_key_query_2.png) | ![Shopping Cart](ui_picture/shopping_cart.png) |
-
-| Login | Register |
-|:---:|:---:|
-| ![Login](ui_picture/login.png) | ![Register](ui_picture/register.png) |
+| ![Order Light](.github/assets/order-light.png) | ![Order Dark](.github/assets/order-dark.png) |
 
 </details>
 
-<details>
+<details open>
 <summary><b>Admin Panel</b></summary>
 <br>
 
-| Dashboard | Product Management |
+| Dashboard (Light) | Dashboard (Dark) |
 |:---:|:---:|
-| ![Dashboard](ui_picture/admin_dashboard.png) | ![Product Management](ui_picture/product_manage.png) |
-
-| Key Management | Order Management |
-|:---:|:---:|
-| ![Key Management](ui_picture/key_manage.png) | ![Order Management](ui_picture/admin_order_manage.png) |
-
-| Payment Channels | Site Settings |
-|:---:|:---:|
-| ![Payment Management](ui_picture/payment_manage.png) | ![Site Settings](ui_picture/website_manage2.png) |
-
-| Risk Control |
-|:---:|
-| ![Risk Control](ui_picture/risk_manage1.png) |
+| ![Admin Light](.github/assets/admin-light.png) | ![Admin Dark](.github/assets/admin-dark.png) |
 
 </details>
 
