@@ -321,37 +321,6 @@ export default function OrderQueryPage() {
         )
       })}
 
-      {/* Help — 联系客服提示 */}
-      {(config?.contact_telegram || config?.contact_email) && (
-        <div className="flex flex-col items-center gap-2 pt-2">
-          <div className="flex items-center gap-1 text-xs text-muted-foreground">
-            <HelpCircle className="h-3 w-3" />
-            <span>{t("order.needHelp")}</span>
-          </div>
-          <div className="flex items-center gap-4 text-xs">
-            {config.contact_telegram && (
-              <a
-                href={`https://t.me/${config.contact_telegram.replace(/^@/, "")}`}
-                target="_blank"
-                rel="noopener noreferrer"
-                className="flex items-center gap-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-              >
-                {t("order.contactTelegram")}
-                <ExternalLink className="h-3 w-3" />
-              </a>
-            )}
-            {config.contact_email && (
-              <a
-                href={`mailto:${config.contact_email}`}
-                className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-              >
-                {t("order.contactEmail")}
-              </a>
-            )}
-          </div>
-        </div>
-      )}
-
       {/* Recent Queries — 无查询结果时显示，有结果时自动隐藏 */}
       {recentQueries.length > 0 && orders.length === 0 && !isSearching && (
         <div className="rounded-lg border border-border bg-card p-4">
@@ -392,6 +361,36 @@ export default function OrderQueryPage() {
               </div>
             ))}
           </div>
+        </div>
+      )}
+
+      {/* Help — 联系客服提示（始终在页面底部） */}
+      {(config?.contact_telegram || config?.contact_email) && (
+        <div className="flex flex-wrap items-center justify-center gap-x-1 text-xs text-muted-foreground">
+          <HelpCircle className="h-3 w-3" />
+          <span>{t("order.needHelp")}</span>
+          {config.contact_telegram && (
+            <a
+              href={config.contact_telegram}
+              target="_blank"
+              rel="noopener noreferrer"
+              className="flex items-center gap-0.5 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              {t("order.contactTelegram")}
+              <ExternalLink className="h-3 w-3" />
+            </a>
+          )}
+          {config.contact_telegram && config.contact_email && (
+            <span>·</span>
+          )}
+          {config.contact_email && (
+            <a
+              href={`mailto:${config.contact_email}`}
+              className="underline-offset-4 transition-colors hover:text-foreground hover:underline"
+            >
+              {t("order.contactEmail")}
+            </a>
+          )}
         </div>
       )}
 

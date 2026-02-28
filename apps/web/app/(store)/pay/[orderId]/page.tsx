@@ -325,30 +325,41 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       </button>
 
       {/* Help Links */}
-      <div className="flex flex-col items-center gap-2 pt-2">
-        <div className="flex items-center gap-1 text-xs text-muted-foreground">
-          <HelpCircle className="h-3 w-3" />
-          <span>{t("payment.needHelp")}</span>
-        </div>
-        <div className="flex items-center gap-4 text-xs">
-          <Link
-            href="/order/query"
-            className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-          >
-            {t("payment.paidButNotDelivered")}
-          </Link>
-          {config?.contact_telegram && (
-            <a
-              href={`https://t.me/${config.contact_telegram.replace(/^@/, "")}`}
-              target="_blank"
-              rel="noopener noreferrer"
-              className="flex items-center gap-1 text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
-            >
-              {t("payment.contactSupport")}
-              <ExternalLink className="h-3 w-3" />
-            </a>
-          )}
-        </div>
+      <div className="flex flex-col items-center gap-2 pt-2 text-xs">
+        <Link
+          href="/order/query"
+          className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+        >
+          {t("payment.paidButNotDelivered")}
+        </Link>
+        {(config?.contact_telegram || config?.contact_email) && (
+          <div className="flex flex-wrap items-center justify-center gap-x-1 text-muted-foreground">
+            <HelpCircle className="h-3 w-3" />
+            <span>{t("payment.needHelp")}</span>
+            {config.contact_telegram && (
+              <a
+                href={config.contact_telegram}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="flex items-center gap-0.5 underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                {t("payment.contactSupport")}
+                <ExternalLink className="h-3 w-3" />
+              </a>
+            )}
+            {config.contact_telegram && config.contact_email && (
+              <span>·</span>
+            )}
+            {config.contact_email && (
+              <a
+                href={`mailto:${config.contact_email}`}
+                className="underline-offset-4 transition-colors hover:text-foreground hover:underline"
+              >
+                {t("order.contactEmail")}
+              </a>
+            )}
+          </div>
+        )}
       </div>
     </div>
   )
