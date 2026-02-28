@@ -74,9 +74,9 @@ export function ProductCard({ product }: ProductCardProps) {
               </span>
             )}
           </div>
-          {(product.sales_count ?? 0) > 0 && (
+          {((product.sales_count ?? 0) + (product.initial_sales ?? 0)) > 0 && (
             <span className="text-xs font-semibold text-muted-foreground dark:text-zinc-400">
-              {product.sales_count}+ {t("home.sales")}
+              {(product.sales_count ?? 0) + (product.initial_sales ?? 0)}+ {t("home.sales")}
             </span>
           )}
         </div>
@@ -112,7 +112,7 @@ export function ProductCard({ product }: ProductCardProps) {
           style={{
             width: !inStock
               ? "0%"
-              : `${Math.min(Math.round((product.stock_available / 200) * 100), 100)}%`,
+              : `${Math.min(Math.round((product.stock_available / 50) * 100), 100)}%`,
           }}
         />
       </div>

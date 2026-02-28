@@ -54,7 +54,7 @@ export function HomeContent({ products, categories, siteSlogan, siteDescription 
 
     switch (sortBy) {
       case "hot":
-        result.sort((a, b) => (b.sales_count ?? 0) - (a.sales_count ?? 0))
+        result.sort((a, b) => ((b.sales_count ?? 0) + (b.initial_sales ?? 0)) - ((a.sales_count ?? 0) + (a.initial_sales ?? 0)))
         break
       case "price_low":
         result.sort((a, b) => a.base_price - b.base_price)

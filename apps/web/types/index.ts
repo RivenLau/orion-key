@@ -93,6 +93,7 @@ export interface ProductCard {
   has_specs: boolean
   delivery_type?: string
   sales_count?: number
+  initial_sales?: number
   is_enabled?: boolean
   sort_order?: number
   created_at?: string

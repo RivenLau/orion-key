@@ -106,6 +106,7 @@ public class ProductServiceImpl implements ProductService {
         if (req.containsKey("low_stock_threshold")) product.setLowStockThreshold(((Number) req.get("low_stock_threshold")).intValue());
         if (req.containsKey("wholesale_enabled")) product.setWholesaleEnabled((boolean) req.get("wholesale_enabled"));
         if (req.containsKey("is_enabled")) product.setEnabled((boolean) req.get("is_enabled"));
+        if (req.containsKey("initial_sales")) product.setInitialSales(((Number) req.get("initial_sales")).intValue());
         if (req.containsKey("sort_order")) product.setSortOrder(((Number) req.get("sort_order")).intValue());
         productRepository.save(product);
         return toProductDetail(product);
@@ -128,6 +129,7 @@ public class ProductServiceImpl implements ProductService {
         if (req.containsKey("low_stock_threshold")) product.setLowStockThreshold(((Number) req.get("low_stock_threshold")).intValue());
         if (req.containsKey("wholesale_enabled")) product.setWholesaleEnabled((boolean) req.get("wholesale_enabled"));
         if (req.containsKey("is_enabled")) product.setEnabled((boolean) req.get("is_enabled"));
+        if (req.containsKey("initial_sales")) product.setInitialSales(((Number) req.get("initial_sales")).intValue());
         if (req.containsKey("sort_order")) product.setSortOrder(((Number) req.get("sort_order")).intValue());
         productRepository.save(product);
     }
@@ -243,6 +245,7 @@ public class ProductServiceImpl implements ProductService {
         map.put("has_specs", !specs.isEmpty());
         map.put("delivery_type", p.getDeliveryType());
         map.put("sales_count", orderItemRepository.sumQuantityByProductId(p.getId()));
+        map.put("initial_sales", p.getInitialSales());
         map.put("created_at", p.getCreatedAt());
         return map;
     }

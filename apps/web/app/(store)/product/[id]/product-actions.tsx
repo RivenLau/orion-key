@@ -169,10 +169,10 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
             <Package className="h-3.5 w-3.5" />
             {t("product.stock")} {selectedSpec?.stock_available ?? product.stock_available}
           </span>
-          {product.sales_count != null && product.sales_count > 0 && (
+          {((product.sales_count ?? 0) + (product.initial_sales ?? 0)) > 0 && (
             <span className="flex items-center gap-1.5 text-muted-foreground">
               <TrendingUp className="h-3.5 w-3.5" />
-              {t("product.sold")} {product.sales_count}
+              {t("product.sold")} {(product.sales_count ?? 0) + (product.initial_sales ?? 0)}
             </span>
           )}
         </div>

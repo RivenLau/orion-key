@@ -60,6 +60,7 @@ export default function AdminProductsPage() {
     low_stock_threshold: "10",
     wholesale_enabled: false,
     is_enabled: true,
+    initial_sales: "",
     sort_order: "",
     delivery_type: "AUTO",
   })
@@ -150,6 +151,7 @@ export default function AdminProductsPage() {
       low_stock_threshold: String(product.low_stock_threshold ?? 10),
       wholesale_enabled: false,
       is_enabled: product.is_enabled !== false,
+      initial_sales: String(product.initial_sales ?? ""),
       sort_order: String(product.sort_order ?? ""),
       delivery_type: product.delivery_type || "AUTO",
     })
@@ -223,6 +225,7 @@ export default function AdminProductsPage() {
         low_stock_threshold: parseInt(formData.low_stock_threshold) || 10,
         wholesale_enabled: false,
         is_enabled: formData.is_enabled,
+        initial_sales: parseInt(formData.initial_sales) || 0,
         sort_order: parseInt(formData.sort_order) || undefined,
         delivery_type: formData.delivery_type,
       }
@@ -287,7 +290,7 @@ export default function AdminProductsPage() {
   const handleCloseModal = () => {
     setShowModal(false)
     setEditingProduct(null)
-    setFormData({ title: "", description: "", detail_md: "", category_id: "", base_price: "", currency: "CNY", cover_url: "", low_stock_threshold: "10", wholesale_enabled: false, is_enabled: true, sort_order: "", delivery_type: "AUTO" })
+    setFormData({ title: "", description: "", detail_md: "", category_id: "", base_price: "", currency: "CNY", cover_url: "", low_stock_threshold: "10", wholesale_enabled: false, is_enabled: true, initial_sales: "", sort_order: "", delivery_type: "AUTO" })
     setFormSpecs([])
     setSpecsEnabled(false)
   }
@@ -574,7 +577,7 @@ export default function AdminProductsPage() {
                   <input type="number" className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="10" value={formData.low_stock_threshold} onChange={(e) => setFormData({ ...formData, low_stock_threshold: e.target.value })} />
                 </div>
               </div>
-              {/* 上架状态 */}
+              {/* 上架状态 + 初始销量 */}
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-foreground">{t("admin.listingStatus")}</label>
@@ -584,6 +587,11 @@ export default function AdminProductsPage() {
                     </button>
                     <span className="text-sm text-muted-foreground">{formData.is_enabled ? "已上架" : "已下架"}</span>
                   </div>
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-sm font-medium text-foreground">初始销量</label>
+                  <input type="number" className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0" value={formData.initial_sales} onChange={(e) => setFormData({ ...formData, initial_sales: e.target.value })} />
+                  <p className="text-xs text-muted-foreground">前台显示销量 = 真实销量 + 初始销量</p>
                 </div>
               </div>
               {/* 发货方式 */}

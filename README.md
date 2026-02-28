@@ -1,435 +1,304 @@
-# Orion Key — 自动发卡平台
+<div align="center">
 
-自动化数字商品（卡密）发卡平台。
+# Orion Key
 
-## 技术栈
+**自动化数字商品（卡密）发卡平台**
 
-| 模块 | 技术 |
-|------|------|
-| 前端 | Next.js 16 + React 19 + TypeScript + Tailwind CSS 3 + shadcn/ui |
-| 后端 | Spring Boot 3.4 + Java 22 + Spring Data JPA + Spring Security |
-| 数据库 | PostgreSQL |
-| 认证 | JWT (jjwt) + BCrypt |
-| 验证码 | hutool-captcha |
-| 构建 | pnpm (前端) + Maven (后端) |
+Automated Digital Goods Delivery Platform
 
-## 项目结构
+[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![Java](https://img.shields.io/badge/Java-22-orange?logo=openjdk)
+![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-brightgreen?logo=springboot)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
+![React](https://img.shields.io/badge/React-19-61dafb?logo=react)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)
+![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.4-38bdf8?logo=tailwindcss&logoColor=white)
+![pnpm](https://img.shields.io/badge/pnpm-9+-f69220?logo=pnpm&logoColor=white)
+
+简体中文 | [English](README.en.md)
+
+</div>
+
+---
+
+## 截图预览
+
+<details>
+<summary><b>前台页面</b></summary>
+<br>
+
+| 首页 | 商品详情 |
+|:---:|:---:|
+| ![首页](ui_picture/home.png) | ![商品详情](ui_picture/product_detail.png) |
+
+| 支付页面 | 支付成功 |
+|:---:|:---:|
+| ![支付](ui_picture/payment.png) | ![支付成功](ui_picture/payment_success.png) |
+
+| 订单卡密查询 | 购物车 |
+|:---:|:---:|
+| ![订单查询](ui_picture/order_key_query_2.png) | ![购物车](ui_picture/shopping_cart.png) |
+
+| 登录 | 注册 |
+|:---:|:---:|
+| ![登录](ui_picture/login.png) | ![注册](ui_picture/register.png) |
+
+</details>
+
+<details>
+<summary><b>管理后台</b></summary>
+<br>
+
+| 仪表盘 | 商品管理 |
+|:---:|:---:|
+| ![仪表盘](ui_picture/admin_dashboard.png) | ![商品管理](ui_picture/product_manage.png) |
+
+| 卡密管理 | 订单管理 |
+|:---:|:---:|
+| ![卡密管理](ui_picture/key_manage.png) | ![订单管理](ui_picture/admin_order_manage.png) |
+
+| 支付渠道管理 | 站点设置 |
+|:---:|:---:|
+| ![支付管理](ui_picture/payment_manage.png) | ![站点设置](ui_picture/website_manage2.png) |
+
+| 风控管理 |
+|:---:|
+| ![风控管理](ui_picture/risk_manage1.png) |
+
+</details>
+
+---
+
+## 核心特性
+
+|  |  |
+|---|---|
+| 🛒 **自动发卡** — 下单支付后自动发放卡密，零人工干预 | 🎨 **主题切换** — 支持亮色/暗色模式，多主题色自由切换 |
+| 📦 **商品管理** — 分类、上下架、库存、批量导入卡密 | 🔒 **安全认证** — JWT 无状态认证 + BCrypt 加密 |
+| 💳 **多支付渠道** — 可扩展的支付架构，支持微信/支付宝 | 🛡️ **风控系统** — IP 限流、登录防爆破、订单防刷 |
+| 📊 **管理后台** — 仪表盘数据概览、订单/用户/站点全面管理 | 🔍 **订单追踪** — 订单号查询卡密，支持游客和会员 |
+| 🛍️ **购物车** — 多商品合并下单，提升购买体验 | ⚙️ **站点配置** — 公告、弹窗、维护模式，后台一键开关 |
+
+---
+
+## 技术架构
+
+| 层级 | 技术栈 |
+|------|--------|
+| **前端** | Next.js 16 · React 19 · TypeScript · Tailwind CSS 3 · shadcn/ui |
+| **后端** | Spring Boot 3.4 · Java 22 · Spring Data JPA · Spring Security |
+| **数据库** | PostgreSQL 14+ |
+| **认证** | JWT (jjwt) · BCrypt |
+| **构建** | pnpm (前端) · Maven (后端) |
+
+### Monorepo 目录结构
+
+> 基于 pnpm workspaces 的 Monorepo 架构，前后端统一管理。
 
 ```
 orion-key/
 ├── apps/
-│   ├── web/                    # Next.js 前端
-│   └── api/                    # Spring Boot 后端
-├── packages/
-│   └── openapi/
-│       └── openapi.yaml        # API 契约（单一数据源）
-├── docs/                       # 设计文档与开发规范
-├── pnpm-workspace.yaml
+│   ├── web/                          # Next.js 前端
+│   │   ├── app/
+│   │   │   ├── (store)/              # 前台路由组（首页、商品、购物车、订单、支付…）
+│   │   │   └── admin/                # 管理后台路由组（仪表盘、商品/卡密/订单/用户管理…）
+│   │   ├── features/                 # 业务功能模块
+│   │   ├── services/                 # API 调用层（统一封装后端接口）
+│   │   ├── hooks/                    # 自定义 React Hooks
+│   │   ├── components/               # 通用 UI 组件（shadcn/ui）
+│   │   ├── types/                    # TypeScript 类型定义
+│   │   └── next.config.mjs           # Next.js 配置（含 API 代理 rewrites）
+│   │
+│   └── api/                          # Spring Boot 后端
+│       └── src/main/
+│           ├── java/com/orionkey/
+│           │   ├── controller/       # REST 控制器（前台 + Admin）
+│           │   ├── entity/           # JPA 实体（16 张表）
+│           │   ├── repository/       # 数据访问层
+│           │   ├── service/          # 业务逻辑层
+│           │   ├── config/           # 安全、JWT、跨域等配置
+│           │   └── model/            # DTO / VO
+│           └── resources/
+│               ├── application.yml   # 应用配置（数据库、JWT、邮件、上传等）
+│               └── data.sql          # 初始化数据（管理员、站点配置、支付渠道）
+│
+├── docker-compose.prod.yml           # 生产 Docker Compose 编排
+├── .env.example                      # 环境变量模板
+└── pnpm-workspace.yaml               # Monorepo 工作区声明
 ```
-
-## 环境要求
-
-| 工具 | 版本 |
-|------|------|
-| Java | 22+ |
-| Maven | 3.9+ |
-| Node.js | 20+ |
-| pnpm | 9+ |
-| PostgreSQL | 14+ |
 
 ---
 
-## 快速开始（本地开发）
+## 先决条件
 
-### 1. 创建数据库
+开始之前，请确保已安装以下工具：
 
-```bash
-# 登录 PostgreSQL
-psql -U postgres
+| 工具 | 版本 | 说明 |
+|------|------|------|
+| Java | 22+ | 后端运行环境 |
+| Maven | 3.9+ | 后端构建工具 |
+| Node.js | 20+ | 前端运行环境 |
+| pnpm | 9+ | 前端包管理（`npm i -g pnpm`） |
+| PostgreSQL | 14+ | 数据库，需提前创建库和用户 |
 
-# 创建数据库
-CREATE DATABASE orion_key;
+---
 
-# 创建用户（可选，也可用 postgres 超级用户）
-CREATE USER orionkey WITH PASSWORD 'your_password';
-GRANT ALL PRIVILEGES ON DATABASE orion_key TO orionkey;
-```
+## 配置
 
-### 2. 配置后端
+核心配置文件：`apps/api/src/main/resources/application.yml`
 
-编辑 `apps/api/src/main/resources/application.yml`，修改数据库连接：
+所有配置项均支持**环境变量覆盖**（格式 `${ENV_VAR:默认值}`），本地开发可直接修改 yml，生产环境建议通过环境变量注入。
+
+### 数据库
 
 ```yaml
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:5432/orion_key
-    username: orionkey          # 改为你的用户名
-    password: your_password     # 改为你的密码
+    url: ${DB_URL:jdbc:postgresql://localhost:5432/orion_key}
+    username: ${DB_USERNAME:orionkey}
+    password: ${DB_PASSWORD:your_password}
 ```
 
-> 首次启动会自动建表（`ddl-auto: update`），但不会自动写入初始数据，需手动执行一次。
+首次启动自动建表（`ddl-auto: update`），启动后执行一次初始化 SQL(data.sql文件) 写入管理员账户、站点配置：
 
-### 3. 初始化数据（仅首次）
 
-首次启动后，手动执行一次 `data.sql` 写入管理员账户、站点配置、支付渠道等基础数据：
+> SQL 内置 `WHERE NOT EXISTS`，多次执行不会产生重复数据。
+
+### JWT 认证
+
+```yaml
+jwt:
+  secret: ${JWT_SECRET:orion-key-dev-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  expiration: 86400000  # 24 小时
+```
+
+生产环境**必须**替换为随机密钥：
 
 ```bash
-psql -U orionkey -d orion_key -f apps/api/src/main/resources/data.sql
+openssl rand -base64 64
 ```
 
-> SQL 内置了 `WHERE NOT EXISTS` 防重，误执行多次也不会产生重复数据。
+### 密码加密模式
 
-### 4. 启动后端
+```yaml
+security:
+  password-plain: ${PASSWORD_PLAIN:true}  # true=明文密码(开发用), false=BCrypt(生产用)
+```
+
+- **本地开发**：`true`（默认），密码明文存储，方便调试
+- **生产环境**：设为 `false`，启用 BCrypt 加密，**必须在切换前重置所有用户密码**
+
+### 邮件发送
+
+```yaml
+spring:
+  mail:
+    host: ${MAIL_HOST:smtp.example.com}
+    port: ${MAIL_PORT:465}
+    username: ${MAIL_USERNAME:your@email.com}
+    password: ${MAIL_PASSWORD:your_password}
+
+mail:
+  enabled: ${MAIL_ENABLED:true}       # 邮件功能总开关，设为 false 可关闭所有邮件发送
+  site-url: ${MAIL_SITE_URL:https://your-domain.com}
+```
+
+### 文件上传
+
+```yaml
+upload:
+  path: ${UPLOAD_PATH:./uploads}                # 文件存储路径
+  url-prefix: ${UPLOAD_URL_PREFIX:/api/uploads}  # 访问 URL 前缀
+```
+
+---
+
+## 本地开发启动
+
+### 方式一：分别启动
+
+**启动后端：**
 
 ```bash
 cd apps/api
 mvn spring-boot:run
+# 启动于 http://localhost:8083/api
 ```
 
-后端启动于 `http://localhost:8083/api`
-
-### 5. 启动前端
+**启动前端：**
 
 ```bash
 cd apps/web
 pnpm install
 pnpm dev
+# 启动于 http://localhost:3000
 ```
 
-前端启动于 `http://localhost:3000`
-
-> **API 代理**：`next.config.mjs` 已配置 `rewrites`，前端对 `/api/*` 的请求会自动代理到 `http://localhost:8083`，无需手动处理跨域。如后端端口不同，设置环境变量 `BACKEND_URL=http://localhost:端口号`。
-
-### 6. 验证
-
-- 后端健康检查：`GET http://localhost:8083/api/categories`
-- 管理员登录：用户名 `admin`，密码 `admin123`
-
----
-
-## 初始化数据说明
-
-`data.sql` 位于 `apps/api/src/main/resources/data.sql`，需在首次部署时**手动执行一次**：
+### 方式二：Monorepo 根目录启动前端
 
 ```bash
-psql -U orionkey -d orion_key -f apps/api/src/main/resources/data.sql
-```
-
-写入内容：
-
-| 数据 | 说明 |
-|------|------|
-| 管理员账户 | `admin` / `admin123` (BCrypt)，角色 ADMIN |
-| 站点配置 (13项) | 站点名称、积分开关、限流参数、订单过期时间等 |
-| 支付渠道 (2个) | 微信支付、支付宝（桩实现，待接入真实支付） |
-
-> SQL 内置 `WHERE NOT EXISTS`，多次执行不会产生重复数据。
-
----
-
-## 生产部署（Ubuntu）
-
-### 1. 安装依赖
-
-```bash
-# Java 22
-sudo apt install openjdk-22-jdk -y
-
-# PostgreSQL
-sudo apt install postgresql postgresql-contrib -y
-
-# 创建数据库
-sudo -u postgres psql -c "CREATE DATABASE orion_key;"
-sudo -u postgres psql -c "CREATE USER orionkey WITH PASSWORD 'your_strong_password';"
-sudo -u postgres psql -c "GRANT ALL PRIVILEGES ON DATABASE orion_key TO orionkey;"
-```
-
-### 2. 创建上传目录
-
-```bash
-sudo mkdir -p /data/orion-key/uploads
-sudo chown your_app_user:your_app_user /data/orion-key/uploads
-```
-
-图片上传后保存在此目录，与应用解耦，重启/重新部署不会丢失。
-
-### 3. 构建
-
-```bash
-# 后端
-cd apps/api
-mvn clean package -DskipTests
-# 产物: target/orion-key-1.0.0-SNAPSHOT.jar
-
-# 前端
-cd apps/web
+# 在项目根目录
 pnpm install
-pnpm build
+pnpm dev:web
+# 等价于 pnpm --filter @orion-key/web dev
 ```
 
-### 4. 配置环境变量
+> **API 代理**：`next.config.mjs` 已配置 `rewrites`，前端 `/api/*` 请求自动代理到 `http://localhost:8083`，无需手动处理跨域。如后端端口不同，设置环境变量 `BACKEND_URL`。
 
-建议通过环境变量覆盖敏感配置，而非修改 yml 文件：
+### 验证
 
-```bash
-# 必须配置
-export SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/orion_key
-export SPRING_DATASOURCE_USERNAME=orionkey
-export SPRING_DATASOURCE_PASSWORD=your_strong_password
-export JWT_SECRET=至少32字符的随机字符串_用openssl_rand_base64_32生成
-
-# 可选配置（有默认值）
-export UPLOAD_PATH=/data/orion-key/uploads    # 默认 /data/orion-key/uploads
-export SERVER_PORT=8083                        # 默认 8083
-```
-
-生成安全的 JWT Secret：
-
-```bash
-openssl rand -base64 32
-```
-
-### 5. 初始化数据（仅首次部署）
-
-首次启动前，先启动一次应用让 JPA 自动建表，然后执行初始化 SQL：
-
-```bash
-# 先启动一次让 JPA 建表（启动成功后 Ctrl+C 停掉即可）
-java -jar target/orion-key-1.0.0-SNAPSHOT.jar
-
-# 执行初始化数据
-psql -U orionkey -d orion_key -f apps/api/src/main/resources/data.sql
-```
-
-### 6. 启动后端
-
-```bash
-java -jar apps/api/target/orion-key-1.0.0-SNAPSHOT.jar
-```
-
-### 7. Systemd 服务（推荐）
-
-创建 `/etc/systemd/system/orion-key.service`：
-
-```ini
-[Unit]
-Description=Orion Key API
-After=network.target postgresql.service
-
-[Service]
-Type=simple
-User=your_app_user
-WorkingDirectory=/opt/orion-key
-ExecStart=/usr/bin/java -jar /opt/orion-key/orion-key.jar
-Restart=always
-RestartSec=10
-
-Environment=SPRING_DATASOURCE_URL=jdbc:postgresql://localhost:5432/orion_key
-Environment=SPRING_DATASOURCE_USERNAME=orionkey
-Environment=SPRING_DATASOURCE_PASSWORD=your_strong_password
-Environment=JWT_SECRET=your_jwt_secret_here
-Environment=UPLOAD_PATH=/data/orion-key/uploads
-
-[Install]
-WantedBy=multi-user.target
-```
-
-```bash
-sudo systemctl daemon-reload
-sudo systemctl enable orion-key
-sudo systemctl start orion-key
-
-# 查看日志
-journalctl -u orion-key -f
-```
-
-### 8. 启动前端
-
-```bash
-cd apps/web
-pnpm install
-pnpm build
-pnpm start  # 默认 3000 端口
-```
-
-> 也可用 PM2 管理前端进程：`pm2 start npm --name "orion-web" -- start`
-
-### 9. Nginx 反向代理（推荐）
-
-生产环境用 Nginx 统一入口，将前端和后端挂在同一域名下，避免跨域问题：
-
-```nginx
-server {
-    listen 80;
-    server_name your-domain.com;
-
-    # 上传的图片 — 直接由 Nginx 提供静态文件服务
-    location /uploads/ {
-        alias /data/orion-key/uploads/;
-        expires 30d;
-        add_header Cache-Control "public, immutable";
-    }
-
-    # 后端 API — 代理到 Spring Boot
-    location /api/ {
-        proxy_pass http://127.0.0.1:8083;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-
-    # 前端 — 代理到 Next.js
-    location / {
-        proxy_pass http://127.0.0.1:3000;
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-    }
-}
-```
-
-```bash
-sudo ln -s /etc/nginx/sites-available/orion-key /etc/nginx/sites-enabled/
-sudo nginx -t && sudo systemctl reload nginx
-```
-
-> 添加 HTTPS：使用 `certbot --nginx -d your-domain.com` 自动配置 Let's Encrypt 证书。
+- 健康检查：`GET http://localhost:8083/api/categories`
+- 管理员登录：`admin` / `admin123`
 
 ---
 
-## CI/CD（GitHub Actions）
+## Docker 部署
 
-项目为前后端分离架构，CI/CD 建议使用 GitHub Actions + Self-hosted Runner（部署在服务器上）：
+项目提供 `docker-compose.prod.yml` 用于生产部署，前后端各一个容器，通过 Docker 内部网络互通。
 
-### 工作原理
+### 1. 配置环境变量
 
-```
-GitHub Push → GitHub Actions → Self-hosted Runner（服务器上）→ 构建 + 部署
-```
-
-前端的 `API_BASE` 始终为 `/api`（相对路径），由 Nginx 统一路由到后端，因此 **无需在 CI/CD 中硬编码后端地址**。
-
-### 示例 workflow（`.github/workflows/deploy.yml`）
-
-```yaml
-name: Deploy
-
-on:
-  push:
-    branches: [main]
-
-jobs:
-  deploy:
-    runs-on: self-hosted  # 服务器上的 Runner
-
-    steps:
-      - uses: actions/checkout@v4
-
-      # 后端构建
-      - uses: actions/setup-java@v4
-        with:
-          distribution: temurin
-          java-version: 22
-
-      - name: Build backend
-        run: |
-          cd apps/api
-          mvn clean package -DskipTests
-
-      - name: Restart backend
-        run: |
-          sudo systemctl restart orion-key
-
-      # 前端构建
-      - uses: actions/setup-node@v4
-        with:
-          node-version: 20
-
-      - name: Install pnpm
-        run: npm install -g pnpm
-
-      - name: Build frontend
-        run: |
-          cd apps/web
-          pnpm install --frozen-lockfile
-          pnpm build
-
-      - name: Restart frontend
-        run: |
-          pm2 restart orion-web || pm2 start npm --name "orion-web" -- start --prefix apps/web
-```
-
-### Self-hosted Runner 安装
+复制 `.env.example` 为 `.env`，填入实际配置：
 
 ```bash
-# 在服务器上
-mkdir ~/actions-runner && cd ~/actions-runner
-curl -o actions-runner-linux-x64.tar.gz -L https://github.com/actions/runner/releases/latest/download/actions-runner-linux-x64-2.321.0.tar.gz
-tar xzf actions-runner-linux-x64.tar.gz
-./config.sh --url https://github.com/你的用户名/orion-key --token 从GitHub获取
-sudo ./svc.sh install && sudo ./svc.sh start
+cp .env.example .env
 ```
 
-> Runner token 从 GitHub 仓库 → Settings → Actions → Runners → New self-hosted runner 获取。
+关键变量：
 
-### 架构总结
+```env
+# 数据库
+DB_URL=jdbc:postgresql://your-db-host:5432/orion_key
+DB_USERNAME=orionkey
+DB_PASSWORD=your_strong_password
 
-| 环境 | 前端如何到达后端 API |
-|------|---------------------|
-| **本地开发** | Next.js `rewrites` 代理 `/api/*` → `localhost:8083` |
-| **生产部署** | Nginx 反向代理 `/api/*` → `127.0.0.1:8083` |
-| **CI/CD** | Runner 在服务器本地构建部署，无需处理网络路由 |
+# 安全（必须修改）
+JWT_SECRET=用 openssl rand -base64 64 生成
+PASSWORD_PLAIN=false
 
----
+# 邮件（不需要可设 MAIL_ENABLED=false）
+MAIL_ENABLED=true
+MAIL_HOST=smtp.example.com
+MAIL_USERNAME=your@email.com
+MAIL_PASSWORD=your_password
 
-## 配置项速查
+# 镜像地址（CI/CD 自动构建推送，或手动指定）
+API_IMAGE=ghcr.io/your-org/orion-key-api:latest
+WEB_IMAGE=ghcr.io/your-org/orion-key-web:latest
+```
 
-### application.yml 关键配置
+### 2. 启动
 
-| 配置项 | 默认值 | 说明 |
-|--------|--------|------|
-| `server.port` | 8083 | 后端端口 |
-| `server.servlet.context-path` | /api | API 前缀 |
-| `spring.datasource.url` | - | PostgreSQL 连接地址 |
-| `spring.jpa.hibernate.ddl-auto` | update | 自动建表/更新表结构 |
-| `jwt.secret` | 开发默认值 | **生产必须替换** |
-| `jwt.expiration` | 86400000 | Token 有效期（毫秒），默认 24 小时 |
-| `upload.path` | /data/orion-key/uploads | 图片上传存储路径 |
-| `security.password-plain` | false | `true`=明文密码（开发用），`false`=BCrypt（生产用） |
+```bash
+docker compose -f docker-compose.prod.yml pull    # 拉取最新镜像
+docker compose -f docker-compose.prod.yml up -d    # 后台启动
+```
 
-### data.sql 站点配置
-
-| config_key | 默认值 | 说明 |
-|------------|--------|------|
-| `site_name` | Orion Key | 站点名称，显示在标题和 Header |
-| `site_description` | 自动化数字商品发卡平台 | 首页副标题 / SEO 描述 |
-| `points_enabled` | true | 积分功能总开关 |
-| `points_rate` | 1 | 每消费 1 元获得的积分数 |
-| `maintenance_enabled` | false | 维护模式，开启后非管理员返回 503 |
-| `announcement_enabled` | false | 全站公告开关 |
-| `popup_enabled` | false | 弹窗通知开关 |
-| `rate_limit_per_second` | 50 | 单 IP 每秒最大请求数 |
-| `login_attempt_limit` | 10 | 单账号连续登录失败上限 |
-| `max_purchase_per_user` | 999 | 单用户最大累计购买数量 |
-| `max_pending_orders_per_ip` | 20 | 单 IP 最大未支付订单数 |
-| `max_pending_orders_per_user` | 10 | 单用户最大未支付订单数 |
-| `order_expire_minutes` | 30 | 未支付订单自动过期时间（分钟） |
+> 上传文件通过卷挂载 `./uploads` 持久化，容器重建不会丢失数据。前端容器通过 Docker 内部网络 `http://api:8083` 访问后端。生产环境建议在前面加一层 Nginx 反向代理处理 HTTPS 和静态资源。
 
 ---
 
-## 生产部署检查清单
+## License
 
-- [ ] PostgreSQL 已安装并创建数据库
-- [ ] 数据库连接信息已通过环境变量配置
-- [ ] `JWT_SECRET` 已替换为随机强密码（`openssl rand -base64 32`）
-- [ ] 上传目录 `/data/orion-key/uploads` 已创建并设置正确权限
-- [ ] 已执行 `data.sql` 初始化基础数据（仅首次）
-- [ ] 首次启动后登录管理后台，**立即修改 admin 密码**
-- [ ] `ddl-auto` 生产稳定后考虑改为 `validate`（只校验不自动改表）
-- [ ] 后端通过 systemd 服务运行
-- [ ] 前端通过 `pnpm build && pnpm start` 或 PM2 运行
-- [ ] Nginx 反向代理已配置（`/api/` → 8083，`/` → 3000，`/uploads/` → 静态目录）
-- [ ] HTTPS 已配置（`certbot --nginx`）
-- [ ] （可选）GitHub Actions Self-hosted Runner 已安装
+[MIT](LICENSE) © 2025 Riven
