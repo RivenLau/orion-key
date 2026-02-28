@@ -12,6 +12,8 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.LocalDateTime;
 import java.util.*;
@@ -123,8 +125,13 @@ public class DeliverServiceImpl implements DeliverService {
                     // Award points
                     awardPoints(order);
 
-                    // Send delivery email (async, non-blocking)
-                    emailService.sendDeliveryEmail(orderId);
+                    // Send delivery email after transaction commits (async, non-blocking)
+                    TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                        @Override
+                        public void afterCommit() {
+                            emailService.sendDeliveryEmail(orderId);
+                        }
+                    });
 
                     result.put("status", "DELIVERED");
                     result.put("groups", buildCardKeyGroups(orderId));

@@ -95,7 +95,7 @@ public class EmailServiceImpl implements EmailService {
         UUID orderId = order.getId();
         BigDecimal amount = order.getActualAmount() != null ? order.getActualAmount() : order.getTotalAmount();
         LocalDateTime createdAt = order.getCreatedAt();
-        String orderUrl = siteUrl + "/orders?id=" + orderId;
+        String orderUrl = siteUrl + "/order/query?orderId=" + orderId;
 
         StringBuilder sb = new StringBuilder();
         sb.append("<!DOCTYPE html>");
