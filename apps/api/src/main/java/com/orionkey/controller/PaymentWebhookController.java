@@ -37,4 +37,14 @@ public class PaymentWebhookController {
         String result = webhookService.processEpayCallback(params);
         return ResponseEntity.ok(result);
     }
+
+    /**
+     * BEpusdt USDT 支付回调 — POST JSON，返回 "ok" 表示成功
+     */
+    @PostMapping(value = "/usdt", produces = MediaType.TEXT_PLAIN_VALUE)
+    public ResponseEntity<String> handleBepusdtCallback(@RequestBody Map<String, Object> params) {
+        log.info("BEpusdt callback received: {}", params);
+        String result = webhookService.processBepusdtCallback(params);
+        return ResponseEntity.ok(result);
+    }
 }

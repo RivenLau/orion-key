@@ -207,6 +207,10 @@ export default function AdminCardKeysPage() {
   const [showInvalidateConfirm, setShowInvalidateConfirm] = useState<CardKeyStockSummary | null>(null)
   const [invalidating, setInvalidating] = useState(false)
 
+  // Single invalidate confirmation state
+  const [singleInvalidateTarget, setSingleInvalidateTarget] = useState<CardKeyListItem | null>(null)
+  const [singleInvalidating, setSingleInvalidating] = useState(false)
+
   const handleBatchInvalidate = async () => {
     if (!showInvalidateConfirm) return
     setInvalidating(true)
@@ -225,6 +229,25 @@ export default function AdminCardKeysPage() {
       toast.error(err instanceof Error ? err.message : "作废失败")
     } finally {
       setInvalidating(false)
+    }
+  }
+
+  const handleSingleInvalidate = async () => {
+    if (!singleInvalidateTarget) return
+    setSingleInvalidating(true)
+    try {
+      await withMockFallback(
+        () => adminCardKeyApi.invalidate(singleInvalidateTarget.id),
+        () => null
+      )
+      toast.success("卡密已作废")
+      setSingleInvalidateTarget(null)
+      if (detailItem) fetchDetailKeys(detailItem, detailPage)
+      await fetchStock()
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "作废失败")
+    } finally {
+      setSingleInvalidating(false)
     }
   }
 
@@ -537,11 +560,12 @@ export default function AdminCardKeysPage() {
               <table className="w-full text-sm table-fixed">
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
-                    <th className="w-[40%] px-3 py-2 text-left font-medium text-muted-foreground">卡密内容</th>
+                    <th className="w-[36%] px-3 py-2 text-left font-medium text-muted-foreground">卡密内容</th>
                     <th className="w-[8%] px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">状态</th>
-                    <th className="w-[17%] px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">创建时间</th>
-                    <th className="w-[18%] px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">订单号</th>
-                    <th className="w-[17%] px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">售出时间</th>
+                    <th className="w-[16%] px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">创建时间</th>
+                    <th className="w-[16%] px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">订单号</th>
+                    <th className="w-[16%] px-3 py-2 text-left font-medium text-muted-foreground whitespace-nowrap">售出时间</th>
+                    <th className="w-[8%] px-3 py-2 text-right font-medium text-muted-foreground whitespace-nowrap">操作</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -567,6 +591,18 @@ export default function AdminCardKeysPage() {
                       </td>
                       <td className="px-3 py-2 text-xs text-muted-foreground whitespace-nowrap">
                         {key.sold_at ? new Date(key.sold_at).toLocaleString() : "-"}
+                      </td>
+                      <td className="px-3 py-2 text-right whitespace-nowrap">
+                        {(key.status === "AVAILABLE" || key.status === "LOCKED") && (
+                          <button
+                            type="button"
+                            className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
+                            title="作废此卡密"
+                            onClick={() => setSingleInvalidateTarget(key)}
+                          >
+                            <Ban className="h-3.5 w-3.5" />
+                          </button>
+                        )}
                       </td>
                     </tr>
                   ))}
@@ -599,6 +635,46 @@ export default function AdminCardKeysPage() {
             </div>
           </div>
         )}
+      </Modal>
+
+      {/* Single Invalidate Confirmation */}
+      <Modal open={singleInvalidateTarget !== null} onClose={() => setSingleInvalidateTarget(null)} className="max-w-md">
+        <div className="flex flex-col gap-4 p-6">
+          <div className="flex items-start gap-3">
+            <div className="rounded-full bg-destructive/10 p-2">
+              <AlertCircle className="h-5 w-5 text-destructive" />
+            </div>
+            <div className="flex-1">
+              <h3 className="text-base font-semibold text-foreground">确认作废卡密</h3>
+              {singleInvalidateTarget && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  确定要作废以下卡密吗？此操作不可撤销。
+                  <br />
+                  <code className="mt-1 inline-block rounded bg-muted px-1.5 py-0.5 font-mono text-xs text-foreground break-all">
+                    {singleInvalidateTarget.content}
+                  </code>
+                </p>
+              )}
+            </div>
+          </div>
+          <div className="flex justify-end gap-3">
+            <button
+              type="button"
+              className="rounded-lg border border-input bg-transparent px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+              onClick={() => setSingleInvalidateTarget(null)}
+            >
+              取消
+            </button>
+            <button
+              type="button"
+              className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors disabled:opacity-50"
+              onClick={handleSingleInvalidate}
+              disabled={singleInvalidating}
+            >
+              {singleInvalidating ? "作废中..." : "确认作废"}
+            </button>
+          </div>
+        </div>
       </Modal>
 
       {/* Batch Invalidate Confirmation */}

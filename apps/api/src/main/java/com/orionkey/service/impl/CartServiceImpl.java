@@ -196,6 +196,7 @@ public class CartServiceImpl implements CartService {
         map.put("product_title", productTitle);
         map.put("spec_name", specName);
         map.put("cover_url", coverUrl);
+        map.put("currency", product != null ? product.getCurrency() : "CNY");
         map.put("unit_price", unitPrice);
         map.put("quantity", item.getQuantity());
         map.put("subtotal", unitPrice.multiply(BigDecimal.valueOf(item.getQuantity())));

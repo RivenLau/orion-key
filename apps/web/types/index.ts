@@ -121,6 +121,7 @@ export interface CartItem {
   product_title: string
   spec_name: string | null
   cover_url?: string
+  currency?: string
   unit_price: number
   quantity: number
   subtotal: number
@@ -148,6 +149,8 @@ export interface OrderBrief {
   order_type: OrderType
   payment_method: string
   created_at: string
+  // USDT 支付字段（仅 USDT 订单返回）
+  usdt_tx_id?: string
 }
 
 export interface OrderItemDetail {
@@ -174,7 +177,17 @@ export interface PaymentCreateResult {
   order_id: string
   payment_url: string
   qrcode_url?: string
+  pay_url?: string
   expires_at: string
+  // USDT 新增（仅 USDT 渠道返回）
+  wallet_address?: string
+  crypto_amount?: string
+  chain?: string
+}
+
+export interface TxidVerifyResult {
+  result: "AUTO_APPROVED" | "AUTO_REJECTED" | "PENDING_REVIEW"
+  reason: string
 }
 
 export interface CreateOrderResult {
@@ -287,6 +300,7 @@ export interface CreateOrderRequest {
   payment_method: string
   use_points?: boolean
   idempotency_key: string
+  device?: string
 }
 
 export interface CreateCartOrderRequest {
@@ -294,6 +308,7 @@ export interface CreateCartOrderRequest {
   payment_method: string
   use_points?: boolean
   idempotency_key: string
+  device?: string
 }
 
 // ============================================================
@@ -438,4 +453,29 @@ export interface RiskConfig {
   max_pending_orders_per_ip: number
   max_pending_orders_per_user: number
   order_expire_minutes: number
+}
+
+// ============================================================
+// Admin TXID Review
+// ============================================================
+
+export type TxidReviewStatus = 'PENDING_REVIEW' | 'AUTO_APPROVED' | 'AUTO_REJECTED' | 'APPROVED' | 'REJECTED'
+
+export interface UnmatchedTransaction {
+  id: string
+  order_id: string
+  txid: string
+  chain: string | null
+  on_chain_from: string | null
+  on_chain_to: string | null
+  on_chain_amount: number | null
+  expected_amount: number
+  amount_diff: number | null
+  source: 'USER_SUBMIT' | 'WEBHOOK_MISMATCH'
+  status: TxidReviewStatus
+  verify_reason: string | null
+  reviewer_id: string | null
+  reviewed_at: string | null
+  submitted_at: string
+  created_at: string
 }

@@ -13,13 +13,17 @@ import {
   ExternalLink,
   HelpCircle,
   Loader2,
+  Info,
+  ArrowRight,
+  AlertTriangle,
+  Smartphone,
 } from "lucide-react"
 import { QRCodeSVG } from "qrcode.react"
 import { toast } from "sonner"
 import { useLocale, useCart, useSiteConfig } from "@/lib/context"
 import { orderApi, withMockFallback } from "@/services/api"
 import type { OrderStatus } from "@/types"
-import { cn } from "@/lib/utils"
+import { cn, detectPaymentDevice, isMobileDevice } from "@/lib/utils"
 import { PaymentIcon, getPaymentLabel, getPaymentBrandColor, getPaymentScanHint } from "@/components/shared/payment-icon"
 
 const POLL_INTERVAL = 3000 // 3 seconds
@@ -39,17 +43,40 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   const [refreshCooldown, setRefreshCooldown] = useState(0)
   const [isRefreshing, setIsRefreshing] = useState(false)
   const [qrcodeUrl, setQrcodeUrl] = useState<string>("")
+  const [payUrlH5, setPayUrlH5] = useState<string>("")
+  const [retrying, setRetrying] = useState(false)
+  // 标记是否已经跳转过支付 App（从 sessionStorage 初始化，防止返回后文案错误）
+  const [hasRedirected, setHasRedirected] = useState(false)
+
+  const isMobile = isMobileDevice()
 
   const paymentMethod = searchParams.get("method") || "alipay"
   const paymentMethodName = getPaymentLabel(paymentMethod, t)
   const scanHint = getPaymentScanHint(paymentMethod, t)
   const brandColor = getPaymentBrandColor(paymentMethod)
 
-  // 初始化：获取订单状态 + QR code + 真实倒计时
+  // USDT 支付判断 & 参数
+  const isUsdtPayment = paymentMethod.startsWith("usdt_")
+  const walletAddress = searchParams.get("wallet") || ""
+  const cryptoAmount = searchParams.get("crypto_amount") || ""
+  const usdtChain = searchParams.get("chain") || paymentMethod
+  const chainDisplayName = usdtChain.includes("trc20") ? "TRC-20" : usdtChain.includes("bep20") ? "BEP-20" : usdtChain
+
+  // 初始化：获取订单状态 + QR code + H5 pay URL + 真实倒计时
   useEffect(() => {
     const qrFromParam = searchParams.get("qr")
     if (qrFromParam) {
       setQrcodeUrl(decodeURIComponent(qrFromParam))
+    }
+
+    const payurlFromParam = searchParams.get("payurl")
+    if (payurlFromParam) {
+      setPayUrlH5(decodeURIComponent(payurlFromParam))
+    }
+
+    // 检查是否已跳转过支付 App（从 sessionStorage 恢复状态）
+    if (sessionStorage.getItem(`pay_redirected_${orderId}`)) {
+      setHasRedirected(true)
     }
 
     // 从 API 获取服务端计算的 remaining_seconds，不依赖客户端时钟
@@ -71,6 +98,19 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     }
     fetchOrderInfo()
   }, [orderId, searchParams])
+
+  // H5 自动跳转（移动端 + 有 payUrl + PENDING 状态 + 未跳转过）
+  useEffect(() => {
+    if (!isMobile || !payUrlH5 || status !== "PENDING" || isUsdtPayment) return
+    const storageKey = `pay_redirected_${orderId}`
+    if (sessionStorage.getItem(storageKey)) {
+      setHasRedirected(true)
+      return
+    }
+    sessionStorage.setItem(storageKey, "1")
+    setHasRedirected(true)
+    window.location.href = payUrlH5
+  }, [isMobile, payUrlH5, status, orderId, isUsdtPayment])
 
   // Countdown timer — 仅在服务端返回真实倒计时后才开始递减
   useEffect(() => {
@@ -144,6 +184,33 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       toast.info(t("payment.statusRefreshed"))
     }
   }, [refreshCooldown, isRefreshing, orderId, t])
+
+  // 重新发起支付（移动端重试）
+  const handleRetryPayment = useCallback(async () => {
+    if (retrying) return
+    setRetrying(true)
+    try {
+      const device = detectPaymentDevice()
+      const result = await orderApi.repay(orderId, device)
+      // 更新支付链接
+      if (result.pay_url) setPayUrlH5(result.pay_url)
+      if (result.qrcode_url) setQrcodeUrl(result.qrcode_url)
+      else if (result.payment_url) setQrcodeUrl(result.payment_url)
+
+      if (isMobile && result.pay_url) {
+        // 清除跳转标记，允许重新跳转
+        sessionStorage.removeItem(`pay_redirected_${orderId}`)
+        window.location.href = result.pay_url
+      } else {
+        toast.success(t("payment.statusRefreshed"))
+      }
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : t("common.error")
+      toast.error(msg)
+    } finally {
+      setRetrying(false)
+    }
+  }, [retrying, orderId, isMobile, t])
 
   const copyToClipboard = useCallback((text: string) => {
     if (navigator.clipboard?.writeText) {
@@ -247,46 +314,147 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           </span>
         </div>
 
-        {/* 品牌色背景卡片 */}
-        <div
-          className="flex w-72 flex-col items-center gap-4 rounded-2xl px-6 pb-8 pt-6"
-          style={{ backgroundColor: brandColor || "#374151" }}
-        >
-          {/* 品牌标题：Logo + 支付方式名称（白色） */}
-          <div className="flex items-center gap-2.5">
-            <PaymentIcon method={paymentMethod} className="h-10 w-10" variant="plain" />
-            <span className="text-xl font-bold text-white">
-              {paymentMethodName}
-            </span>
-          </div>
-
-          {/* 扫码指引（白色） */}
-          <p className="text-sm font-medium text-white/90">
-            {scanHint}
-          </p>
-
-          {/* QR Code 白色区域 */}
-          <div className="flex h-52 w-52 items-center justify-center rounded-xl bg-white p-3">
-            {qrcodeUrl ? (
-              <QRCodeSVG
-                value={qrcodeUrl}
-                size={184}
-                level="M"
-                includeMargin={false}
-              />
-            ) : (
-              <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                <Loader2 className="h-8 w-8 animate-spin" />
-                <span className="text-xs">{t("common.loading")}</span>
+        {isUsdtPayment ? (
+          /* ========== USDT 支付视图 ========== */
+          <>
+            <div
+              className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl px-6 pb-6 pt-6"
+              style={{ backgroundColor: brandColor || "#26A17B" }}
+            >
+              {/* 品牌标题 */}
+              <div className="flex items-center gap-2.5">
+                <PaymentIcon method={paymentMethod} className="h-10 w-10" variant="plain" />
+                <span className="text-xl font-bold text-white">{paymentMethodName}</span>
               </div>
-            )}
-          </div>
-        </div>
 
-        {/* 检测状态 */}
-        <p className="animate-pulse text-sm text-primary">
-          {t("payment.detecting")}
-        </p>
+              <div className="flex w-full flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
+                {/* QR Code（钱包地址） */}
+                <div className="flex h-44 w-44 shrink-0 items-center justify-center rounded-xl bg-white p-2.5">
+                  {walletAddress ? (
+                    <QRCodeSVG value={walletAddress} size={160} level="M" includeMargin={false} />
+                  ) : (
+                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                      <Loader2 className="h-8 w-8 animate-spin" />
+                      <span className="text-xs">{t("common.loading")}</span>
+                    </div>
+                  )}
+                </div>
+
+                {/* 金额 + 地址 */}
+                <div className="flex flex-col gap-3 text-white">
+                  {/* 转账金额 */}
+                  <div>
+                    <p className="text-xs font-medium text-white/70">{t("payment.usdt.amount")}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="text-lg font-bold">{cryptoAmount} USDT</span>
+                      <button type="button" onClick={() => copyToClipboard(cryptoAmount)}
+                              className="text-white/70 transition-colors hover:text-white">
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                  {/* 收款地址 */}
+                  <div>
+                    <p className="text-xs font-medium text-white/70">{t("payment.usdt.address")}</p>
+                    <div className="mt-1 flex items-center gap-2">
+                      <span className="break-all text-xs font-mono leading-relaxed">
+                        {walletAddress.length > 20
+                          ? `${walletAddress.slice(0, 10)}...${walletAddress.slice(-10)}`
+                          : walletAddress}
+                      </span>
+                      <button type="button" onClick={() => copyToClipboard(walletAddress)}
+                              className="shrink-0 text-white/70 transition-colors hover:text-white">
+                        <Copy className="h-3.5 w-3.5" />
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* USDT 警告提示 */}
+            <div className="flex w-full max-w-sm flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+              <p className="flex items-start gap-1.5">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{t("payment.usdt.warnExact").replace("{amount}", cryptoAmount)}</span>
+              </p>
+              <p className="flex items-start gap-1.5">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{t("payment.usdt.warnFee")}</span>
+              </p>
+              <p className="flex items-start gap-1.5">
+                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+                <span>{t("payment.usdt.warnChain").replace("{chain}", chainDisplayName)}</span>
+              </p>
+            </div>
+
+            {/* 检测状态 */}
+            <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
+          </>
+        ) : !isMobile ? (
+          /* ========== PC 传统支付视图（支付宝/微信） — 不变 ========== */
+          <>
+            <div
+              className="flex w-72 flex-col items-center gap-4 rounded-2xl px-6 pb-8 pt-6"
+              style={{ backgroundColor: brandColor || "#374151" }}
+            >
+              <div className="flex items-center gap-2.5">
+                <PaymentIcon method={paymentMethod} className="h-10 w-10" variant="plain" />
+                <span className="text-xl font-bold text-white">{paymentMethodName}</span>
+              </div>
+              <p className="text-sm font-medium text-white/90">{scanHint}</p>
+              <div className="flex h-52 w-52 items-center justify-center rounded-xl bg-white p-3">
+                {qrcodeUrl ? (
+                  <QRCodeSVG value={qrcodeUrl} size={184} level="M" includeMargin={false} />
+                ) : (
+                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
+                    <Loader2 className="h-8 w-8 animate-spin" />
+                    <span className="text-xs">{t("common.loading")}</span>
+                  </div>
+                )}
+              </div>
+            </div>
+            <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
+          </>
+        ) : (
+          /* ========== H5 移动端支付视图（新增） ========== */
+          <>
+            <div
+              className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl px-6 pb-6 pt-6"
+              style={{ backgroundColor: brandColor || "#374151" }}
+            >
+              <div className="flex items-center gap-2.5">
+                <PaymentIcon method={paymentMethod} className="h-10 w-10" variant="plain" />
+                <span className="text-xl font-bold text-white">{paymentMethodName}</span>
+              </div>
+              <Smartphone className="h-8 w-8 text-white/80" />
+            </div>
+
+            {/* 状态提示：未跳转过 → "正在跳转..."；已跳转返回 → "如已完成支付..." */}
+            {!hasRedirected ? (
+              <p className="animate-pulse text-sm text-primary">{t("payment.redirectingToPay")}</p>
+            ) : (
+              <p className="text-sm text-muted-foreground">{t("payment.returnedFromPay")}</p>
+            )}
+
+            {/* 检测状态 */}
+            <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
+
+            {/* 重新发起支付按钮 */}
+            <button
+              onClick={handleRetryPayment}
+              disabled={retrying}
+              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
+            >
+              {retrying ? (
+                <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                <RefreshCw className="h-4 w-4" />
+              )}
+              {t("payment.retryPay")}
+            </button>
+          </>
+        )}
 
         {/* 订单号 */}
         <div className="flex w-full items-center justify-between border-t border-border pt-4 text-sm">
@@ -325,16 +493,29 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       </button>
 
       {/* Help Links */}
-      <div className="flex flex-col items-center gap-2 pt-2 text-xs">
+      <div className="flex flex-col items-center gap-2 pt-2 text-sm">
+        {/* USDT 延迟到账提示 */}
+        {isUsdtPayment && (
+          <p className="flex items-start gap-1.5 text-muted-foreground">
+            <Info className="mt-0.5 h-4 w-4 shrink-0" />
+            <span>{t("payment.usdt.delayHint")}</span>
+          </p>
+        )}
+
+        {/* 引导跳转订单查询 — 携带 orderId */}
         <Link
-          href="/order/query"
-          className="text-muted-foreground underline-offset-4 transition-colors hover:text-foreground hover:underline"
+          href={`/order/query?orderId=${orderId}`}
+          className="text-muted-foreground transition-colors hover:text-foreground"
         >
-          {t("payment.paidButNotDelivered")}
+          {t("payment.completedPayment")}
+          <span className="font-medium text-foreground">{t("payment.goQueryOrder")}</span>
+          <ArrowRight className="ml-0.5 inline h-4 w-4" />
         </Link>
+
+        {/* 联系客服 */}
         {(config?.contact_telegram || config?.contact_email) && (
           <div className="flex flex-wrap items-center justify-center gap-x-1 text-muted-foreground">
-            <HelpCircle className="h-3 w-3" />
+            <HelpCircle className="h-3.5 w-3.5" />
             <span>{t("payment.needHelp")}</span>
             {config.contact_telegram && (
               <a
@@ -344,7 +525,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
                 className="flex items-center gap-0.5 underline-offset-4 transition-colors hover:text-foreground hover:underline"
               >
                 {t("payment.contactSupport")}
-                <ExternalLink className="h-3 w-3" />
+                <ExternalLink className="h-3.5 w-3.5" />
               </a>
             )}
             {config.contact_telegram && config.contact_email && (

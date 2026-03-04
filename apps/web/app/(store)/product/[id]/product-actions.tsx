@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { useLocale, useAuth, useCart } from "@/lib/context"
 import { orderApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockCreateOrder } from "@/lib/mock-data"
-import { cn, validateEmail, generateIdempotencyKey, getCurrencySymbol } from "@/lib/utils"
+import { cn, validateEmail, generateIdempotencyKey, getCurrencySymbol, detectPaymentDevice } from "@/lib/utils"
 import { PaymentSelector } from "@/components/shared/payment-selector"
 import type { ProductDetail, ProductSpec, PaymentChannelItem } from "@/types"
 
@@ -75,6 +75,7 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
 
     setSubmitting(true)
     try {
+      const device = detectPaymentDevice()
       const result = await withMockFallback(
         () => orderApi.create({
           product_id: product.id,
@@ -83,12 +84,22 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
           email,
           payment_method: selectedPayment,
           idempotency_key: generateIdempotencyKey(),
+          device,
         }),
         () => mockCreateOrder(email, selectedPayment)
       )
       toast.success(t("checkout.processingOrder"))
+      const payUrlH5 = result.payment.pay_url || ""
       const qr = result.payment.qrcode_url || result.payment.payment_url || ""
-      const payUrl = `/pay/${result.payment.order_id}?method=${selectedPayment}${qr ? `&qr=${encodeURIComponent(qr)}` : ""}`
+      let payUrl = `/pay/${result.payment.order_id}?method=${selectedPayment}`
+      if (qr) payUrl += `&qr=${encodeURIComponent(qr)}`
+      if (payUrlH5) payUrl += `&payurl=${encodeURIComponent(payUrlH5)}`
+      // USDT 支付额外参数
+      if (result.payment.wallet_address) {
+        payUrl += `&wallet=${encodeURIComponent(result.payment.wallet_address)}`
+        payUrl += `&crypto_amount=${encodeURIComponent(result.payment.crypto_amount || "")}`
+        payUrl += `&chain=${encodeURIComponent(result.payment.chain || "")}`
+      }
       router.push(payUrl)
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, t))

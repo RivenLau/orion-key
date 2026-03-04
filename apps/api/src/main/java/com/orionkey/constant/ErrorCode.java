@@ -40,6 +40,10 @@ public final class ErrorCode {
     // ── Payment 50001~50099 ──
     public static final int CHANNEL_UNAVAILABLE = 50001;
     public static final int WEBHOOK_VERIFY_FAIL = 50002;
+    public static final int TXID_INVALID_FORMAT = 50003;
+    public static final int TXID_ALREADY_USED = 50004;
+    public static final int TXID_VERIFY_FAILED = 50005;
+    public static final int ORDER_NOT_USDT = 50006;
 
     // ── Admin 70001~70099 ──
     public static final int CATEGORY_NAME_EXISTS = 70001;

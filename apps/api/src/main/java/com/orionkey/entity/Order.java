@@ -64,5 +64,26 @@ public class Order extends BaseEntity {
     @Column(columnDefinition = "TEXT")
     private String paymentUrl;
 
+    @Column(columnDefinition = "TEXT")
+    private String qrcodeUrl;
+
     private String epayTradeNo;
+
+    // ── USDT 支付字段 ──
+
+    /** 收款钱包地址 */
+    private String usdtWalletAddress;
+
+    /** 精确加密货币金额（3 位小数） */
+    private String usdtCryptoAmount;
+
+    /** BEpusdt 交易 ID */
+    private String usdtTradeId;
+
+    /** 链标识，如 usdt_trc20 / usdt_bep20 */
+    private String usdtChain;
+
+    /** 链上交易哈希（支付成功后填充） */
+    @Column(unique = true)
+    private String usdtTxId;
 }

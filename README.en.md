@@ -66,6 +66,21 @@
 
 ---
 
+## Integrated Payment Channels
+
+| Channel | Integration | Notes |
+|---------|------------|-------|
+| Alipay | Epay (Aggregator) | Via third-party Epay payment platform |
+| WeChat Pay | Epay (Aggregator) | Via third-party Epay payment platform |
+| Alipay | Native | Requires business license (Alipay Open Platform) |
+| WeChat Pay | Native | Requires business license (WeChat Pay Merchant) |
+| USDT (TRC-20) | BEpusdt Self-hosted | On-chain auto-confirmation, no third-party custody |
+| USDT (BEP-20) | BEpusdt Self-hosted | On-chain auto-confirmation, no third-party custody |
+
+> Extensible payment architecture — configure and switch channels freely via admin panel.
+
+---
+
 ## Tech Stack
 
 | Layer | Technologies |
@@ -287,6 +302,18 @@ docker compose -f docker-compose.prod.yml up -d    # Start in background
 
 ---
 
+## AI Store (Not a Demo)
+
+[![Orion Key Shop](https://img.shields.io/badge/Orion%20Key%20Shop-Visit%20Store-FF6B00?style=for-the-badge)](https://www.orionkey.shop/)
+
+---
+
+## Telegram Group
+
+[![Telegram](https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white)](https://t.me/+bFPWrYnruDIwZWRh)
+
+---
+
 ## License
 
-[MIT](LICENSE) © 2025 Riven
+[MIT](LICENSE) © 2026 Riven

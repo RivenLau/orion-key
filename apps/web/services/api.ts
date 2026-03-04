@@ -33,6 +33,7 @@ import type {
   CaptchaResult,
   AuthResult,
   CurrencyItem,
+  TxidVerifyResult,
 } from "@/types"
 
 // ============================================================
@@ -313,6 +314,16 @@ export const orderApi = {
     request<DeliverResult[]>("/orders/deliver", { method: "POST", body: JSON.stringify(data) }),
   exportKeys: (orderId: string) =>
     request<string>(`/orders/${orderId}/export`),
+  submitTxid: (orderId: string, txid: string) =>
+    request<TxidVerifyResult>(`/orders/${orderId}/txid-verify`, {
+      method: "POST",
+      body: JSON.stringify({ txid }),
+    }),
+  repay: (orderId: string, device?: string) =>
+    request<import("@/types").PaymentCreateResult>(`/orders/${orderId}/repay`, {
+      method: "POST",
+      body: JSON.stringify({ device }),
+    }),
 }
 
 // ============================================================
@@ -531,6 +542,24 @@ export const adminRiskApi = {
   },
 }
 
+// ============================================================
+// Admin TXID Review
+// ============================================================
+
+export const adminTxidReviewApi = {
+  getList: (params: { status?: string; page?: number; page_size?: number }) => {
+    const qs = buildQuery(params)
+    return request<PaginatedData<import("@/types").UnmatchedTransaction>>(`/admin/txid-reviews?${qs}`)
+  },
+  approve: (id: string) =>
+    request<null>(`/admin/txid-reviews/${id}/approve`, { method: "POST" }),
+  reject: (id: string, reason: string) =>
+    request<null>(`/admin/txid-reviews/${id}/reject`, {
+      method: "POST",
+      body: JSON.stringify({ reason }),
+    }),
+}
+
 export { ApiError }
 
 // ============================================================
@@ -568,6 +597,10 @@ const ERROR_CODE_I18N: Record<number, string> = {
   40008: "error.cartEmpty",
   // Payment
   50001: "error.channelUnavailable",
+  50003: "error.txidInvalidFormat",
+  50004: "error.txidAlreadyUsed",
+  50005: "error.txidVerifyFailed",
+  50006: "error.orderNotUsdt",
 }
 
 /**

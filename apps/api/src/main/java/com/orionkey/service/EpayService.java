@@ -21,7 +21,7 @@ public interface EpayService {
      * @param clientIp   用户 IP
      * @return 包含 payUrl / qrcodeUrl 的结果
      */
-    EpayResult createPayment(ChannelConfig config, String outTradeNo, String type, String name, BigDecimal money, String clientIp);
+    EpayResult createPayment(ChannelConfig config, String outTradeNo, String type, String name, BigDecimal money, String clientIp, String device);
 
     /**
      * 生成 MD5 签名

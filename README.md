@@ -66,6 +66,21 @@ Automated Digital Goods Delivery Platform
 
 ---
 
+## 支付渠道集成
+
+| 渠道            | 接入方式 | 说明 |
+|---------------|---------|------|
+| 支付宝           | 易支付（聚合） | 通过第三方易支付平台接入 |
+| 微信支付          | 易支付（聚合） | 通过第三方易支付平台接入 |
+| 支付宝 (待实现)     | 原生对接 | 需企业资质（支付宝开放平台） |
+| 微信支付 (待实现)    | 原生对接 | 需企业资质（微信支付商户号） |
+| USDT (TRC-20) | BEpusdt 自托管 | 链上自动确认，无第三方托管 |
+| USDT (BEP-20) | BEpusdt 自托管 | 链上自动确认，无第三方托管 |
+
+> 支付架构可扩展，可通过后台「支付渠道管理」自由配置和切换。
+
+---
+
 ## 技术架构
 
 | 层级 | 技术栈 |
@@ -283,6 +298,18 @@ docker compose -f docker-compose.prod.yml up -d    # 后台启动
 
 ---
 
+## AI 商店推荐（非 Demo 演示）
+
+[![Orion Key Shop](https://img.shields.io/badge/Orion%20Key%20Shop-在线商店-FF6B00?style=for-the-badge)](https://www.orionkey.shop/)
+
+---
+
+## TG 交流群组
+
+[![Telegram](https://img.shields.io/badge/Telegram-群组-26A5E4?logo=telegram&logoColor=white)](https://t.me/+bFPWrYnruDIwZWRh)
+
+---
+
 ## License
 
-[MIT](LICENSE) © 2025 Riven
+[MIT](LICENSE) © 2026 Riven

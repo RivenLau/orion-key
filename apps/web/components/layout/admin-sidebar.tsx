@@ -13,6 +13,7 @@ import {
   Settings,
   ScrollText,
   ShieldAlert,
+  FileSearch,
   LogOut,
   ChevronLeft,
   Menu,
@@ -36,6 +37,7 @@ const navItems: { labelKey: TranslationKey; href: string; icon: typeof LayoutDas
   { labelKey: "admin.payment", href: "/admin/payment-channels", icon: CreditCard },
   { labelKey: "admin.siteConfig", href: "/admin/site-config", icon: Settings },
   { labelKey: "admin.risk", href: "/admin/risk", icon: ShieldAlert },
+  { labelKey: "admin.txidReview", href: "/admin/txid-reviews", icon: FileSearch },
   { labelKey: "admin.logs", href: "/admin/operation-logs", icon: ScrollText },
 ]
 

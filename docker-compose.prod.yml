@@ -70,3 +70,39 @@ services:
       - api
 
     restart: unless-stopped
+
+  # ── BEpusdt USDT 支付微服务 ──
+  # 开源自托管 USDT 收款网关，支持 TRC20/BEP20 等多链
+  # 管理后台：http://server:8881（首次部署后配置钱包地址、支付精度等）
+  # 文档参考：docs/USDT_PAYMENT_DESIGN.md 第七章
+  bepusdt:
+    image: v03413/bepusdt:latest
+    container_name: bepusdt
+
+    # 端口映射：仅本机可访问，由 api 容器通过 Docker 网络调用
+    ports:
+      - "127.0.0.1:8881:8080"
+
+    # 数据持久化：SQLite 数据库、钱包配置等存储在 volume 中
+    volumes:
+      - bepusdt_data:/app/data
+
+    # BEpusdt 环境变量（敏感值应写入 .env 文件）
+    # APP_URI: BEpusdt 外部可访问地址（用于回调签名验证，若使用 Nginx 反代则填反代地址）
+    # AUTH_TOKEN: 管理后台登录密码
+    # API_TOKEN: API 接口签名密钥（后端 PaymentChannel 配置中的 api_token 需与此一致）
+    # TRADE_IS_NOTIFY: 1=开启支付回调通知（必须开启）
+    # EXPIRE_TIME: 支付订单过期时间（秒），默认 900 = 15 分钟
+    environment:
+      - TZ=Asia/Shanghai
+      - APP_URI=${BEPUSDT_APP_URI:-http://localhost:8881}
+      - AUTH_TOKEN=${BEPUSDT_AUTH_TOKEN:-change-me}
+      - API_TOKEN=${BEPUSDT_API_TOKEN:-change-me}
+      - TRADE_IS_NOTIFY=1
+      - EXPIRE_TIME=${BEPUSDT_EXPIRE_TIME:-900}
+
+    restart: unless-stopped
+
+# ── 命名卷（数据持久化） ──
+volumes:
+  bepusdt_data:

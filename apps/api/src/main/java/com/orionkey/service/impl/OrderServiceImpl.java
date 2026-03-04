@@ -38,11 +38,12 @@ public class OrderServiceImpl implements OrderService {
     @Override
     @Transactional
     public Map<String, Object> createDirectOrder(Map<String, Object> req, UUID userId, String clientIp, String sessionToken) {
+        String device = (String) req.get("device");
         String idempotencyKey = (String) req.get("idempotency_key");
         if (idempotencyKey != null) {
             Optional<Order> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
             if (existing.isPresent()) {
-                return buildOrderResult(existing.get());
+                return buildOrderResult(existing.get(), device);
             }
         }
 
@@ -102,17 +103,18 @@ public class OrderServiceImpl implements OrderService {
         item.setSubtotal(totalAmount);
         orderItemRepository.save(item);
 
-        return buildOrderResult(order);
+        return buildOrderResult(order, device);
     }
 
     @Override
     @Transactional
     public Map<String, Object> createCartOrder(Map<String, Object> req, UUID userId, String clientIp, String sessionToken) {
+        String device = (String) req.get("device");
         String idempotencyKey = (String) req.get("idempotency_key");
         if (idempotencyKey != null) {
             Optional<Order> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
             if (existing.isPresent()) {
-                return buildOrderResult(existing.get());
+                return buildOrderResult(existing.get(), device);
             }
         }
 
@@ -194,7 +196,7 @@ public class OrderServiceImpl implements OrderService {
             cartItemRepository.delete(ci);
         }
 
-        return buildOrderResult(order);
+        return buildOrderResult(order, device);
     }
 
     @Override
@@ -218,8 +220,12 @@ public class OrderServiceImpl implements OrderService {
         } else {
             result.put("remaining_seconds", 0);
         }
-        if (order.getStatus() == OrderStatus.PENDING && order.getPaymentUrl() != null) {
-            result.put("payment_url", order.getPaymentUrl());
+        if (order.getStatus() == OrderStatus.PENDING) {
+            // 优先返回二维码 URL（PC），其次 H5 跳转链接（移动端）
+            String effectiveUrl = order.getQrcodeUrl() != null ? order.getQrcodeUrl() : order.getPaymentUrl();
+            if (effectiveUrl != null) {
+                result.put("payment_url", effectiveUrl);
+            }
         }
         return result;
     }
@@ -284,11 +290,11 @@ public class OrderServiceImpl implements OrderService {
         }
     }
 
-    private Map<String, Object> buildOrderResult(Order order) {
+    private Map<String, Object> buildOrderResult(Order order, String device) {
         List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
         Map<String, Object> orderDetail = toOrderDetail(order, items);
         Map<String, Object> payment = paymentService.createPayment(
-                order.getId(), order.getPaymentMethod(), order.getActualAmount());
+                order.getId(), order.getPaymentMethod(), order.getActualAmount(), device);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("order", orderDetail);

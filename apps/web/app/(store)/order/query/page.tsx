@@ -2,13 +2,14 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
-import { Search, Copy, Download, FileText, CheckCircle2, X, Clock, HelpCircle, ExternalLink } from "lucide-react"
+import { Search, Copy, Download, FileText, CheckCircle2, X, Clock, HelpCircle, ExternalLink, Loader2, AlertCircle, Info } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useSiteConfig } from "@/lib/context"
-import { orderApi, withMockFallback } from "@/services/api"
+import { orderApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockQueryOrders, mockDeliver } from "@/lib/mock-data"
 import { OrderStatusBadge } from "@/components/shared/order-status-badge"
-import type { OrderBrief, DeliverResult } from "@/types"
+import { PaymentIcon, getPaymentLabel } from "@/components/shared/payment-icon"
+import type { OrderBrief, DeliverResult, TxidVerifyResult } from "@/types"
 import { cn } from "@/lib/utils"
 import { Modal } from "@/components/ui/modal"
 
@@ -29,6 +30,12 @@ export default function OrderQueryPage() {
   const [recentQueries, setRecentQueries] = useState<RecentQuery[]>([])
   const [deleteConfirm, setDeleteConfirm] = useState<string | null>(null)
   const initRef = useRef(false)
+
+  // USDT TXID submission state
+  const [txidExpandedOrder, setTxidExpandedOrder] = useState<string | null>(null)
+  const [txidInput, setTxidInput] = useState("")
+  const [txidSubmitting, setTxidSubmitting] = useState(false)
+  const [txidResult, setTxidResult] = useState<Record<string, TxidVerifyResult>>({})
 
   // Load recent queries + handle URL params on mount
   useEffect(() => {
@@ -168,6 +175,25 @@ export default function OrderQueryPage() {
     URL.revokeObjectURL(url)
   }
 
+  const handleTxidSubmit = useCallback(async (orderId: string) => {
+    const txid = txidInput.trim()
+    if (!txid) return
+    setTxidSubmitting(true)
+    try {
+      const result = await orderApi.submitTxid(orderId, txid)
+      setTxidResult(prev => ({ ...prev, [orderId]: result }))
+      if (result.result === "AUTO_APPROVED") {
+        toast.success(t("order.usdt.autoApproved"))
+        // Re-query to refresh order status
+        doSearch(queryValue)
+      }
+    } catch (err) {
+      toast.error(getApiErrorMessage(err, t))
+    } finally {
+      setTxidSubmitting(false)
+    }
+  }, [txidInput, t, doSearch, queryValue])
+
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
       {/* Header */}
@@ -253,13 +279,122 @@ export default function OrderQueryPage() {
                   {"\u00A5"}{order.actual_amount.toFixed(2)}
                 </span>
               </div>
+              {/* 支付方式行 */}
+              {order.payment_method && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("order.paymentMethod")}</span>
+                  <span className="flex items-center gap-1.5 text-foreground">
+                    <PaymentIcon method={order.payment_method} className="h-4 w-4" />
+                    {getPaymentLabel(order.payment_method, t)}
+                  </span>
+                </div>
+              )}
               <div className="flex justify-between">
                 <span className="text-muted-foreground">{t("order.createdAt")}</span>
                 <span className="text-foreground">
                   {new Date(order.created_at).toLocaleString()}
                 </span>
               </div>
+              {/* USDT 交易哈希（已支付/已发货时显示） */}
+              {order.payment_method?.startsWith("usdt_") && order.usdt_tx_id && (
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">{t("order.usdt.txHash")}</span>
+                  <span className="flex items-center gap-1 font-mono text-xs text-foreground">
+                    {order.usdt_tx_id.length > 20
+                      ? `${order.usdt_tx_id.slice(0, 8)}...${order.usdt_tx_id.slice(-8)}`
+                      : order.usdt_tx_id}
+                    <button type="button" onClick={() => {
+                      navigator.clipboard.writeText(order.usdt_tx_id!)
+                      toast.success(t("order.copied"))
+                    }} className="text-muted-foreground hover:text-foreground">
+                      <Copy className="h-3 w-3" />
+                    </button>
+                  </span>
+                </div>
+              )}
             </div>
+
+            {/* USDT 补单区域 — 仅 USDT + PENDING/EXPIRED */}
+            {order.payment_method?.startsWith("usdt_") &&
+             (order.status === "PENDING" || order.status === "EXPIRED") && (
+              <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
+                {/* TXID 验证结果反馈 */}
+                {txidResult[order.id] ? (
+                  <div className={cn(
+                    "rounded-md p-3 text-sm",
+                    txidResult[order.id].result === "AUTO_APPROVED" && "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200",
+                    txidResult[order.id].result === "AUTO_REJECTED" && "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-200",
+                    txidResult[order.id].result === "PENDING_REVIEW" && "bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200"
+                  )}>
+                    {txidResult[order.id].result === "AUTO_APPROVED" && t("order.usdt.autoApproved")}
+                    {txidResult[order.id].result === "AUTO_REJECTED" && t("order.usdt.autoRejected").replace("{reason}", txidResult[order.id].reason)}
+                    {txidResult[order.id].result === "PENDING_REVIEW" && t("order.usdt.pendingReview")}
+                  </div>
+                ) : txidExpandedOrder === order.id ? (
+                  /* TXID 输入表单 */
+                  <div className="flex flex-col gap-3">
+                    <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                      {t("order.usdt.txidInputTitle")}
+                    </p>
+                    <p className="text-xs text-amber-700 dark:text-amber-300">
+                      {t("order.usdt.txidInputDesc")}
+                    </p>
+                    <input
+                      type="text"
+                      placeholder="0x... / 64-char hex"
+                      value={txidInput}
+                      onChange={(e) => setTxidInput(e.target.value)}
+                      className="h-10 w-full rounded-lg border border-input bg-background px-3 font-mono text-xs text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    />
+                    <p className="flex items-start gap-1 text-xs text-amber-600 dark:text-amber-400">
+                      <Info className="mt-0.5 h-3 w-3 shrink-0" />
+                      {t("order.usdt.txidInputHint")}
+                    </p>
+                    <div className="flex justify-end gap-2">
+                      <button
+                        onClick={() => { setTxidExpandedOrder(null); setTxidInput("") }}
+                        className="rounded-lg border border-border px-4 py-2 text-xs font-medium text-foreground transition-colors hover:bg-accent"
+                      >
+                        {t("order.cancel")}
+                      </button>
+                      <button
+                        onClick={() => handleTxidSubmit(order.id)}
+                        disabled={txidSubmitting || !txidInput.trim()}
+                        className="inline-flex items-center gap-1.5 rounded-lg bg-primary px-4 py-2 text-xs font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:opacity-50"
+                      >
+                        {txidSubmitting && <Loader2 className="h-3 w-3 animate-spin" />}
+                        {t("order.usdt.submitVerify")}
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  /* 引导提示 */
+                  <div className="flex flex-col gap-2 text-xs text-amber-800 dark:text-amber-200">
+                    <p className="flex items-start gap-1.5 text-sm font-medium">
+                      <AlertCircle className="mt-0.5 h-4 w-4 shrink-0" />
+                      {t("order.usdt.notDetected")}
+                    </p>
+                    <p className="mt-1">{t("order.usdt.ifCompleted")}</p>
+                    <ul className="ml-4 list-disc space-y-0.5">
+                      <li>{t("order.usdt.waitConfirm")}</li>
+                      <li>{t("order.usdt.checkAmount")}</li>
+                      <li>{t("order.usdt.checkChain").replace("{chain}",
+                        order.payment_method?.includes("trc20") ? "TRC-20" : "BEP-20")}</li>
+                    </ul>
+                    <p className="mt-2">
+                      {t("order.usdt.waitOver5min")}
+                      <button
+                        type="button"
+                        onClick={() => { setTxidExpandedOrder(order.id); setTxidInput(""); setTxidResult(prev => { const n = { ...prev }; delete n[order.id]; return n }) }}
+                        className="ml-1 font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        {t("order.usdt.submitTxidLink")}
+                      </button>
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
 
             {/* Card Keys */}
             {deliver && deliver.groups.length > 0 && (
@@ -366,8 +501,8 @@ export default function OrderQueryPage() {
 
       {/* Help — 联系客服提示（始终在页面底部） */}
       {(config?.contact_telegram || config?.contact_email) && (
-        <div className="flex flex-wrap items-center justify-center gap-x-1 text-xs text-muted-foreground">
-          <HelpCircle className="h-3 w-3" />
+        <div className="flex flex-wrap items-center justify-center gap-x-1 text-sm text-muted-foreground">
+          <HelpCircle className="h-3.5 w-3.5" />
           <span>{t("order.needHelp")}</span>
           {config.contact_telegram && (
             <a

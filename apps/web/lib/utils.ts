@@ -51,6 +51,19 @@ export function formatPrice(amount: number, currency?: string): string {
   return `${getCurrencySymbol(currency)}${amount.toFixed(2)}`
 }
 
+export function detectPaymentDevice(): string {
+  if (typeof window === 'undefined') return 'pc'
+  const ua = navigator.userAgent.toLowerCase()
+  if (ua.includes('micromessenger')) return 'wechat'
+  if (ua.includes('alipayclient') || ua.includes('alipay')) return 'alipay'
+  if (/android|iphone|ipad|ipod|mobile/i.test(ua)) return 'mobile'
+  return 'pc'
+}
+
+export function isMobileDevice(): boolean {
+  return detectPaymentDevice() !== 'pc'
+}
+
 export function formatDateTime(iso: string, locale?: string): string {
   try {
     const date = new Date(iso)

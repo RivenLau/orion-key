@@ -28,17 +28,21 @@ public class EpayServiceImpl implements EpayService {
     private final ObjectMapper objectMapper;
 
     @Override
-    public EpayResult createPayment(ChannelConfig config, String outTradeNo, String type, String name, BigDecimal money, String clientIp) {
+    public EpayResult createPayment(ChannelConfig config, String outTradeNo, String type, String name, BigDecimal money, String clientIp, String device) {
+        // 动态拼接 return_url：基础 URL + orderId，使 epay 回跳到对应支付页
+        String baseReturnUrl = config.returnUrl();
+        String dynamicReturnUrl = baseReturnUrl + (baseReturnUrl.endsWith("/") ? "" : "/") + outTradeNo;
+
         Map<String, String> params = new LinkedHashMap<>();
         params.put("pid", config.pid());
         params.put("type", type);
         params.put("out_trade_no", outTradeNo);
         params.put("notify_url", config.notifyUrl());
-        params.put("return_url", config.returnUrl());
+        params.put("return_url", dynamicReturnUrl);
         params.put("name", name);
         params.put("money", money.setScale(2, java.math.RoundingMode.HALF_UP).toPlainString());
         params.put("clientip", clientIp != null ? clientIp : "127.0.0.1");
-        params.put("device", "pc");
+        params.put("device", device != null && !device.isBlank() ? device : "pc");
 
         String sign = buildSign(config.key(), params);
         params.put("sign", sign);
