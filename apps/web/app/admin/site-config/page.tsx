@@ -332,6 +332,17 @@ export default function AdminSiteConfigPage() {
                 onChange={(e) => setValue("contact_telegram", e.target.value)}
               />
             </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">{t("admin.contactTelegramGroup")}</label>
+              <input
+                type="text"
+                className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="https://t.me/..."
+                value={getValue("contact_telegram_group")}
+                onChange={(e) => setValue("contact_telegram_group", e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">{t("admin.contactTelegramGroupHint")}</p>
+            </div>
             <button
               type="button"
               className="flex w-fit items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"

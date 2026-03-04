@@ -8,7 +8,7 @@ import {
   ClipboardList,
   ShieldCheck,
 } from "lucide-react"
-import { useLocale, useSearch } from "@/lib/context"
+import { useLocale, useSearch, useSiteConfig } from "@/lib/context"
 import { ProductCard } from "@/components/store/product-card"
 import { cn } from "@/lib/utils"
 import type { ProductCard as ProductCardType, Category } from "@/types"
@@ -22,6 +22,7 @@ interface HomeContentProps {
 
 export function HomeContent({ products, categories, siteSlogan, siteDescription }: HomeContentProps) {
   const { t } = useLocale()
+  const { config } = useSiteConfig()
   const { searchQuery, sortBy, inStockOnly, priceMin, priceMax } = useSearch()
 
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null)
@@ -88,15 +89,17 @@ export function HomeContent({ products, categories, siteSlogan, siteDescription 
         <p className="relative mt-3 text-sm text-muted-foreground">
           {siteDescription}
         </p>
-        <a
-          href="https://t.me/+P3w53nfrAhpkMjFh"
-          target="_blank"
-          rel="noopener noreferrer"
-          className="relative mt-5 inline-flex items-center gap-2 rounded-full bg-[#2AABEE]/15 px-4 py-2 text-sm font-semibold text-[#2AABEE] shadow-sm shadow-[#2AABEE]/10 ring-1 ring-[#2AABEE]/20 transition-all hover:bg-[#2AABEE]/25 hover:shadow-md hover:shadow-[#2AABEE]/15 hover:ring-[#2AABEE]/30 active:scale-[0.97]"
-        >
-          <img src="/images/telegram.png" alt="Telegram" className="h-5 w-5" />
-          <span>{t("home.joinTelegram")}</span>
-        </a>
+        {config?.contact_telegram_group && (
+          <a
+            href={config.contact_telegram_group}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="relative mt-5 inline-flex items-center gap-2 rounded-full bg-[#2AABEE]/15 px-4 py-2 text-sm font-semibold text-[#2AABEE] shadow-sm shadow-[#2AABEE]/10 ring-1 ring-[#2AABEE]/20 transition-all hover:bg-[#2AABEE]/25 hover:shadow-md hover:shadow-[#2AABEE]/15 hover:ring-[#2AABEE]/30 active:scale-[0.97]"
+          >
+            <img src="/images/telegram.png" alt="Telegram" className="h-5 w-5" />
+            <span>{t("home.joinTelegram")}</span>
+          </a>
+        )}
       </section>
 
       {/* Controls */}

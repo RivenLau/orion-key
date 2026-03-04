@@ -273,6 +273,7 @@ export interface SiteConfig {
   popup_content?: string
   contact_email?: string
   contact_telegram?: string
+  contact_telegram_group?: string
   points_enabled: boolean
   points_rate: number
   maintenance_enabled: boolean
