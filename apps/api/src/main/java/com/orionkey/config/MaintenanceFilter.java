@@ -35,8 +35,17 @@ public class MaintenanceFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String path = httpRequest.getRequestURI();
 
-        // Skip admin endpoints and webhook
-        if (path.startsWith("/api/admin") || path.startsWith("/api/payments/webhook")) {
+        // Skip endpoints required for maintenance mode to function correctly:
+        // - /api/admin/*        : admin backend must remain accessible
+        // - /api/payments/webhook: payment callbacks must not be blocked
+        // - /api/site/config    : frontend needs real config to detect maintenance mode
+        // - /api/auth/*         : login/token check needed so admin can log in and be identified
+        // - /api/captcha/*      : login may require captcha verification
+        if (path.startsWith("/api/admin")
+                || path.startsWith("/api/payments/webhook")
+                || path.equals("/api/site/config")
+                || path.startsWith("/api/auth/")
+                || path.startsWith("/api/captcha")) {
             chain.doFilter(request, response);
             return;
         }
