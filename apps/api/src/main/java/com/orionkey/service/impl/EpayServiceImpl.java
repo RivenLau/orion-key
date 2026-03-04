@@ -105,7 +105,15 @@ public class EpayServiceImpl implements EpayService {
                 }
 
                 String resultQrcode = qrcode != null ? qrcode : urlscheme;
-                return new EpayResult(code, msg, tradeNo, payUrl, resultQrcode);
+
+                // 网关未返回 payUrl 且为移动端请求时，将 qrcode（收银台页面 URL）作为 H5 跳转入口
+                String effectivePayUrl = payUrl;
+                if (effectivePayUrl == null && device != null && !"pc".equals(device) && resultQrcode != null) {
+                    effectivePayUrl = resultQrcode;
+                    log.info("Epay: gateway returned no payUrl, using qrcode URL as mobile redirect: {}", effectivePayUrl);
+                }
+
+                return new EpayResult(code, msg, tradeNo, effectivePayUrl, resultQrcode);
 
             } catch (BusinessException e) {
                 throw e; // 业务异常直接抛出，不重试
