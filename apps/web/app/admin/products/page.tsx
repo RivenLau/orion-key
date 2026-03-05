@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useCallback, useRef } from "react"
+import { useState, useEffect, useCallback, useRef, type RefObject } from "react"
 import { Plus, Search, Edit, Trash2, Upload, X, AlertCircle, ChevronDown, EyeOff, Eye, KeyRound, Loader2, ImagePlus } from "lucide-react"
 import { toast } from "sonner"
 import Link from "next/link"
@@ -47,6 +47,10 @@ export default function AdminProductsPage() {
   const [detailUploading, setDetailUploading] = useState(false)
   const [specsEnabled, setSpecsEnabled] = useState(false)
   const detailTextareaRef = useRef<HTMLTextAreaElement>(null)
+  const titleRef = useRef<HTMLInputElement>(null)
+  const categoryRef = useRef<HTMLSelectElement>(null)
+  const basePriceRef = useRef<HTMLInputElement>(null)
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
 
   // Form state
   const [formData, setFormData] = useState({
@@ -192,11 +196,34 @@ export default function AdminProductsPage() {
     }
   }
 
+  const focusFirstError = (errors: Record<string, boolean>, refMap: Record<string, RefObject<HTMLElement | null>>) => {
+    for (const key of Object.keys(errors)) {
+      if (errors[key] && refMap[key]?.current) {
+        refMap[key].current!.focus()
+        refMap[key].current!.scrollIntoView({ behavior: "smooth", block: "center" })
+        break
+      }
+    }
+  }
+
   const handleSave = async () => {
-    if (!formData.title.trim()) {
-      toast.error("请输入商品名称")
+    const errors: Record<string, boolean> = {}
+    if (!formData.title.trim()) errors.title = true
+    if (!formData.category_id) errors.category_id = true
+    if (!specsEnabled && (!formData.base_price || parseFloat(formData.base_price) <= 0)) errors.base_price = true
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      const messages: string[] = []
+      if (errors.title) messages.push("商品名称")
+      if (errors.category_id) messages.push("商品分类")
+      if (errors.base_price) messages.push("基础售价")
+      toast.error(`请填写：${messages.join("、")}`)
+      focusFirstError(errors, { title: titleRef, category_id: categoryRef, base_price: basePriceRef })
       return
     }
+    setFormErrors({})
+
     if (specsEnabled) {
       for (const spec of formSpecs) {
         if (!spec.name.trim()) { toast.error("规格名称不能为空"); return }
@@ -293,6 +320,7 @@ export default function AdminProductsPage() {
     setFormData({ title: "", description: "", detail_md: "", category_id: "", base_price: "", currency: "CNY", cover_url: "", low_stock_threshold: "10", wholesale_enabled: false, is_enabled: true, initial_sales: "", sort_order: "", delivery_type: "AUTO" })
     setFormSpecs([])
     setSpecsEnabled(false)
+    setFormErrors({})
   }
 
   const handleImport = async () => {
@@ -495,7 +523,7 @@ export default function AdminProductsPage() {
               {/* 商品名称 */}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">{t("admin.productNameReq")}</label>
-                <input type="text" className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="请输入商品名称" value={formData.title} onChange={(e) => setFormData({ ...formData, title: e.target.value })} />
+                <input ref={titleRef} type="text" className={cn("h-10 rounded-lg border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2", formErrors.title ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")} placeholder="请输入商品名称" value={formData.title} onChange={(e) => { setFormData({ ...formData, title: e.target.value }); setFormErrors(prev => ({ ...prev, title: false })) }} />
               </div>
               {/* 商品简介 */}
               <div className="flex flex-col gap-1.5">
@@ -506,7 +534,7 @@ export default function AdminProductsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-foreground">{t("admin.categoryReq")}</label>
-                  <select className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" value={formData.category_id} onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}>
+                  <select ref={categoryRef} className={cn("h-10 rounded-lg border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2", formErrors.category_id ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")} value={formData.category_id} onChange={(e) => { setFormData({ ...formData, category_id: e.target.value }); setFormErrors(prev => ({ ...prev, category_id: false })) }}>
                     <option value="">请选择分类</option>
                     {categories.map(c => <option key={c.id} value={c.id}>{c.name}</option>)}
                   </select>
@@ -529,7 +557,7 @@ export default function AdminProductsPage() {
               <div className="grid grid-cols-2 gap-4">
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-foreground">{t("admin.basePriceReq")}</label>
-                  <input type="number" step="0.01" className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" placeholder="0.00" value={formData.base_price} onChange={(e) => setFormData({ ...formData, base_price: e.target.value })} />
+                  <input ref={basePriceRef} type="number" step="0.01" className={cn("h-10 rounded-lg border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2", formErrors.base_price ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")} placeholder="0.00" value={formData.base_price} onChange={(e) => { setFormData({ ...formData, base_price: e.target.value }); setFormErrors(prev => ({ ...prev, base_price: false })) }} />
                 </div>
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-foreground">{t("admin.coverUrl")}</label>
@@ -735,7 +763,7 @@ export default function AdminProductsPage() {
                 <textarea
                   ref={detailTextareaRef}
                   className="min-h-32 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-ring"
-                  placeholder="使用 Markdown 编写商品详细说明&#10;支持通过右上角按钮上传图片，自动插入 Markdown 图片链接"
+                  placeholder={"支持 Markdown 格式编辑\n# 标题  ## 二级标题  ### 三级标题\n**粗体**  *斜体*  空一行为段落换行\n![图片描述](图片URL) — 可点击上方「插入图片」自动生成"}
                   value={formData.detail_md}
                   onChange={(e) => setFormData({ ...formData, detail_md: e.target.value })}
                 />

@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef, type RefObject } from "react"
 import {
   Upload,
   Eye,
@@ -53,6 +53,9 @@ export default function AdminCardKeysPage() {
   const [importing, setImporting] = useState(false)
   const [importSpecs, setImportSpecs] = useState<ProductSpec[]>([])
   const [loadingSpecs, setLoadingSpecs] = useState(false)
+  const [importErrors, setImportErrors] = useState<Record<string, boolean>>({})
+  const importProductRef = useRef<HTMLSelectElement>(null)
+  const importContentRef = useRef<HTMLTextAreaElement>(null)
 
   const fetchStock = async () => {
     try {
@@ -127,15 +130,30 @@ export default function AdminCardKeysPage() {
     }
   }
 
+  const focusFirstError = (errors: Record<string, boolean>, refMap: Record<string, RefObject<HTMLElement | null>>) => {
+    for (const key of Object.keys(errors)) {
+      if (errors[key] && refMap[key]?.current) {
+        refMap[key].current!.focus()
+        refMap[key].current!.scrollIntoView({ behavior: "smooth", block: "center" })
+        break
+      }
+    }
+  }
+
   const handleImport = async () => {
-    if (!importProductId) {
-      toast.error("请选择商品")
+    const errors: Record<string, boolean> = {}
+    if (!importProductId) errors.product = true
+    if (!importContent.trim()) errors.content = true
+    if (Object.keys(errors).length > 0) {
+      setImportErrors(errors)
+      const messages: string[] = []
+      if (errors.product) messages.push("商品")
+      if (errors.content) messages.push("卡密内容")
+      toast.error(`请填写：${messages.join("、")}`)
+      focusFirstError(errors, { product: importProductRef, content: importContentRef })
       return
     }
-    if (!importContent.trim()) {
-      toast.error("请输入卡密内容")
-      return
-    }
+    setImportErrors({})
     setImporting(true)
     try {
       const result = await withMockFallback(
@@ -161,6 +179,7 @@ export default function AdminCardKeysPage() {
       setImportContent("")
       setImportProductId("")
       setImportSpecId("")
+      setImportErrors({})
       await Promise.all([fetchStock(), fetchImportBatches()])
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "导入失败")
@@ -453,12 +472,12 @@ export default function AdminCardKeysPage() {
       )}
 
       {/* Import Modal */}
-      <Modal open={showImportModal} onClose={() => setShowImportModal(false)} className="max-w-lg">
+      <Modal open={showImportModal} onClose={() => { setShowImportModal(false); setImportErrors({}) }} className="max-w-lg">
             <div className="border-b border-border px-6 py-4 flex items-center justify-between">
               <h2 className="text-lg font-semibold text-foreground">{t("admin.batchImportKeys")}</h2>
               <button
                 type="button"
-                onClick={() => setShowImportModal(false)}
+                onClick={() => { setShowImportModal(false); setImportErrors({}) }}
                 className="rounded-md p-1 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
               >
                 <X className="h-5 w-5" />
@@ -468,9 +487,10 @@ export default function AdminCardKeysPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">{t("admin.selectProductReq")}</label>
                 <select
-                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  ref={importProductRef}
+                  className={cn("h-10 rounded-lg border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2", importErrors.product ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")}
                   value={importProductId}
-                  onChange={(e) => handleProductChange(e.target.value)}
+                  onChange={(e) => { handleProductChange(e.target.value); setImportErrors(prev => ({ ...prev, product: false })) }}
                 >
                   <option value="">{t("admin.selectProductPlaceholder")}</option>
                   {products.map((p) => (
@@ -500,10 +520,11 @@ export default function AdminCardKeysPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">{t("admin.cardKeyContentReq")}</label>
                 <textarea
-                  className="min-h-32 rounded-lg border border-input bg-background px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  ref={importContentRef}
+                  className={cn("min-h-32 rounded-lg border bg-background px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2", importErrors.content ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")}
                   placeholder={t("admin.cardKeyContentPlaceholder")}
                   value={importContent}
-                  onChange={(e) => setImportContent(e.target.value)}
+                  onChange={(e) => { setImportContent(e.target.value); setImportErrors(prev => ({ ...prev, content: false })) }}
                 />
                 <p className="text-xs text-muted-foreground">
                   {t("admin.cardKeyContentHint")} {importContent.trim() ? importContent.trim().split("\n").length : 0} {t("admin.cardKeyContentUnit")}

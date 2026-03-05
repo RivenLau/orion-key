@@ -15,10 +15,12 @@ public class SiteConfigServiceImpl implements SiteConfigService {
 
     private final SiteConfigRepository siteConfigRepository;
 
+    private static final Set<String> NUMERIC_KEYS = Set.of("points_rate");
+
     private static final List<String> PUBLIC_KEYS = List.of(
             "site_name", "site_slogan", "site_description", "logo_url", "favicon_url",
             "announcement_enabled", "announcement", "popup_enabled", "popup_content",
-            "contact_email", "contact_telegram", "points_enabled", "points_rate",
+            "contact_email", "contact_telegram", "contact_telegram_group", "points_enabled", "points_rate",
             "maintenance_enabled", "maintenance_message", "footer_text", "github_url", "custom_css"
     );
 
@@ -30,12 +32,14 @@ public class SiteConfigServiceImpl implements SiteConfigService {
                 String val = c.getConfigValue();
                 if ("true".equalsIgnoreCase(val) || "false".equalsIgnoreCase(val)) {
                     result.put(key, Boolean.parseBoolean(val));
-                } else {
+                } else if (NUMERIC_KEYS.contains(key)) {
                     try {
                         result.put(key, Integer.parseInt(val));
                     } catch (NumberFormatException e) {
                         result.put(key, val);
                     }
+                } else {
+                    result.put(key, val);
                 }
             });
         }

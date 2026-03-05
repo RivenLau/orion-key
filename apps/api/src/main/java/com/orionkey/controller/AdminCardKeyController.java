@@ -1,5 +1,6 @@
 package com.orionkey.controller;
 
+import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
 import com.orionkey.context.RequestContext;
 import com.orionkey.service.AdminCardKeyService;
@@ -32,6 +33,7 @@ public class AdminCardKeyController {
         return ApiResponse.success(adminCardKeyService.getStockSummary(productId, specId));
     }
 
+    @LogOperation(action = "cardkey.import", targetType = "CARD_KEY", detail = "'导入卡密'")
     @PostMapping("/import")
     public ApiResponse<?> importCardKeys(@RequestBody Map<String, Object> request) {
         return ApiResponse.success(adminCardKeyService.importCardKeys(request, RequestContext.getUserId()));
@@ -45,12 +47,14 @@ public class AdminCardKeyController {
         return ApiResponse.success(adminCardKeyService.getImportBatches(productId, page, pageSize));
     }
 
+    @LogOperation(action = "cardkey.invalidate", targetType = "CARD_KEY", targetId = "#id", detail = "'作废卡密'")
     @PostMapping("/{id}/invalidate")
     public ApiResponse<Void> invalidateCardKey(@PathVariable UUID id) {
         adminCardKeyService.invalidateCardKey(id);
         return ApiResponse.success();
     }
 
+    @LogOperation(action = "cardkey.invalidate", targetType = "CARD_KEY", detail = "'批量作废'")
     @PostMapping("/batch-invalidate")
     public ApiResponse<?> batchInvalidateCardKeys(
             @RequestParam("product_id") UUID productId,

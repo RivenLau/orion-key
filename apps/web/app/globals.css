@@ -248,6 +248,63 @@ body {
   background-clip: text;
 }
 
+/* Utility: scheme-driven gradient button (solid, primary CTA) */
+.scheme-gradient-btn {
+  background: linear-gradient(
+    135deg,
+    hsl(var(--scheme-gradient-from)),
+    hsl(var(--scheme-gradient-via)),
+    hsl(var(--scheme-gradient-to))
+  );
+  background-size: 200% 200%;
+  background-position: 0% 50%;
+  transition: background-position 0.4s ease, filter 0.2s ease, transform 0.1s ease;
+}
+.scheme-gradient-btn:hover {
+  background-position: 100% 50%;
+}
+
+/* Utility: scheme-driven tint button (subtle, secondary CTA) */
+.scheme-tint-btn {
+  color: hsl(var(--scheme-glow));
+  background: hsl(var(--scheme-glow) / 0.08);
+  box-shadow: inset 0 0 0 1px hsl(var(--scheme-glow) / 0.15);
+}
+.scheme-tint-btn:hover {
+  background: hsl(var(--scheme-glow) / 0.14);
+  box-shadow: inset 0 0 0 1px hsl(var(--scheme-glow) / 0.25);
+}
+.dark .scheme-tint-btn {
+  background: hsl(var(--scheme-glow) / 0.1);
+  box-shadow: inset 0 0 0 1px hsl(var(--scheme-glow) / 0.2);
+}
+.dark .scheme-tint-btn:hover {
+  background: hsl(var(--scheme-glow) / 0.18);
+  box-shadow: inset 0 0 0 1px hsl(var(--scheme-glow) / 0.3);
+}
+
+/* Telegram ghost button */
+.tg-ghost-btn {
+  background: rgba(0, 136, 204, 0.03);
+  border: 1px solid rgba(0, 136, 204, 0.2);
+  box-shadow: 0 2px 6px rgba(0, 136, 204, 0.05);
+}
+.tg-ghost-btn:hover {
+  background: rgba(0, 136, 204, 0.07);
+  border-color: rgba(0, 136, 204, 0.3);
+  box-shadow: 0 4px 12px rgba(0, 136, 204, 0.1);
+}
+.dark .tg-ghost-btn {
+  background: rgba(0, 136, 204, 0.06);
+  border-color: rgba(0, 136, 204, 0.25);
+  box-shadow: 0 2px 6px rgba(0, 136, 204, 0.08);
+}
+.dark .tg-ghost-btn:hover {
+  background: rgba(0, 136, 204, 0.12);
+  border-color: rgba(0, 136, 204, 0.35);
+  box-shadow: 0 4px 12px rgba(0, 136, 204, 0.15);
+}
+
 /* Utility: scheme-driven glow shadow on buttons */
 .scheme-glow {
   --tw-shadow-color: hsl(var(--scheme-glow) / 0.25);

@@ -1,8 +1,9 @@
 "use client"
 
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { Plus, Edit, Trash2, FolderTree, GripVertical, X, AlertCircle } from "lucide-react"
 import { toast } from "sonner"
+import { cn } from "@/lib/utils"
 import { adminCategoryApi, withMockFallback } from "@/services/api"
 import { mockCategories } from "@/lib/mock-data"
 import { useLocale } from "@/lib/context"
@@ -18,6 +19,8 @@ export default function AdminCategoriesPage() {
   const [showDeleteConfirm, setShowDeleteConfirm] = useState<string | null>(null)
   const [saving, setSaving] = useState(false)
   const [formData, setFormData] = useState({ name: "", sort_order: "" })
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
+  const nameRef = useRef<HTMLInputElement>(null)
 
   const fetchCategories = async () => {
     try {
@@ -43,9 +46,13 @@ export default function AdminCategoriesPage() {
 
   const handleSave = async () => {
     if (!formData.name.trim()) {
+      setFormErrors({ name: true })
       toast.error("请输入分类名称")
+      nameRef.current?.focus()
+      nameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
       return
     }
+    setFormErrors({})
     setSaving(true)
     try {
       if (editId) {
@@ -93,6 +100,7 @@ export default function AdminCategoriesPage() {
     setShowModal(false)
     setEditId(null)
     setFormData({ name: "", sort_order: "" })
+    setFormErrors({})
   }
 
   if (loading) {
@@ -188,11 +196,12 @@ export default function AdminCategoriesPage() {
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">{t("admin.categoryNameReq")}</label>
                 <input
+                  ref={nameRef}
                   type="text"
-                  className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  className={cn("h-10 rounded-lg border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2", formErrors.name ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")}
                   placeholder={t("admin.categoryNamePlaceholder")}
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
+                  onChange={(e) => { setFormData({ ...formData, name: e.target.value }); setFormErrors(prev => ({ ...prev, name: false })) }}
                 />
               </div>
               <div className="flex flex-col gap-1.5">

@@ -1,5 +1,6 @@
 package com.orionkey.controller;
 
+import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
 import com.orionkey.service.RiskConfigService;
 import lombok.RequiredArgsConstructor;
@@ -19,6 +20,7 @@ public class AdminRiskController {
         return ApiResponse.success(riskConfigService.getRiskConfig());
     }
 
+    @LogOperation(action = "config.update", targetType = "RISK_CONFIG", detail = "'更新风控配置'")
     @PutMapping("/risk-config")
     public ApiResponse<Void> updateRiskConfig(@RequestBody Map<String, Object> request) {
         riskConfigService.updateRiskConfig(request);

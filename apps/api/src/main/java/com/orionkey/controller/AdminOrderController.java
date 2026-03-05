@@ -1,5 +1,6 @@
 package com.orionkey.controller;
 
+import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
 import com.orionkey.service.AdminOrderService;
 import lombok.RequiredArgsConstructor;
@@ -32,6 +33,7 @@ public class AdminOrderController {
         return ApiResponse.success(adminOrderService.getOrderDetail(id));
     }
 
+    @LogOperation(action = "order.mark_paid", targetType = "ORDER", targetId = "#id", detail = "'手动标记已付'")
     @PostMapping("/{id}/mark-paid")
     public ApiResponse<Void> markPaid(@PathVariable UUID id) {
         adminOrderService.markPaid(id);

@@ -1,13 +1,26 @@
 "use client"
 
-import { useState, useEffect, useCallback } from "react"
-import { Save, AlertTriangle } from "lucide-react"
+import { useState, useEffect, useCallback, useRef } from "react"
+import { Save, AlertTriangle, Upload, Loader2, ImagePlus } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
-import { adminConfigApi, withMockFallback } from "@/services/api"
+import { adminConfigApi, adminProductApi, withMockFallback } from "@/services/api"
 import { mockSiteConfigKVs } from "@/lib/mock-data"
 import { useLocale } from "@/lib/context"
 import type { SiteConfigKV } from "@/types"
+
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml"]
+const ALLOWED_IMAGE_ACCEPT = ".jpg,.jpeg,.png,.gif,.webp,.bmp,.svg"
+
+function validateImageFile(file: File): string | null {
+  if (!ALLOWED_IMAGE_TYPES.includes(file.type)) {
+    return "不支持的图片格式，仅支持 JPG/PNG/GIF/WebP/BMP/SVG"
+  }
+  if (file.size > 10 * 1024 * 1024) {
+    return "图片大小不能超过 10MB"
+  }
+  return null
+}
 
 type TabKey = "basic" | "announcement" | "points" | "contact" | "maintenance"
 
@@ -17,6 +30,9 @@ export default function AdminSiteConfigPage() {
   const [configMap, setConfigMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [logoUploading, setLogoUploading] = useState(false)
+  const [popupUploading, setPopupUploading] = useState(false)
+  const popupTextareaRef = useRef<HTMLTextAreaElement>(null)
 
   const fetchConfig = useCallback(async () => {
     setLoading(true)
@@ -161,13 +177,42 @@ export default function AdminSiteConfigPage() {
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">{t("admin.logoUrl")}</label>
-              <input
-                type="text"
-                className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                placeholder="https://..."
-                value={getValue("logo_url")}
-                onChange={(e) => setValue("logo_url", e.target.value)}
-              />
+              <div className="flex gap-2">
+                <input
+                  type="text"
+                  className="h-10 flex-1 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                  placeholder="https://..."
+                  value={getValue("logo_url")}
+                  onChange={(e) => setValue("logo_url", e.target.value)}
+                />
+                <label className={cn("flex h-10 shrink-0 cursor-pointer items-center gap-1.5 rounded-lg border border-input bg-background px-3 text-sm font-medium text-foreground hover:bg-accent transition-colors", logoUploading && "pointer-events-none opacity-50")}>
+                  {logoUploading ? <Loader2 className="h-4 w-4 animate-spin" /> : <Upload className="h-4 w-4" />}
+                  上传
+                  <input
+                    type="file"
+                    accept={ALLOWED_IMAGE_ACCEPT}
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const err = validateImageFile(file)
+                      if (err) { toast.error(err); e.target.value = ""; return }
+                      setLogoUploading(true)
+                      try {
+                        const result = await adminProductApi.uploadImage(file)
+                        setValue("logo_url", result.url)
+                        toast.success("上传成功")
+                      } catch (err: unknown) {
+                        toast.error(err instanceof Error ? err.message : "上传失败")
+                      } finally {
+                        setLogoUploading(false)
+                        e.target.value = ""
+                      }
+                    }}
+                  />
+                </label>
+              </div>
+              <p className="text-xs text-muted-foreground">建议使用正方形 Logo 图片，支持 JPG/PNG/GIF/WebP/SVG</p>
             </div>
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">{t("admin.footerText")}</label>
@@ -206,22 +251,7 @@ export default function AdminSiteConfigPage() {
       {tab === "announcement" && (
         <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
           <div className="flex flex-col gap-5 max-w-xl">
-            <div className="flex items-center justify-between">
-              <label className="text-sm font-medium text-foreground">{t("admin.enablePopup")}</label>
-              <button
-                type="button"
-                className={cn(
-                  "relative h-6 w-11 rounded-full transition-colors",
-                  getBool("popup_enabled") ? "bg-primary" : "bg-muted"
-                )}
-                onClick={() => toggleBool("popup_enabled")}
-              >
-                <span className={cn(
-                  "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
-                  getBool("popup_enabled") && "translate-x-5"
-                )} />
-              </button>
-            </div>
+            {/* ① 顶栏滚动公告开关 */}
             <div className="flex items-center justify-between">
               <label className="text-sm font-medium text-foreground">{t("admin.enableAnnouncement")}</label>
               <button
@@ -238,6 +268,7 @@ export default function AdminSiteConfigPage() {
                 )} />
               </button>
             </div>
+            {/* ② 顶栏滚动公告内容 */}
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">{t("admin.scrollAnnouncement")}</label>
               <input
@@ -247,10 +278,76 @@ export default function AdminSiteConfigPage() {
                 onChange={(e) => setValue("announcement", e.target.value)}
               />
             </div>
+            {/* ③ 弹窗公告开关 */}
+            <div className="flex items-center justify-between">
+              <label className="text-sm font-medium text-foreground">{t("admin.enablePopup")}</label>
+              <button
+                type="button"
+                className={cn(
+                  "relative h-6 w-11 rounded-full transition-colors",
+                  getBool("popup_enabled") ? "bg-primary" : "bg-muted"
+                )}
+                onClick={() => toggleBool("popup_enabled")}
+              >
+                <span className={cn(
+                  "absolute left-0.5 top-0.5 h-5 w-5 rounded-full bg-white shadow transition-transform",
+                  getBool("popup_enabled") && "translate-x-5"
+                )} />
+              </button>
+            </div>
+            {/* ④ 弹窗公告内容（Markdown 编辑器 + 图片上传） */}
             <div className="flex flex-col gap-1.5">
-              <label className="text-sm font-medium text-foreground">{t("admin.popupContent")}</label>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-medium text-foreground">{t("admin.popupContent")}</label>
+                <label className={cn("flex cursor-pointer items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-muted-foreground hover:bg-accent hover:text-foreground transition-colors", popupUploading && "pointer-events-none opacity-50")}>
+                  {popupUploading ? <Loader2 className="h-3.5 w-3.5 animate-spin" /> : <ImagePlus className="h-3.5 w-3.5" />}
+                  插入图片
+                  <input
+                    type="file"
+                    accept={ALLOWED_IMAGE_ACCEPT}
+                    className="hidden"
+                    onChange={async (e) => {
+                      const file = e.target.files?.[0]
+                      if (!file) return
+                      const err = validateImageFile(file)
+                      if (err) { toast.error(err); e.target.value = ""; return }
+                      setPopupUploading(true)
+                      try {
+                        const result = await adminProductApi.uploadImage(file)
+                        const textarea = popupTextareaRef.current
+                        const mdImage = `![${file.name}](${result.url})`
+                        if (textarea) {
+                          const start = textarea.selectionStart
+                          const end = textarea.selectionEnd
+                          const text = getValue("popup_content")
+                          const before = text.substring(0, start)
+                          const after = text.substring(end)
+                          const newText = before + (before.length > 0 && !before.endsWith("\n") ? "\n" : "") + mdImage + "\n" + after
+                          setValue("popup_content", newText)
+                          requestAnimationFrame(() => {
+                            const newPos = before.length + (before.length > 0 && !before.endsWith("\n") ? 1 : 0) + mdImage.length + 1
+                            textarea.selectionStart = textarea.selectionEnd = newPos
+                            textarea.focus()
+                          })
+                        } else {
+                          const cur = getValue("popup_content")
+                          setValue("popup_content", cur + (cur ? "\n" : "") + mdImage + "\n")
+                        }
+                        toast.success("图片已插入")
+                      } catch (err: unknown) {
+                        toast.error(err instanceof Error ? err.message : "上传失败")
+                      } finally {
+                        setPopupUploading(false)
+                        e.target.value = ""
+                      }
+                    }}
+                  />
+                </label>
+              </div>
               <textarea
-                className="min-h-32 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                ref={popupTextareaRef}
+                className="min-h-32 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder={"支持 Markdown 格式编辑\n# 标题  ## 二级标题  ### 三级标题\n**粗体**  *斜体*  空一行为段落换行\n![图片描述](图片URL) — 可点击上方「插入图片」自动生成"}
                 value={getValue("popup_content")}
                 onChange={(e) => setValue("popup_content", e.target.value)}
               />
@@ -331,6 +428,17 @@ export default function AdminSiteConfigPage() {
                 value={getValue("contact_telegram")}
                 onChange={(e) => setValue("contact_telegram", e.target.value)}
               />
+            </div>
+            <div className="flex flex-col gap-1.5">
+              <label className="text-sm font-medium text-foreground">{t("admin.contactTelegramGroup")}</label>
+              <input
+                type="text"
+                className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                placeholder="https://t.me/..."
+                value={getValue("contact_telegram_group")}
+                onChange={(e) => setValue("contact_telegram_group", e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">{t("admin.contactTelegramGroupHint")}</p>
             </div>
             <button
               type="button"

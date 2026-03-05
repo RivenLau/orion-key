@@ -20,6 +20,7 @@ import org.springframework.security.crypto.password.PasswordEncoder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.time.LocalDateTime;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.UUID;
@@ -53,6 +54,7 @@ public class UserServiceImpl implements UserService {
     }
 
     @Override
+    @Transactional
     public PageResult<?> getOrders(UUID userId, String status, int page, int pageSize) {
         PageRequest pageable = PageRequest.of(page - 1, pageSize);
         Page<Order> orderPage;
@@ -68,6 +70,16 @@ public class UserServiceImpl implements UserService {
         } else {
             orderPage = orderRepository.findByUserIdOrderByCreatedAtDesc(userId, pageable);
         }
+
+        // 主动过期检查：PENDING 且已超时的订单标记为 EXPIRED（与 queryOrders 逻辑一致）
+        LocalDateTime now = LocalDateTime.now();
+        for (Order o : orderPage.getContent()) {
+            if (o.getStatus() == OrderStatus.PENDING && o.getExpiresAt().isBefore(now)) {
+                o.setStatus(OrderStatus.EXPIRED);
+                orderRepository.save(o);
+            }
+        }
+
         var list = orderPage.getContent().stream().map(this::toOrderBrief).toList();
         return PageResult.of(orderPage, list);
     }

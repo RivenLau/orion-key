@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useCallback, useRef } from "react"
 import { useSearchParams } from "next/navigation"
+import Link from "next/link"
 import { Search, Copy, Download, FileText, CheckCircle2, X, Clock, HelpCircle, ExternalLink, Loader2, AlertCircle, Info } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useSiteConfig } from "@/lib/context"
@@ -313,6 +314,16 @@ export default function OrderQueryPage() {
                 </div>
               )}
             </div>
+
+            {/* 继续支付按钮 — PENDING 且非 USDT */}
+            {order.status === "PENDING" && order.payment_method && !order.payment_method.startsWith("usdt_") && (
+              <Link
+                href={`/pay/${order.id}?method=${order.payment_method}`}
+                className="inline-flex h-9 w-full items-center justify-center gap-1.5 rounded-lg bg-primary text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90"
+              >
+                {t("payment.continuePay")}
+              </Link>
+            )}
 
             {/* USDT 补单区域 — 仅 USDT + PENDING/EXPIRED */}
             {order.payment_method?.startsWith("usdt_") &&

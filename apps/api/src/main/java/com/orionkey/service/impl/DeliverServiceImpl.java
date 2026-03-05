@@ -34,6 +34,7 @@ public class DeliverServiceImpl implements DeliverService {
 
     @Override
     @SuppressWarnings("unchecked")
+    @Transactional
     public List<?> queryOrders(Map<String, Object> request) {
         Set<UUID> orderIds = new LinkedHashSet<>();
 
@@ -53,6 +54,16 @@ public class DeliverServiceImpl implements DeliverService {
         }
 
         List<Order> orders = orderRepository.findByIdIn(new ArrayList<>(orderIds));
+
+        // 主动过期检查：PENDING 且已超时的订单标记为 EXPIRED（与 getOrderStatus 逻辑一致）
+        LocalDateTime now = LocalDateTime.now();
+        for (Order o : orders) {
+            if (o.getStatus() == OrderStatus.PENDING && o.getExpiresAt().isBefore(now)) {
+                o.setStatus(OrderStatus.EXPIRED);
+                orderRepository.save(o);
+            }
+        }
+
         // Sort by createdAt desc
         orders.sort((a, b) -> b.getCreatedAt().compareTo(a.getCreatedAt()));
 

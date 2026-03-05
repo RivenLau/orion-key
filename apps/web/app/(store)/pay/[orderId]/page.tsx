@@ -419,6 +419,20 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
               </div>
             </div>
             <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
+
+            {/* 刷新二维码按钮 */}
+            <button
+              onClick={handleRetryPayment}
+              disabled={retrying}
+              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary disabled:opacity-50"
+            >
+              {retrying ? (
+                <Loader2 className="h-3.5 w-3.5 animate-spin" />
+              ) : (
+                <RefreshCw className="h-3.5 w-3.5" />
+              )}
+              {t("payment.refreshQrCode")}
+            </button>
           </>
         ) : (
           /* ========== H5 移动端支付视图（新增） ========== */

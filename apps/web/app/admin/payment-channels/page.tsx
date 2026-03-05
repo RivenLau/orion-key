@@ -1,6 +1,6 @@
 "use client"
 
-import { useState, useEffect, useMemo } from "react"
+import { useState, useEffect, useMemo, useRef } from "react"
 import { Plus, Edit, Trash2, ToggleLeft, ToggleRight, X, AlertCircle, ChevronDown, Shield, Key } from "lucide-react"
 import { cn } from "@/lib/utils"
 import { useLocale } from "@/lib/context"
@@ -130,6 +130,9 @@ export default function AdminPaymentChannelsPage() {
     sort_order: "",
   })
   const [configData, setConfigData] = useState<Record<string, string>>({})
+  const [formErrors, setFormErrors] = useState<Record<string, boolean>>({})
+  const providerBtnRef = useRef<HTMLButtonElement>(null)
+  const channelNameRef = useRef<HTMLInputElement>(null)
 
   // Current provider option
   const currentProvider = useMemo(
@@ -211,6 +214,7 @@ export default function AdminPaymentChannelsPage() {
     setProviderDropdownOpen(false)
     setChannelDropdownOpen(false)
     setShowKeys(false)
+    setFormErrors({})
   }
 
   const handleSelectProvider = (provider: ProviderOption) => {
@@ -224,6 +228,7 @@ export default function AdminPaymentChannelsPage() {
     }))
     setConfigData({})
     setProviderDropdownOpen(false)
+    setFormErrors(prev => ({ ...prev, provider: false }))
   }
 
   const handleSelectChannel = (channel: { code: string; name: string }) => {
@@ -240,10 +245,25 @@ export default function AdminPaymentChannelsPage() {
   }
 
   const handleSave = async () => {
-    if (!formData.provider_type || !formData.channel_code.trim() || !formData.channel_name.trim()) {
-      toast.error("请选择支付提供商和渠道类型")
+    const errors: Record<string, boolean> = {}
+    if (!formData.provider_type || !formData.channel_code.trim()) errors.provider = true
+    if (!formData.channel_name.trim()) errors.channel_name = true
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors)
+      const messages: string[] = []
+      if (errors.provider) messages.push("支付提供商")
+      if (errors.channel_name) messages.push("渠道名称")
+      toast.error(`请填写：${messages.join("、")}`)
+      if (errors.provider) {
+        providerBtnRef.current?.focus()
+        providerBtnRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      } else if (errors.channel_name) {
+        channelNameRef.current?.focus()
+        channelNameRef.current?.scrollIntoView({ behavior: "smooth", block: "center" })
+      }
       return
     }
+    setFormErrors({})
     setSaving(true)
 
     const configObj: Record<string, string> = {}
@@ -462,13 +482,14 @@ export default function AdminPaymentChannelsPage() {
             <label className="text-sm font-medium text-foreground">支付提供商 *</label>
             <div className="relative">
               <button
+                ref={providerBtnRef}
                 type="button"
                 className={cn(
                   "flex h-10 w-full items-center justify-between rounded-lg border bg-background px-3 text-sm transition-colors",
-                  providerDropdownOpen ? "border-ring ring-2 ring-ring" : "border-input",
+                  formErrors.provider ? "border-destructive ring-2 ring-destructive/20" : providerDropdownOpen ? "border-ring ring-2 ring-ring" : "border-input",
                   editId ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:border-muted-foreground/50"
                 )}
-                onClick={() => !editId && setProviderDropdownOpen(!providerDropdownOpen)}
+                onClick={() => { !editId && setProviderDropdownOpen(!providerDropdownOpen); setFormErrors(prev => ({ ...prev, provider: false })) }}
                 disabled={!!editId}
               >
                 <span className={formData.provider_type ? "text-foreground" : "text-muted-foreground"}>
@@ -560,11 +581,12 @@ export default function AdminPaymentChannelsPage() {
             <div className="flex flex-col gap-1.5">
               <label className="text-sm font-medium text-foreground">{`${t("admin.channelName")} *`}</label>
               <input
+                ref={channelNameRef}
                 type="text"
-                className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                className={cn("h-10 rounded-lg border bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2", formErrors.channel_name ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")}
                 placeholder="显示名称（可自定义）"
                 value={formData.channel_name}
-                onChange={(e) => setFormData({ ...formData, channel_name: e.target.value })}
+                onChange={(e) => { setFormData({ ...formData, channel_name: e.target.value }); setFormErrors(prev => ({ ...prev, channel_name: false })) }}
               />
             </div>
           )}

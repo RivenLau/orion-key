@@ -134,12 +134,12 @@ export default function MyOrdersPage() {
                   </span>
                 </span>
                 <div className="flex gap-2">
-                  {order.status === "PENDING" && (
+                  {order.status === "PENDING" && order.payment_method && !order.payment_method.startsWith("usdt_") && (
                     <Link
                       href={`/pay/${order.id}?method=${order.payment_method}`}
                       className="inline-flex h-8 items-center gap-1 rounded-md bg-primary px-3 text-xs font-medium text-primary-foreground hover:bg-primary/90"
                     >
-                      {t("payment.title")}
+                      {t("payment.continuePay")}
                     </Link>
                   )}
                   {order.status === "DELIVERED" && (

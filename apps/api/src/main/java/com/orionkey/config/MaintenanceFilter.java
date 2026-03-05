@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orionkey.common.ApiResponse;
 import com.orionkey.constant.ErrorCode;
 import com.orionkey.repository.SiteConfigRepository;
+import com.orionkey.utils.JwtUtils;
+import io.jsonwebtoken.Claims;
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
@@ -12,6 +14,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.core.annotation.Order;
 import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
+import org.springframework.util.StringUtils;
 
 import java.io.IOException;
 
@@ -23,6 +26,7 @@ public class MaintenanceFilter implements Filter {
 
     private final SiteConfigRepository siteConfigRepository;
     private final ObjectMapper objectMapper;
+    private final JwtUtils jwtUtils;
 
     // Cache: maintenance mode, refresh every 30s
     private volatile boolean cachedMaintenanceEnabled = false;
@@ -35,8 +39,17 @@ public class MaintenanceFilter implements Filter {
         HttpServletRequest httpRequest = (HttpServletRequest) request;
         String path = httpRequest.getRequestURI();
 
-        // Skip admin endpoints and webhook
-        if (path.startsWith("/api/admin") || path.startsWith("/api/payments/webhook")) {
+        // Skip endpoints required for maintenance mode to function correctly:
+        // - /api/admin/*        : admin backend must remain accessible
+        // - /api/payments/webhook: payment callbacks must not be blocked
+        // - /api/site/config    : frontend needs real config to detect maintenance mode
+        // - /api/auth/*         : login/token check needed so admin can log in and be identified
+        // - /api/captcha/*      : login may require captcha verification
+        if (path.startsWith("/api/admin")
+                || path.startsWith("/api/payments/webhook")
+                || path.equals("/api/site/config")
+                || path.startsWith("/api/auth/")
+                || path.startsWith("/api/captcha")) {
             chain.doFilter(request, response);
             return;
         }
@@ -48,6 +61,12 @@ public class MaintenanceFilter implements Filter {
         }
 
         if (cachedMaintenanceEnabled) {
+            // Allow requests from authenticated ADMIN users (full access during maintenance)
+            if (isAdminRequest(httpRequest)) {
+                chain.doFilter(request, response);
+                return;
+            }
+
             HttpServletResponse httpResponse = (HttpServletResponse) response;
             httpResponse.setStatus(HttpServletResponse.SC_SERVICE_UNAVAILABLE);
             httpResponse.setContentType(MediaType.APPLICATION_JSON_VALUE);
@@ -58,6 +77,23 @@ public class MaintenanceFilter implements Filter {
         }
 
         chain.doFilter(request, response);
+    }
+
+    /**
+     * Check if the request carries a valid JWT with ADMIN role.
+     */
+    private boolean isAdminRequest(HttpServletRequest request) {
+        try {
+            String header = request.getHeader("Authorization");
+            if (!StringUtils.hasText(header) || !header.startsWith("Bearer ")) {
+                return false;
+            }
+            String token = header.substring(7);
+            Claims claims = jwtUtils.parseTokenSafe(token);
+            return claims != null && "ADMIN".equals(claims.get("role", String.class));
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private void refreshCache() {

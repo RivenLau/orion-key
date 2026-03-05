@@ -23,6 +23,10 @@ const actionLabels: Record<string, { label: string; color: string }> = {
   "category.delete": { label: "删除分类", color: "bg-red-500/10 text-red-500" },
   "payment.create": { label: "添加支付", color: "bg-emerald-500/10 text-emerald-600" },
   "payment.update": { label: "更新支付", color: "bg-blue-500/10 text-blue-600" },
+  "payment.delete": { label: "删除支付", color: "bg-red-500/10 text-red-500" },
+  "user.toggle": { label: "切换用户状态", color: "bg-amber-500/10 text-amber-600" },
+  "txid.approve": { label: "审核通过TXID", color: "bg-emerald-500/10 text-emerald-600" },
+  "txid.reject": { label: "审核拒绝TXID", color: "bg-red-500/10 text-red-500" },
 }
 
 const ITEMS_PER_PAGE = 20
@@ -87,6 +91,7 @@ export default function AdminOperationLogsPage() {
             <option value="config">{t("admin.configOps")}</option>
             <option value="category">{t("admin.categoryOps")}</option>
             <option value="payment">{t("admin.paymentOps")}</option>
+            <option value="txid">{t("admin.txidOps")}</option>
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
         </div>
