@@ -317,82 +317,94 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
         </div>
 
         {isUsdtPayment ? (
-          /* ========== USDT 支付视图 ========== */
-          <>
+          /* ========== USDT 支付视图（紧凑居中布局） ========== */
+          <div className="flex w-full flex-col items-center gap-3">
+            {/* ① 品牌标签 — 网络类型 */}
+            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1.5 transition-all duration-200">
+              <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
+              <span className="text-sm font-medium text-emerald-700">{paymentMethodName}</span>
+            </div>
+
+            {/* ②③ 转账金额 + 收款地址 — 合并卡片 */}
+            <div className="flex w-full max-w-sm flex-col rounded-xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:border-border hover:shadow-md">
+              {/* 转账金额 */}
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="text-sm text-muted-foreground">{t("payment.usdt.amount")}（{t("payment.usdt.amountHint")}）</span>
+                <span className="flex items-center gap-2">
+                  <span
+                    className="cursor-pointer text-lg font-bold text-foreground underline-offset-4 transition-all hover:underline hover:text-primary"
+                    onClick={() => copyToClipboard(cryptoAmount)}
+                  >
+                    {cryptoAmount} USDT
+                  </span>
+                  <button type="button" onClick={() => copyToClipboard(cryptoAmount)}
+                          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground">
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </span>
+              </div>
+              {/* 分割线 */}
+              <div className="mx-4 border-t border-border/40" />
+              {/* 收款地址 */}
+              <div className="flex items-center justify-between px-4 py-3">
+                <span className="shrink-0 text-sm text-muted-foreground">{t("payment.usdt.address")}</span>
+                <span className="flex items-center gap-2">
+                  <span
+                    className="cursor-pointer font-mono text-sm font-normal text-foreground underline-offset-4 transition-all hover:underline hover:text-primary"
+                    title={walletAddress}
+                    onClick={() => copyToClipboard(walletAddress)}
+                  >
+                    {walletAddress.length > 28
+                      ? `${walletAddress.slice(0, 12)}...${walletAddress.slice(-12)}`
+                      : walletAddress}
+                  </span>
+                  <button type="button" onClick={() => copyToClipboard(walletAddress)}
+                          className="shrink-0 text-muted-foreground transition-colors hover:text-foreground">
+                    <Copy className="h-4 w-4" />
+                  </button>
+                </span>
+              </div>
+            </div>
+
+            {/* ④ QR Code — 品牌色微渲染，响应式尺寸 */}
             <div
-              className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl px-6 pb-6 pt-6"
-              style={{ backgroundColor: brandColor || "#26A17B" }}
+              className="flex items-center justify-center rounded-2xl p-3 transition-all duration-200 hover:shadow-md"
+              style={{
+                backgroundColor: `color-mix(in srgb, ${brandColor || "#26A17B"} 4%, var(--card))`,
+                boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${brandColor || "#26A17B"} 12%, transparent)`,
+              }}
             >
-              {/* 品牌标题 */}
-              <div className="flex items-center gap-2.5">
-                <PaymentIcon method={paymentMethod} className="h-10 w-10" variant="plain" />
-                <span className="text-xl font-bold text-white">{paymentMethodName}</span>
-              </div>
-
-              <div className="flex w-full flex-col items-center gap-4 sm:flex-row sm:items-start sm:gap-5">
-                {/* QR Code（钱包地址） */}
-                <div className="flex h-44 w-44 shrink-0 items-center justify-center rounded-xl bg-white p-2.5">
-                  {walletAddress ? (
-                    <QRCodeSVG value={walletAddress} size={160} level="M" includeMargin={false} />
-                  ) : (
-                    <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                      <Loader2 className="h-8 w-8 animate-spin" />
-                      <span className="text-xs">{t("common.loading")}</span>
-                    </div>
-                  )}
+              {walletAddress ? (
+                <div className="rounded-lg bg-white p-2">
+                  <QRCodeSVG value={walletAddress} size={160} level="M" includeMargin={false} className="h-[140px] w-[140px] sm:h-[160px] sm:w-[160px]" />
                 </div>
-
-                {/* 金额 + 地址 */}
-                <div className="flex flex-col gap-3 text-white">
-                  {/* 转账金额 */}
-                  <div>
-                    <p className="text-xs font-medium text-white/70">{t("payment.usdt.amount")}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="text-lg font-bold">{cryptoAmount} USDT</span>
-                      <button type="button" onClick={() => copyToClipboard(cryptoAmount)}
-                              className="text-white/70 transition-colors hover:text-white">
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
-                  {/* 收款地址 */}
-                  <div>
-                    <p className="text-xs font-medium text-white/70">{t("payment.usdt.address")}</p>
-                    <div className="mt-1 flex items-center gap-2">
-                      <span className="break-all text-xs font-mono leading-relaxed">
-                        {walletAddress.length > 20
-                          ? `${walletAddress.slice(0, 10)}...${walletAddress.slice(-10)}`
-                          : walletAddress}
-                      </span>
-                      <button type="button" onClick={() => copyToClipboard(walletAddress)}
-                              className="shrink-0 text-white/70 transition-colors hover:text-white">
-                        <Copy className="h-3.5 w-3.5" />
-                      </button>
-                    </div>
-                  </div>
+              ) : (
+                <div className="flex h-[140px] w-[140px] flex-col items-center justify-center gap-2 text-muted-foreground sm:h-[160px] sm:w-[160px]">
+                  <Loader2 className="h-6 w-6 animate-spin" />
+                  <span className="text-xs">{t("common.loading")}</span>
                 </div>
-              </div>
+              )}
             </div>
 
-            {/* USDT 警告提示 */}
-            <div className="flex w-full max-w-sm flex-col gap-2 rounded-lg border border-amber-200 bg-amber-50 p-3 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
-              <p className="flex items-start gap-1.5">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+            {/* ⑤ 警告提示 — 紧凑 */}
+            <ul className="flex w-full max-w-sm flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+              <li className="flex items-start gap-1.5">
+                <span className="mt-0.5 shrink-0">•</span>
                 <span>{t("payment.usdt.warnExact").replace("{amount}", cryptoAmount)}</span>
-              </p>
-              <p className="flex items-start gap-1.5">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
-                <span>{t("payment.usdt.warnFee")}</span>
-              </p>
-              <p className="flex items-start gap-1.5">
-                <AlertTriangle className="mt-0.5 h-3.5 w-3.5 shrink-0" />
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="mt-0.5 shrink-0">•</span>
                 <span>{t("payment.usdt.warnChain").replace("{chain}", chainDisplayName)}</span>
-              </p>
-            </div>
+              </li>
+              <li className="flex items-start gap-1.5">
+                <span className="mt-0.5 shrink-0">•</span>
+                <span>{t("payment.usdt.delayHint")}</span>
+              </li>
+            </ul>
 
             {/* 检测状态 */}
-            <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
-          </>
+            <p className="animate-pulse text-xs text-primary">{t("payment.detecting")}</p>
+          </div>
         ) : (!isMobile || isWechatMobile) ? (
           /* ========== PC / 微信移动端 — 二维码视图 ========== */
           <>
@@ -512,14 +524,6 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
 
       {/* Help Links */}
       <div className="flex flex-col items-center gap-2 pt-2 text-sm">
-        {/* USDT 延迟到账提示 */}
-        {isUsdtPayment && (
-          <p className="flex items-start gap-1.5 text-muted-foreground">
-            <Info className="mt-0.5 h-4 w-4 shrink-0" />
-            <span>{t("payment.usdt.delayHint")}</span>
-          </p>
-        )}
-
         {/* 引导跳转订单查询 — 携带 orderId */}
         <Link
           href={`/order/query?orderId=${orderId}`}

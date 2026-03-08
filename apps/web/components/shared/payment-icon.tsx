@@ -40,6 +40,8 @@ const PAYMENT_LABELS: Record<string, string> = {
   alipay: "支付宝",
   wechat: "微信支付",
   usdt_trc20: "USDT (TRC-20)",
+  usdt_erc20: "USDT (ERC-20)",
+  usdt_bep20: "USDT (BEP-20)",
   usdt_bsc: "USDT (BSC)",
 }
 
