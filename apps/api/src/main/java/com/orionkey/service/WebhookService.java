@@ -4,8 +4,6 @@ import java.util.Map;
 
 public interface WebhookService {
 
-    String processWebhook(String channelCode, Map<String, Object> payload);
-
     /**
      * 处理易支付 GET 回调
      */

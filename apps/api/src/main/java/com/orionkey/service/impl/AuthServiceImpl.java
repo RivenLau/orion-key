@@ -66,6 +66,11 @@ public class AuthServiceImpl implements AuthService {
         return new AuthResponse(token, UserProfileResponse.from(user));
     }
 
+    /** 连续登录失败上限 */
+    private static final int MAX_FAILED_ATTEMPTS = 5;
+    /** 账户锁定时长（分钟） */
+    private static final int LOCK_DURATION_MINUTES = 15;
+
     @Override
     @Transactional
     public AuthResponse login(LoginRequest request, String sessionToken) {
@@ -75,8 +80,38 @@ public class AuthServiceImpl implements AuthService {
         if (user.getIsDeleted() == 1) {
             throw new BusinessException(ErrorCode.ACCOUNT_DISABLED, "该账号已被禁用");
         }
+
+        // 账户锁定检查
+        if (user.getLockUntil() != null) {
+            if (user.getLockUntil().isAfter(java.time.LocalDateTime.now())) {
+                long remainMinutes = java.time.Duration.between(java.time.LocalDateTime.now(), user.getLockUntil()).toMinutes() + 1;
+                throw new BusinessException(ErrorCode.ACCOUNT_LOCKED,
+                        "账号已被锁定，请 " + remainMinutes + " 分钟后再试");
+            }
+            // 锁定已过期：重置失败计数，给予完整的重试机会
+            user.setFailedLoginAttempts(0);
+            user.setLockUntil(null);
+        }
+
         if (!passwordEncoder.matches(request.getPassword(), user.getPasswordHash())) {
+            // 记录失败次数
+            user.setFailedLoginAttempts(user.getFailedLoginAttempts() + 1);
+            if (user.getFailedLoginAttempts() >= MAX_FAILED_ATTEMPTS) {
+                user.setLockUntil(java.time.LocalDateTime.now().plusMinutes(LOCK_DURATION_MINUTES));
+                userRepository.save(user);
+                log.warn("Account locked due to {} failed login attempts: {}", MAX_FAILED_ATTEMPTS, user.getUsername());
+                throw new BusinessException(ErrorCode.ACCOUNT_LOCKED,
+                        "连续登录失败 " + MAX_FAILED_ATTEMPTS + " 次，账号已锁定 " + LOCK_DURATION_MINUTES + " 分钟");
+            }
+            userRepository.save(user);
             throw new BusinessException(ErrorCode.INVALID_CREDENTIALS, "用户名或密码错误");
+        }
+
+        // 登录成功：重置失败计数和锁定状态
+        if (user.getFailedLoginAttempts() > 0 || user.getLockUntil() != null) {
+            user.setFailedLoginAttempts(0);
+            user.setLockUntil(null);
+            userRepository.save(user);
         }
 
         // Merge guest cart on login

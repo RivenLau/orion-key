@@ -7,6 +7,8 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
+import java.time.LocalDateTime;
+
 @Getter
 @Setter
 @NoArgsConstructor
@@ -31,4 +33,10 @@ public class User extends BaseEntity {
     private int points = 0;
 
     private int isDeleted = 0;
+
+    /** 连续登录失败次数 */
+    private int failedLoginAttempts = 0;
+
+    /** 账户锁定截止时间（null 表示未锁定） */
+    private LocalDateTime lockUntil;
 }

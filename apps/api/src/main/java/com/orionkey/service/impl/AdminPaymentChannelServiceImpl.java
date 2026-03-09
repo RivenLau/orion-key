@@ -68,17 +68,44 @@ public class AdminPaymentChannelServiceImpl implements AdminPaymentChannelServic
         paymentChannelRepository.save(channel);
     }
 
+    /** 需要在 API 响应中脱敏的敏感字段名 */
+    private static final Set<String> SENSITIVE_KEYS = Set.of(
+            "api_token", "key", "secret", "password", "private_key"
+    );
+
     private Map<String, Object> toMap(PaymentChannel c) {
         Map<String, Object> map = new LinkedHashMap<>();
         map.put("id", c.getId());
         map.put("channel_code", c.getChannelCode());
         map.put("channel_name", c.getChannelName());
         map.put("provider_type", c.getProviderType());
-        map.put("config_data", deserializeConfigData(c.getConfigData()));
+        map.put("config_data", maskSensitiveConfigData(deserializeConfigData(c.getConfigData())));
         map.put("is_enabled", c.isEnabled());
         map.put("sort_order", c.getSortOrder());
         map.put("created_at", c.getCreatedAt());
         return map;
+    }
+
+    /**
+     * 对 configData 中的敏感字段进行脱敏处理，前端仅显示部分字符。
+     */
+    private Map<String, Object> maskSensitiveConfigData(Map<String, Object> configData) {
+        if (configData == null) return null;
+        Map<String, Object> masked = new LinkedHashMap<>(configData);
+        for (String sensitiveKey : SENSITIVE_KEYS) {
+            if (masked.containsKey(sensitiveKey)) {
+                Object val = masked.get(sensitiveKey);
+                if (val instanceof String s && !s.isEmpty()) {
+                    // 保留前 4 位和后 2 位，中间用 **** 替代
+                    if (s.length() <= 8) {
+                        masked.put(sensitiveKey, s.substring(0, Math.min(2, s.length())) + "****");
+                    } else {
+                        masked.put(sensitiveKey, s.substring(0, 4) + "****" + s.substring(s.length() - 2));
+                    }
+                }
+            }
+        }
+        return masked;
     }
 
     private String serializeConfigData(Object configData) {

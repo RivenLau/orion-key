@@ -5,7 +5,9 @@ import com.orionkey.constant.OrderType;
 import com.orionkey.entity.Order;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import jakarta.persistence.LockModeType;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Lock;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -35,6 +37,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
     long countByUserIdAndStatus(UUID userId, OrderStatus status);
 
     long countByClientIpAndStatus(String clientIp, OrderStatus status);
+
+    long countByEmailAndStatus(String email, OrderStatus status);
+
+    /** 悲观写锁：SELECT ... FOR UPDATE，用于防止并发发货等竞态条件 */
+    @Lock(LockModeType.PESSIMISTIC_WRITE)
+    @Query("SELECT o FROM Order o WHERE o.id = :id")
+    Optional<Order> findByIdForUpdate(@Param("id") UUID id);
 
     @Query("SELECT o FROM Order o WHERE o.riskFlagged = true ORDER BY o.createdAt DESC")
     Page<Order> findRiskFlaggedOrders(Pageable pageable);
