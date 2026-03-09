@@ -22,3 +22,20 @@
 # virtual machine crash logs, see http://www.java.com/en/download/help/error_hotspot.xml
 hs_err_pid*
 replay_pid*
+
+# Node.js
+node_modules/
+.next/
+out/
+dist/
+.env
+.env.local
+.env.*.local
+*.tsbuildinfo
+
+# Windows reserved names
+nul
+NUL
+
+# Uploads
+uploads/
