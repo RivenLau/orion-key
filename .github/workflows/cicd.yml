@@ -15,7 +15,7 @@ name: Orion Key CI/CD
 # ── 触发条件 ──
 on:
   push:
-    branches: [prod]        # push 到 prod 分支时触发
+    branches: [demo-prod]        # push 到 prod 分支时触发
     tags: ['v*']            # push tag（如 v1.0.0）时触发
   workflow_dispatch:         # 支持在 GitHub Actions 页面手动触发
     inputs:
