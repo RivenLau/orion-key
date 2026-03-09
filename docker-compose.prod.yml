@@ -85,7 +85,7 @@ services:
 
     # 数据持久化：SQLite 数据库、钱包配置等存储在 volume 中
     volumes:
-      - bepusdt_data:/app/data
+      - bepusdt_data:/var/lib/bepusdt
 
     # BEpusdt 环境变量（敏感值应写入 .env 文件）
     # APP_URI: BEpusdt 外部可访问地址（用于回调签名验证，若使用 Nginx 反代则填反代地址）
