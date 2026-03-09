@@ -72,7 +72,7 @@ public class AuthServiceImpl implements AuthService {
     private static final int LOCK_DURATION_MINUTES = 15;
 
     @Override
-    @Transactional
+    @Transactional(noRollbackFor = BusinessException.class)
     public AuthResponse login(LoginRequest request, String sessionToken) {
         User user = userRepository.findByUsernameOrEmail(request.getAccount(), request.getAccount())
                 .orElseThrow(() -> new BusinessException(ErrorCode.INVALID_CREDENTIALS, "用户名或密码错误"));

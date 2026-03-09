@@ -20,8 +20,6 @@ import com.orionkey.service.PaymentService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.util.LinkedHashMap;
@@ -46,7 +44,6 @@ public class PaymentServiceImpl implements PaymentService {
     private final EpayService epayService;
     private final BepusdtService bepusdtService;
     private final ObjectMapper objectMapper;
-    private final PlatformTransactionManager txManager;
 
     @Override
     public Map<String, Object> createPayment(UUID orderId, String paymentMethod, BigDecimal amount) {
@@ -216,43 +213,40 @@ public class PaymentServiceImpl implements PaymentService {
     private static final int REPAY_COOLDOWN_SECONDS = 10;
 
     @Override
+    @org.springframework.transaction.annotation.Transactional
     public Map<String, Object> repay(UUID orderId, String device, UUID requestUserId) {
-        // Phase 1: 事务内 — 校验 + 清除旧支付信息，完成后立即释放 DB 连接
-        Order order = new TransactionTemplate(txManager).execute(status -> {
-            Order o = orderRepository.findById(orderId)
-                    .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在"));
+        Order order = orderRepository.findById(orderId)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在"));
 
-            // F9: 归属校验 — 已登录用户只能 repay 自己的订单
-            if (o.getUserId() != null && requestUserId != null
-                    && !o.getUserId().equals(requestUserId)) {
-                throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此订单");
-            }
+        // F9: 归属校验 — 已登录用户只能 repay 自己的订单
+        if (order.getUserId() != null && requestUserId != null
+                && !order.getUserId().equals(requestUserId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此订单");
+        }
 
-            if (o.getStatus() != com.orionkey.constant.OrderStatus.PENDING) {
-                throw new BusinessException(ErrorCode.ORDER_EXPIRED, "订单状态不允许重新支付");
-            }
+        if (order.getStatus() != com.orionkey.constant.OrderStatus.PENDING) {
+            throw new BusinessException(ErrorCode.ORDER_EXPIRED, "订单状态不允许重新支付");
+        }
 
-            if (o.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
-                o.setStatus(com.orionkey.constant.OrderStatus.EXPIRED);
-                orderRepository.save(o);
-                throw new BusinessException(ErrorCode.ORDER_EXPIRED, "订单已过期");
-            }
+        if (order.getExpiresAt().isBefore(java.time.LocalDateTime.now())) {
+            order.setStatus(com.orionkey.constant.OrderStatus.EXPIRED);
+            orderRepository.save(order);
+            throw new BusinessException(ErrorCode.ORDER_EXPIRED, "订单已过期");
+        }
 
-            // 频率限制：距上次更新不足 REPAY_COOLDOWN_SECONDS 秒则拒绝
-            if (o.getUpdatedAt() != null
-                    && o.getUpdatedAt().plusSeconds(REPAY_COOLDOWN_SECONDS).isAfter(java.time.LocalDateTime.now())) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "操作过于频繁，请稍后再试");
-            }
+        // 频率限制：距上次更新不足 REPAY_COOLDOWN_SECONDS 秒则拒绝
+        if (order.getUpdatedAt() != null
+                && order.getUpdatedAt().plusSeconds(REPAY_COOLDOWN_SECONDS).isAfter(java.time.LocalDateTime.now())) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "操作过于频繁，请稍后再试");
+        }
 
-            // 清除旧支付信息，跳过幂等缓存
-            o.setPaymentUrl(null);
-            o.setQrcodeUrl(null);
-            o.setEpayTradeNo(null);
-            orderRepository.save(o);
-            return o;
-        });
+        // 清除旧支付信息，跳过幂等缓存
+        order.setPaymentUrl(null);
+        order.setQrcodeUrl(null);
+        order.setEpayTradeNo(null);
+        orderRepository.save(order);
 
-        // Phase 2: 事务外 — 调用支付网关（HTTP 调用不占 DB 连接）
+        // 重新创建支付
         return createPayment(order.getId(), order.getPaymentMethod(), order.getActualAmount(), device);
     }
 

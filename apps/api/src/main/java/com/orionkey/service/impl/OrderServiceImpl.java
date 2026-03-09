@@ -13,9 +13,7 @@ import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.PlatformTransactionManager;
 import org.springframework.transaction.annotation.Transactional;
-import org.springframework.transaction.support.TransactionTemplate;
 
 import java.math.BigDecimal;
 import java.time.Duration;
@@ -36,21 +34,11 @@ public class OrderServiceImpl implements OrderService {
     private final CardKeyRepository cardKeyRepository;
     private final SiteConfigRepository siteConfigRepository;
     private final PaymentService paymentService;
-    private final PlatformTransactionManager txManager;
 
     @Override
+    @Transactional
     public Map<String, Object> createDirectOrder(Map<String, Object> req, UUID userId, String clientIp, String sessionToken) {
         String device = (String) req.get("device");
-
-        // Phase 1: 事务内 — 校验 + 建单 + 写入，完成后立即释放 DB 连接
-        Order order = new TransactionTemplate(txManager).execute(status ->
-                doCreateDirectOrder(req, userId, clientIp, sessionToken));
-
-        // Phase 2: 事务外 — 调用支付网关（HTTP 调用不占 DB 连接）
-        return buildOrderResult(order, device);
-    }
-
-    private Order doCreateDirectOrder(Map<String, Object> req, UUID userId, String clientIp, String sessionToken) {
         String idempotencyKey = (String) req.get("idempotency_key");
         if (idempotencyKey != null) {
             Optional<Order> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
@@ -61,7 +49,7 @@ public class OrderServiceImpl implements OrderService {
                         || (userId == null && existingOrder.getUserId() == null
                             && Objects.equals(sessionToken, existingOrder.getSessionToken()));
                 if (sameOwner) {
-                    return existingOrder;
+                    return buildOrderResult(existingOrder, device);
                 }
                 // 不同用户/会话的相同幂等键 — 清除以避免唯一约束冲突，视为无幂等键的新订单
                 idempotencyKey = null;
@@ -130,22 +118,13 @@ public class OrderServiceImpl implements OrderService {
         item.setSubtotal(totalAmount);
         orderItemRepository.save(item);
 
-        return order;
-    }
-
-    @Override
-    public Map<String, Object> createCartOrder(Map<String, Object> req, UUID userId, String clientIp, String sessionToken) {
-        String device = (String) req.get("device");
-
-        // Phase 1: 事务内 — 校验 + 建单 + 写入 + 清空购物车，完成后立即释放 DB 连接
-        Order order = new TransactionTemplate(txManager).execute(status ->
-                doCreateCartOrder(req, userId, clientIp, sessionToken));
-
-        // Phase 2: 事务外 — 调用支付网关（HTTP 调用不占 DB 连接）
         return buildOrderResult(order, device);
     }
 
-    private Order doCreateCartOrder(Map<String, Object> req, UUID userId, String clientIp, String sessionToken) {
+    @Override
+    @Transactional
+    public Map<String, Object> createCartOrder(Map<String, Object> req, UUID userId, String clientIp, String sessionToken) {
+        String device = (String) req.get("device");
         String idempotencyKey = (String) req.get("idempotency_key");
         if (idempotencyKey != null) {
             Optional<Order> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
@@ -155,7 +134,7 @@ public class OrderServiceImpl implements OrderService {
                         || (userId == null && existingOrder.getUserId() == null
                             && Objects.equals(sessionToken, existingOrder.getSessionToken()));
                 if (sameOwner) {
-                    return existingOrder;
+                    return buildOrderResult(existingOrder, device);
                 }
                 // 不同用户/会话的相同幂等键 — 清除以避免唯一约束冲突，视为无幂等键的新订单
                 idempotencyKey = null;
@@ -239,7 +218,7 @@ public class OrderServiceImpl implements OrderService {
             cartItemRepository.delete(ci);
         }
 
-        return order;
+        return buildOrderResult(order, device);
     }
 
     @Override

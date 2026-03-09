@@ -52,7 +52,7 @@ public class AdminPaymentChannelServiceImpl implements AdminPaymentChannelServic
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "支付渠道不存在"));
         if (req.containsKey("channel_name")) channel.setChannelName((String) req.get("channel_name"));
         if (req.containsKey("config_data")) {
-            channel.setConfigData(serializeConfigData(req.get("config_data")));
+            channel.setConfigData(mergeConfigData(req.get("config_data"), channel.getConfigData()));
         }
         if (req.containsKey("is_enabled")) channel.setEnabled((boolean) req.get("is_enabled"));
         if (req.containsKey("sort_order")) channel.setSortOrder(((Number) req.get("sort_order")).intValue());
@@ -106,6 +106,41 @@ public class AdminPaymentChannelServiceImpl implements AdminPaymentChannelServic
             }
         }
         return masked;
+    }
+
+    /**
+     * 合并新配置与旧配置：对敏感字段，如果新值包含掩码标记 (****)，
+     * 则保留数据库中的原始值，防止管理员编辑渠道时将脱敏值覆写回数据库。
+     */
+    @SuppressWarnings("unchecked")
+    private String mergeConfigData(Object newConfigData, String existingConfigDataJson) {
+        if (newConfigData == null) return null;
+
+        Map<String, Object> newConfig;
+        if (newConfigData instanceof Map<?, ?> m) {
+            newConfig = new LinkedHashMap<>((Map<String, Object>) m);
+        } else if (newConfigData instanceof String s) {
+            Map<String, Object> parsed = deserializeConfigData(s);
+            if (parsed == null) return s;
+            newConfig = new LinkedHashMap<>(parsed);
+        } else {
+            return serializeConfigData(newConfigData);
+        }
+
+        Map<String, Object> oldConfig = deserializeConfigData(existingConfigDataJson);
+        if (oldConfig != null) {
+            for (String sensitiveKey : SENSITIVE_KEYS) {
+                Object newVal = newConfig.get(sensitiveKey);
+                if (newVal instanceof String s && s.contains("****")) {
+                    Object oldVal = oldConfig.get(sensitiveKey);
+                    if (oldVal != null) {
+                        newConfig.put(sensitiveKey, oldVal);
+                    }
+                }
+            }
+        }
+
+        return serializeConfigData(newConfig);
     }
 
     private String serializeConfigData(Object configData) {
