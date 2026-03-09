@@ -242,9 +242,9 @@ public class WebhookServiceImpl implements WebhookService {
         }
 
         // 4. 状态检查（只处理 status=2 即支付成功）
+        // 注意：非成功状态不写入幂等表，否则后续 status=2 回调会被误拦截
         if (!"2".equals(status)) {
-            log.info("BEpusdt callback non-success status: {}", status);
-            saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(), "STATUS_" + status);
+            log.info("BEpusdt callback non-success status: {}, skipping (not saved to idempotency table)", status);
             return "ok";
         }
 
