@@ -261,8 +261,8 @@ public class WebhookServiceImpl implements WebhookService {
             }
         }
 
-        // 6. 幂等更新订单状态
-        if (order.getStatus() == OrderStatus.PENDING) {
+        // 6. 幂等更新订单状态（PENDING 和 EXPIRED 均可标记为 PAID，与 TXID 验证和管理员手动标记行为一致）
+        if (order.getStatus() == OrderStatus.PENDING || order.getStatus() == OrderStatus.EXPIRED) {
             order.setStatus(OrderStatus.PAID);
             order.setPaidAt(LocalDateTime.now());
             order.setUsdtTxId(blockTxId);
