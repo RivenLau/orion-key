@@ -100,9 +100,11 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
         payUrl += `&crypto_amount=${encodeURIComponent(result.payment.crypto_amount || "")}`
         payUrl += `&chain=${encodeURIComponent(result.payment.chain || "")}`
       }
-      // 移动端非 USDT：直接跳转网关支付页，避免中间经过 pay 页面的延迟
+      // 移动端非 USDT 非微信：直接跳转网关支付页，避免中间经过 pay 页面的延迟
       // 导致支付宝 H5 session token 过期（"会话超时"）
-      if (isMobileDevice() && payUrlH5 && !selectedPayment.startsWith("usdt_")) {
+      // 微信支付的 jspay 走 JSAPI（需微信浏览器），普通浏览器不能跳转，只能到 pay 页展示二维码
+      const isWechat = ["wechat", "wxpay"].includes(selectedPayment.toLowerCase())
+      if (isMobileDevice() && payUrlH5 && !selectedPayment.startsWith("usdt_") && !isWechat) {
         sessionStorage.setItem(`pay_redirected_${result.payment.order_id}`, "1")
         window.location.href = payUrlH5
         return
