@@ -68,12 +68,12 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   useEffect(() => {
     const qrFromParam = searchParams.get("qr")
     if (qrFromParam) {
-      setQrcodeUrl(decodeURIComponent(qrFromParam))
+      setQrcodeUrl(qrFromParam)
     }
 
     const payurlFromParam = searchParams.get("payurl")
     if (payurlFromParam) {
-      setPayUrlH5(decodeURIComponent(payurlFromParam))
+      setPayUrlH5(payurlFromParam)
     }
 
     // 检查是否已跳转过支付 App（从 sessionStorage 恢复状态）
