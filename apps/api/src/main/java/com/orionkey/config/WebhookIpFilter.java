@@ -2,11 +2,9 @@ package com.orionkey.config;
 
 import jakarta.servlet.*;
 import jakarta.servlet.http.HttpServletRequest;
-import jakarta.servlet.http.HttpServletResponse;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.core.annotation.Order;
-import org.springframework.http.MediaType;
 import org.springframework.stereotype.Component;
 import org.springframework.util.StringUtils;
 
@@ -119,12 +117,9 @@ public class WebhookIpFilter implements Filter {
             if (filterEnabled) {
                 String clientIp = resolveClientIp(httpRequest);
                 if (!ips.contains(clientIp) && !domainIps.contains(clientIp)) {
-                    log.warn("Webhook request blocked: IP {} not in whitelist, path={}", clientIp, path);
-                    HttpServletResponse httpResponse = (HttpServletResponse) response;
-                    httpResponse.setStatus(403);
-                    httpResponse.setContentType(MediaType.TEXT_PLAIN_VALUE);
-                    httpResponse.getWriter().write("Forbidden");
-                    return;
+                    // 降级为仅告警：因网关回调 IP 频繁变动，不再直接拦截。
+                    // 安全由 WebhookServiceImpl 的签名校验 + 服务端主动查询双重保障。
+                    log.warn("Webhook request from unknown IP: {} not in whitelist, path={} (allowed, relying on signature + query verification)", clientIp, path);
                 }
             }
         }
@@ -146,20 +141,33 @@ public class WebhookIpFilter implements Filter {
 
     /**
      * 解析客户端真实 IP。
-     * 生产环境经 Nginx 反代后 getRemoteAddr() 返回 Nginx IP（如 127.0.0.1），
-     * 需从 X-Forwarded-For / X-Real-IP 中获取支付网关的真实来源 IP。
+     * 生产环境经 Nginx 反代后 getRemoteAddr() 返回 Docker 网桥 IP（如 172.18.0.1），
+     * 需从代理头中获取真实来源 IP。
+     * <p>
+     * 优先使用 X-Real-IP（Nginx 用 $remote_addr 覆写，客户端无法伪造），
+     * X-Forwarded-For 的首项可被客户端注入，不适合用于安全决策。
      */
     private String resolveClientIp(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();
 
         if (getTrustedProxies().contains(remoteAddr)) {
-            String xff = request.getHeader("X-Forwarded-For");
-            if (StringUtils.hasText(xff)) {
-                return xff.split(",")[0].trim();
-            }
+            // 优先 X-Real-IP：由 Nginx 设置为 $remote_addr，不可伪造
             String realIp = request.getHeader("X-Real-IP");
             if (StringUtils.hasText(realIp)) {
                 return realIp.trim();
+            }
+            // 回退 X-Forwarded-For：取最右侧非受信 IP（最后一个受信代理添加的）
+            String xff = request.getHeader("X-Forwarded-For");
+            if (StringUtils.hasText(xff)) {
+                String[] parts = xff.split(",");
+                // 从右向左找第一个不在 trusted-proxies 中的 IP
+                for (int i = parts.length - 1; i >= 0; i--) {
+                    String ip = parts[i].trim();
+                    if (!ip.isEmpty() && !getTrustedProxies().contains(ip)) {
+                        return ip;
+                    }
+                }
+                return parts[0].trim();
             }
         }
 

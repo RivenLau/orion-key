@@ -154,6 +154,39 @@ public class EpayServiceImpl implements EpayService {
     }
 
     @Override
+    public OrderQueryResult queryOrder(ChannelConfig config, String outTradeNo) {
+        String url = config.apiUrl() + (config.apiUrl().endsWith("/") ? "" : "/")
+                + "api.php?act=order&pid=" + config.pid() + "&key=" + config.key()
+                + "&out_trade_no=" + outTradeNo;
+
+        try {
+            ResponseEntity<String> response = restTemplate.getForEntity(url, String.class);
+            String body = response.getBody();
+            if (body == null || body.isBlank()) {
+                log.warn("Epay order query returned empty body: outTradeNo={}", outTradeNo);
+                return null;
+            }
+            log.debug("Epay order query response: {}", body);
+
+            Map<String, Object> result = objectMapper.readValue(body, new TypeReference<>() {});
+
+            // 网关返回错误码时（如订单不存在），返回 null
+            if (result.containsKey("code") && !Integer.valueOf(1).equals(result.get("code"))) {
+                log.warn("Epay order query error: {}", body);
+                return null;
+            }
+
+            String tradeStatus = result.get("status") != null ? result.get("status").toString() : null;
+            String money = result.get("money") != null ? result.get("money").toString() : null;
+            String tradeNo = result.get("trade_no") != null ? result.get("trade_no").toString() : null;
+            return new OrderQueryResult(tradeStatus, money, tradeNo);
+        } catch (Exception e) {
+            log.warn("Epay order query failed: outTradeNo={}, error={}", outTradeNo, e.getMessage());
+            return null;
+        }
+    }
+
+    @Override
     public boolean verifySign(String merchantKey, Map<String, String> params, String sign) {
         if (sign == null || sign.isEmpty()) return false;
         String expected = buildSign(merchantKey, params);

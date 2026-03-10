@@ -120,20 +120,28 @@ public class RateLimitFilter implements Filter {
 
     /**
      * 解析客户端真实 IP。
-     * 仅当直连 IP 在受信代理列表中时，才读取 X-Forwarded-For / X-Real-IP。
-     * 防止攻击者伪造这些头部绕过限流。
+     * 仅当直连 IP 在受信代理列表中时，才读取代理头。
+     * 优先使用 X-Real-IP（Nginx 用 $remote_addr 覆写，客户端无法伪造），
+     * X-Forwarded-For 的首项可被客户端注入，不适合用于安全决策。
      */
     private String resolveClientIp(HttpServletRequest request) {
         String remoteAddr = request.getRemoteAddr();
 
         if (getTrustedProxies().contains(remoteAddr)) {
-            String xff = request.getHeader("X-Forwarded-For");
-            if (StringUtils.hasText(xff)) {
-                return xff.split(",")[0].trim();
-            }
             String realIp = request.getHeader("X-Real-IP");
             if (StringUtils.hasText(realIp)) {
                 return realIp.trim();
+            }
+            String xff = request.getHeader("X-Forwarded-For");
+            if (StringUtils.hasText(xff)) {
+                String[] parts = xff.split(",");
+                for (int i = parts.length - 1; i >= 0; i--) {
+                    String ip = parts[i].trim();
+                    if (!ip.isEmpty() && !getTrustedProxies().contains(ip)) {
+                        return ip;
+                    }
+                }
+                return parts[0].trim();
             }
         }
 

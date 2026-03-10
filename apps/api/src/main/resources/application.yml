@@ -67,13 +67,12 @@ mail:
   enabled: ${MAIL_ENABLED:true}
   site-url: ${MAIL_SITE_URL:https://example.com}
 
-# Webhook 来源限制（两种方式可同时配置，取并集；均为空则不启用）
-# 示例：
-#   WEBHOOK_ALLOWED_IPS=1.2.3.4,5.6.7.8
-#   WEBHOOK_ALLOWED_DOMAINS=pay.gggua.com,pay2.example.com
-webhook:
-  allowed-ips: ${WEBHOOK_ALLOWED_IPS:}          # 静态 IP 白名单（逗号分隔）
-  allowed-domains: ${WEBHOOK_ALLOWED_DOMAINS:}  # 域名白名单（逗号分隔，自动 DNS 解析，5分钟刷新）
+# 受信代理 IP（Nginx / Docker 网桥），用于正确解析真实客户端 IP
+# 影响：限流（按真实 IP 限流）、Webhook 日志（记录真实回调来源 IP）
+# Docker 环境必须加入网桥网关 IP，否则所有请求共用同一限流桶
+# 查看网桥 IP：docker network inspect orion-key_default | grep Gateway
+rate-limit:
+  trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:127.0.0.1,::1,0:0:0:0:0:0:0:1}
 
 # Logging
 logging:
