@@ -98,7 +98,7 @@ jobs:
   # ════════════════════════════════════════════════════════════════
   deploy:
     needs: [build-and-push]             # 等 Job 1 完成后才执行
-    runs-on: [self-hosted, demo-prod]        # 在带有 "demo-prod" 标签的自建 runner 上运行，用于区分多个workflow和runner
+    runs-on: [self-hosted, prod]        # 在带有 "prod" 标签的自建 runner 上运行，用于区分多个workflow和runner
     permissions:
       contents: read
       packages: read                    # 拉取镜像只需 read 权限
