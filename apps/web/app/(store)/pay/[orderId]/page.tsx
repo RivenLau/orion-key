@@ -57,8 +57,6 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
 
   // USDT 支付判断 & 参数
   const isUsdtPayment = paymentMethod.startsWith("usdt_")
-  // 微信移动端：不支持 H5 拉起，回退展示二维码（兼容 wechat / wxpay 等写法）
-  const isWechatMobile = isMobile && ["wechat", "wxpay"].includes(paymentMethod.toLowerCase())
   const walletAddress = searchParams.get("wallet") || ""
   const cryptoAmount = searchParams.get("crypto_amount") || ""
   const usdtChain = searchParams.get("chain") || paymentMethod
@@ -101,9 +99,10 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     fetchOrderInfo()
   }, [orderId, searchParams])
 
-  // H5 自动跳转（移动端 + 有 payUrl + PENDING 状态 + 未跳转过 + 非微信）
+  // H5 自动跳转（移动端 + 有 payUrl + PENDING 状态 + 未跳转过）
+  // 微信 jspay URL 由网关自适应：普通浏览器走 H5 拉起微信 App，微信内浏览器走 JSAPI
   useEffect(() => {
-    if (!isMobile || !payUrlH5 || status !== "PENDING" || isUsdtPayment || isWechatMobile) return
+    if (!isMobile || !payUrlH5 || status !== "PENDING" || isUsdtPayment) return
     const storageKey = `pay_redirected_${orderId}`
     if (sessionStorage.getItem(storageKey)) {
       setHasRedirected(true)
@@ -112,7 +111,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     sessionStorage.setItem(storageKey, "1")
     setHasRedirected(true)
     window.location.href = payUrlH5
-  }, [isMobile, payUrlH5, status, orderId, isUsdtPayment, isWechatMobile])
+  }, [isMobile, payUrlH5, status, orderId, isUsdtPayment])
 
   // Countdown timer — 仅在服务端返回真实倒计时后才开始递减
   useEffect(() => {
@@ -405,8 +404,8 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             {/* 检测状态 */}
             <p className="animate-pulse text-xs text-primary">{t("payment.detecting")}</p>
           </div>
-        ) : (!isMobile || isWechatMobile) ? (
-          /* ========== PC / 微信移动端 — 二维码视图 ========== */
+        ) : !isMobile ? (
+          /* ========== PC — 二维码视图 ========== */
           <>
             <div
               className="flex w-72 flex-col items-center gap-4 rounded-2xl px-6 pb-8 pt-6"
@@ -416,9 +415,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
                 <PaymentIcon method={paymentMethod} className="h-10 w-10" variant="plain" />
                 <span className="text-xl font-bold text-white">{paymentMethodName}</span>
               </div>
-              <p className="text-sm font-medium text-white/90">
-                {isWechatMobile ? t("payment.wechatMobileScanHint") : scanHint}
-              </p>
+              <p className="text-sm font-medium text-white/90">{scanHint}</p>
               <div className="flex h-52 w-52 items-center justify-center rounded-xl bg-white p-3">
                 {qrcodeUrl ? (
                   <QRCodeSVG value={qrcodeUrl} size={184} level="M" includeMargin={false} />

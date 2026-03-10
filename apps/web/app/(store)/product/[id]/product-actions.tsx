@@ -7,7 +7,7 @@ import { toast } from "sonner"
 import { useLocale, useAuth, useCart } from "@/lib/context"
 import { orderApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockCreateOrder } from "@/lib/mock-data"
-import { cn, validateEmail, generateIdempotencyKey, getCurrencySymbol, detectPaymentDevice } from "@/lib/utils"
+import { cn, validateEmail, generateIdempotencyKey, getCurrencySymbol, detectPaymentDevice, isMobileDevice } from "@/lib/utils"
 import { PaymentSelector } from "@/components/shared/payment-selector"
 import type { ProductDetail, ProductSpec, PaymentChannelItem } from "@/types"
 
@@ -99,6 +99,13 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
         payUrl += `&wallet=${encodeURIComponent(result.payment.wallet_address)}`
         payUrl += `&crypto_amount=${encodeURIComponent(result.payment.crypto_amount || "")}`
         payUrl += `&chain=${encodeURIComponent(result.payment.chain || "")}`
+      }
+      // 移动端非 USDT：直接跳转网关支付页，避免中间经过 pay 页面的延迟
+      // 导致支付宝 H5 session token 过期（"会话超时"）
+      if (isMobileDevice() && payUrlH5 && !selectedPayment.startsWith("usdt_")) {
+        sessionStorage.setItem(`pay_redirected_${result.payment.order_id}`, "1")
+        window.location.href = payUrlH5
+        return
       }
       router.push(payUrl)
     } catch (err: unknown) {
