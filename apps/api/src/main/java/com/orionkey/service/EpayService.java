@@ -33,5 +33,16 @@ public interface EpayService {
      */
     boolean verifySign(String merchantKey, Map<String, String> params, String sign);
 
+    /**
+     * 主动查询网关订单状态（用于 webhook 回调二次验证）
+     *
+     * @param config     渠道配置
+     * @param outTradeNo 商户订单号
+     * @return 查询结果，包含 trade_status 和 money
+     */
+    OrderQueryResult queryOrder(ChannelConfig config, String outTradeNo);
+
     record EpayResult(int code, String msg, String tradeNo, String payUrl, String qrcodeUrl) {}
+
+    record OrderQueryResult(String tradeStatus, String money, String tradeNo) {}
 }

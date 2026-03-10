@@ -43,16 +43,31 @@ public class OrderServiceImpl implements OrderService {
         if (idempotencyKey != null) {
             Optional<Order> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
             if (existing.isPresent()) {
-                return buildOrderResult(existing.get(), device);
+                Order existingOrder = existing.get();
+                // F13: 幂等归属校验 — 确保是同一用户/会话的请求，防止通过幂等键探测他人订单
+                boolean sameOwner = (userId != null && userId.equals(existingOrder.getUserId()))
+                        || (userId == null && existingOrder.getUserId() == null
+                            && Objects.equals(sessionToken, existingOrder.getSessionToken()));
+                if (sameOwner) {
+                    return buildOrderResult(existingOrder, device);
+                }
+                // 不同用户/会话的相同幂等键 — 清除以避免唯一约束冲突，视为无幂等键的新订单
+                idempotencyKey = null;
             }
         }
-
-        checkPendingOrderLimits(userId, clientIp);
 
         UUID productId = UUID.fromString((String) req.get("product_id"));
         UUID specId = req.get("spec_id") != null ? UUID.fromString((String) req.get("spec_id")) : null;
         int quantity = ((Number) req.get("quantity")).intValue();
         String email = (String) req.get("email");
+
+        // F4: 购买数量校验
+        if (quantity < 1 || quantity > 999) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "购买数量无效，允许范围 1~999");
+        }
+
+        // F14: 提前提取 email，用于 pending 订单限制（email + IP 双维度防刷）
+        checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
 
         Product product = productRepository.findById(productId)
@@ -114,13 +129,20 @@ public class OrderServiceImpl implements OrderService {
         if (idempotencyKey != null) {
             Optional<Order> existing = orderRepository.findByIdempotencyKey(idempotencyKey);
             if (existing.isPresent()) {
-                return buildOrderResult(existing.get(), device);
+                Order existingOrder = existing.get();
+                boolean sameOwner = (userId != null && userId.equals(existingOrder.getUserId()))
+                        || (userId == null && existingOrder.getUserId() == null
+                            && Objects.equals(sessionToken, existingOrder.getSessionToken()));
+                if (sameOwner) {
+                    return buildOrderResult(existingOrder, device);
+                }
+                // 不同用户/会话的相同幂等键 — 清除以避免唯一约束冲突，视为无幂等键的新订单
+                idempotencyKey = null;
             }
         }
 
-        checkPendingOrderLimits(userId, clientIp);
-
         String email = (String) req.get("email");
+        checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
 
         List<CartItem> cartItems;
@@ -251,8 +273,11 @@ public class OrderServiceImpl implements OrderService {
     private BigDecimal getUnitPrice(Product product, UUID specId, int quantity) {
         BigDecimal basePrice = product.getBasePrice();
         if (specId != null) {
-            ProductSpec spec = productSpecRepository.findById(specId).orElse(null);
-            if (spec != null) basePrice = spec.getPrice();
+            // F1: 严格校验规格归属 — 防止用低价规格 ID 篡改高价商品的价格
+            ProductSpec spec = productSpecRepository.findById(specId)
+                    .filter(s -> s.getProductId().equals(product.getId()) && s.getIsDeleted() == 0)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SPEC_NOT_FOUND, "商品规格不存在或与商品不匹配"));
+            basePrice = spec.getPrice();
         }
 
         if (product.isWholesaleEnabled()) {
@@ -272,7 +297,7 @@ public class OrderServiceImpl implements OrderService {
         return basePrice;
     }
 
-    private void checkPendingOrderLimits(UUID userId, String clientIp) {
+    private void checkPendingOrderLimits(UUID userId, String clientIp, String email) {
         int maxPerUser = getConfigInt("max_pending_orders_per_user", 5);
         int maxPerIp = getConfigInt("max_pending_orders_per_ip", 10);
 
@@ -286,6 +311,13 @@ public class OrderServiceImpl implements OrderService {
             long pending = orderRepository.countByClientIpAndStatus(clientIp, OrderStatus.PENDING);
             if (pending >= maxPerIp) {
                 throw new BusinessException(ErrorCode.UNPAID_ORDER_EXISTS, "您有未支付的订单，请先完成支付或等待过期");
+            }
+        }
+        // F14: 邮箱维度 pending 订单限制 — 防止通过 IP 轮换绕过限制
+        if (email != null && !email.isBlank()) {
+            long pending = orderRepository.countByEmailAndStatus(email, OrderStatus.PENDING);
+            if (pending >= maxPerUser) {
+                throw new BusinessException(ErrorCode.UNPAID_ORDER_EXISTS, "该邮箱有未支付的订单，请先完成支付或等待过期");
             }
         }
     }

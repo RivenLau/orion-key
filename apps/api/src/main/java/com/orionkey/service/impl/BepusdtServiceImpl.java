@@ -28,21 +28,27 @@ public class BepusdtServiceImpl implements BepusdtService {
 
     @Override
     public BepusdtPaymentResult createPayment(BepusdtConfig config, String orderId, BigDecimal amount, String productName) {
-        Map<String, String> params = new TreeMap<>();
-        params.put("order_id", orderId);
-        params.put("amount", amount.stripTrailingZeros().toPlainString());
-        params.put("notify_url", config.notifyUrl());
-        params.put("redirect_url", config.redirectUrl());
-        params.put("trade_type", config.tradeType());
-        params.put("fiat", config.fiat());
-        params.put("name", productName);
-        params.put("timeout", String.valueOf(config.timeout()));
+        // 用 String map 计算签名（签名算法基于字符串值）
+        Map<String, String> signParams = new TreeMap<>();
+        signParams.put("order_id", orderId);
+        signParams.put("amount", amount.stripTrailingZeros().toPlainString());
+        signParams.put("notify_url", config.notifyUrl());
+        signParams.put("redirect_url", config.redirectUrl());
+        signParams.put("trade_type", config.tradeType());
+        signParams.put("fiat", config.fiat());
+        signParams.put("name", productName);
+        signParams.put("timeout", String.valueOf(config.timeout()));
         if (config.fixedRate() != null && !config.fixedRate().isBlank()) {
-            params.put("rate", config.fixedRate());
+            signParams.put("rate", config.fixedRate());
         }
 
-        String signature = buildSign(config.apiToken(), params);
-        params.put("signature", signature);
+        String signature = buildSign(config.apiToken(), signParams);
+
+        // 构建请求体：amount/timeout 必须为数字类型（BEpusdt Go 端要求 float64/int64）
+        Map<String, Object> requestBody = new TreeMap<>(signParams);
+        requestBody.put("amount", amount.doubleValue());
+        requestBody.put("timeout", (long) config.timeout());
+        requestBody.put("signature", signature);
 
         String url = config.apiUrl();
         if (!url.endsWith("/")) url += "/";
@@ -64,7 +70,7 @@ public class BepusdtServiceImpl implements BepusdtService {
 
                 HttpHeaders headers = new HttpHeaders();
                 headers.setContentType(MediaType.APPLICATION_JSON);
-                String body = objectMapper.writeValueAsString(params);
+                String body = objectMapper.writeValueAsString(requestBody);
                 HttpEntity<String> request = new HttpEntity<>(body, headers);
 
                 ResponseEntity<String> response = restTemplate.postForEntity(url, request, String.class);

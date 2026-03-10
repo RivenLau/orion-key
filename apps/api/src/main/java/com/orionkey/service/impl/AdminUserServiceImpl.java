@@ -46,6 +46,9 @@ public class AdminUserServiceImpl implements AdminUserService {
     @Override
     @Transactional
     public void toggleUser(UUID id, int isDeleted) {
+        if (isDeleted != 0 && isDeleted != 1) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "is_deleted 参数只能为 0 或 1");
+        }
         User user = userRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "用户不存在"));
         user.setIsDeleted(isDeleted);

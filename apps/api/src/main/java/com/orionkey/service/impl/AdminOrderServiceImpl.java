@@ -64,8 +64,8 @@ public class AdminOrderServiceImpl implements AdminOrderService {
     public void markPaid(UUID id) {
         Order order = orderRepository.findById(id)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在"));
-        if (order.getStatus() != OrderStatus.PENDING) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅 PENDING 状态订单可标记为已支付");
+        if (order.getStatus() != OrderStatus.PENDING && order.getStatus() != OrderStatus.EXPIRED) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "仅 PENDING 或 EXPIRED 状态订单可标记为已支付");
         }
         order.setStatus(OrderStatus.PAID);
         order.setPaidAt(LocalDateTime.now());

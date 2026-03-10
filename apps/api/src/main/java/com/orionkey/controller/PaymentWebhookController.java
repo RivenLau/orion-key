@@ -7,7 +7,6 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 @Slf4j
@@ -17,16 +16,6 @@ import java.util.Map;
 public class PaymentWebhookController {
 
     private final WebhookService webhookService;
-
-    /**
-     * Generic POST webhook (for future payment providers)
-     */
-    @PostMapping("/{channelCode}")
-    public ResponseEntity<String> handleWebhook(@PathVariable String channelCode,
-                                                 @RequestBody Map<String, Object> payload) {
-        String result = webhookService.processWebhook(channelCode, payload);
-        return ResponseEntity.ok(result);
-    }
 
     /**
      * 易支付 GET callback — returns plain text "SUCCESS"

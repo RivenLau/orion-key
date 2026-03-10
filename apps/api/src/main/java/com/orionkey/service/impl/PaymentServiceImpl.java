@@ -112,7 +112,7 @@ public class PaymentServiceImpl implements PaymentService {
         String tradeType = cfg.getOrDefault("trade_type", "usdt.trc20");
         String fiat = cfg.getOrDefault("fiat", "CNY");
         int timeout = Integer.parseInt(cfg.getOrDefault("timeout", "900"));
-        BigDecimal tolerance = new BigDecimal(cfg.getOrDefault("auto_approve_tolerance", "1.5"));
+        BigDecimal tolerance = new BigDecimal(cfg.getOrDefault("auto_approve_tolerance", "0.01"));
         BigDecimal upper = new BigDecimal(cfg.getOrDefault("manual_review_upper", "5.0"));
         String fixedRate = cfg.getOrDefault("fixed_rate", "");
 
@@ -214,9 +214,15 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     @org.springframework.transaction.annotation.Transactional
-    public Map<String, Object> repay(UUID orderId, String device) {
+    public Map<String, Object> repay(UUID orderId, String device, UUID requestUserId) {
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在"));
+
+        // F9: 归属校验 — 已登录用户只能 repay 自己的订单
+        if (order.getUserId() != null && requestUserId != null
+                && !order.getUserId().equals(requestUserId)) {
+            throw new BusinessException(ErrorCode.FORBIDDEN, "无权操作此订单");
+        }
 
         if (order.getStatus() != com.orionkey.constant.OrderStatus.PENDING) {
             throw new BusinessException(ErrorCode.ORDER_EXPIRED, "订单状态不允许重新支付");

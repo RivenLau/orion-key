@@ -98,7 +98,8 @@ public class DeliverServiceImpl implements DeliverService {
     }
 
     private Map<String, Object> deliverSingleOrder(UUID orderId) {
-        Order order = orderRepository.findById(orderId)
+        // F2: 悲观锁 — 防止同一 PAID 订单被并发请求重复发货分配双份卡密
+        Order order = orderRepository.findByIdForUpdate(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在"));
 
         Map<String, Object> result = new LinkedHashMap<>();

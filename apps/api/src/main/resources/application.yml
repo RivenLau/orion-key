@@ -11,6 +11,14 @@ spring:
     username: ${DB_USERNAME:postgres}
     password: ${DB_PASSWORD:postgres}
     driver-class-name: org.postgresql.Driver
+    hikari:
+      maximum-pool-size: 20        # 最大连接数（默认10，提升以应对并发下单+定时任务）
+      minimum-idle: 10             # 最小空闲连接（预热，减少冷启动延迟）
+      connection-timeout: 10000    # 获取连接超时 10s（默认30s，快速失败优于长时间排队）
+      idle-timeout: 300000         # 空闲连接存活 5min（默认10min）
+      max-lifetime: 1800000        # 连接最大生存时间 30min（需小于 PostgreSQL 的 idle_in_transaction_session_timeout）
+      keepalive-time: 60000        # 每 60s 发送心跳检测，避免被防火墙/PG 断开空闲连接
+      leak-detection-threshold: 30000  # 连接泄漏检测 30s（超过此时间未归还则打印警告日志）
   jpa:
     hibernate:
       ddl-auto: update
@@ -58,6 +66,13 @@ upload:
 mail:
   enabled: ${MAIL_ENABLED:true}
   site-url: ${MAIL_SITE_URL:https://example.com}
+
+# 受信代理 IP（Nginx / Docker 网桥），用于正确解析真实客户端 IP
+# 影响：限流（按真实 IP 限流）、Webhook 日志（记录真实回调来源 IP）
+# Docker 环境必须加入网桥网关 IP，否则所有请求共用同一限流桶
+# 查看网桥 IP：docker network inspect orion-key_default | grep Gateway
+rate-limit:
+  trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:127.0.0.1,::1,0:0:0:0:0:0:0:1}
 
 # Logging
 logging:

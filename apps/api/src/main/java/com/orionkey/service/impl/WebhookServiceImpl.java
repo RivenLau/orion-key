@@ -37,55 +37,7 @@ public class WebhookServiceImpl implements WebhookService {
     private final EpayService epayService;
     private final BepusdtService bepusdtService;
     private final ObjectMapper objectMapper;
-
-    @Override
-    @Transactional
-    public String processWebhook(String channelCode, Map<String, Object> payload) {
-        log.info("Webhook received: channel={}, payload={}", channelCode, payload);
-
-        String eventId = (String) payload.getOrDefault("event_id", UUID.randomUUID().toString());
-        String orderIdStr = (String) payload.get("order_id");
-
-        // Check idempotency
-        Optional<WebhookEvent> existingEvent = webhookEventRepository.findByEventId(eventId);
-        if (existingEvent.isPresent()) {
-            log.info("Webhook event already processed: {}", eventId);
-            return "OK";
-        }
-
-        // Save webhook event
-        WebhookEvent event = new WebhookEvent();
-        event.setEventId(eventId);
-        event.setChannelCode(channelCode);
-        event.setOrderId(orderIdStr != null ? UUID.fromString(orderIdStr) : null);
-        event.setPayload(payload.toString());
-        event.setProcessResult("PROCESSING");
-
-        if (orderIdStr != null) {
-            UUID orderId = UUID.fromString(orderIdStr);
-            event.setOrderId(orderId);
-
-            Order order = orderRepository.findById(orderId).orElse(null);
-            if (order != null) {
-                if (order.getStatus() == OrderStatus.PENDING) {
-                    order.setStatus(OrderStatus.PAID);
-                    order.setPaidAt(LocalDateTime.now());
-                    orderRepository.save(order);
-                    event.setProcessResult("SUCCESS");
-                    log.info("Order marked as PAID: {}", orderId);
-                } else {
-                    event.setProcessResult("SKIPPED_" + order.getStatus().name());
-                    log.info("Order already {}: {}", order.getStatus(), orderId);
-                }
-            } else {
-                event.setProcessResult("ORDER_NOT_FOUND");
-                log.warn("Webhook order not found: {}", orderId);
-            }
-        }
-
-        webhookEventRepository.save(event);
-        return "OK";
-    }
+    private final PaymentServiceImpl paymentService;
 
     @Override
     @Transactional
@@ -119,26 +71,15 @@ public class WebhookServiceImpl implements WebhookService {
         String merchantKey = resolveMerchantKey(orderId);
 
         // Step 3: Verify signature
+        // F3: 签名失败不写入幂等表 — 否则攻击者可伪造回调占用 eventId，阻塞后续真实回调
         if (!epayService.verifySign(merchantKey, params, sign)) {
-            log.error("Epay callback signature verification failed: out_trade_no={}", outTradeNo);
-            WebhookEvent event = new WebhookEvent();
-            event.setEventId(eventId);
-            event.setChannelCode("epay");
-            event.setPayload(params.toString());
-            event.setProcessResult("SIGN_VERIFY_FAIL");
-            webhookEventRepository.save(event);
+            log.error("Epay callback signature verification failed: out_trade_no={}, remote sign={}", outTradeNo, sign);
             return "FAIL";
         }
 
-        // Step 4: Check trade status
+        // Step 4: Check trade status（非成功状态不写入幂等表，避免阻塞后续成功回调）
         if (!"TRADE_SUCCESS".equals(tradeStatus)) {
-            log.info("Epay callback non-success status: {}", tradeStatus);
-            WebhookEvent event = new WebhookEvent();
-            event.setEventId(eventId);
-            event.setChannelCode("epay");
-            event.setPayload(params.toString());
-            event.setProcessResult("SKIPPED_" + tradeStatus);
-            webhookEventRepository.save(event);
+            log.info("Epay callback non-success status: {}, skipping (not saved to idempotency table)", tradeStatus);
             return "SUCCESS";
         }
 
@@ -157,18 +98,68 @@ public class WebhookServiceImpl implements WebhookService {
             return "SUCCESS";
         }
 
-        // Step 6: Verify amount matches
-        if (money != null) {
-            BigDecimal callbackAmount = new BigDecimal(money);
-            if (order.getActualAmount().compareTo(callbackAmount) != 0) {
-                log.error("Epay callback amount mismatch: order={}, callback={}", order.getActualAmount(), callbackAmount);
-                event.setProcessResult("AMOUNT_MISMATCH");
-                webhookEventRepository.save(event);
-                return "SUCCESS";
-            }
+        // Step 6: Verify amount matches (money 必须存在且与订单金额一致)
+        if (money == null || money.isBlank()) {
+            log.error("Epay callback missing money parameter: out_trade_no={}", outTradeNo);
+            event.setProcessResult("MISSING_AMOUNT");
+            webhookEventRepository.save(event);
+            return "FAIL";
+        }
+        BigDecimal callbackAmount;
+        try {
+            callbackAmount = new BigDecimal(money);
+        } catch (NumberFormatException e) {
+            log.error("Epay callback invalid money format: {}, out_trade_no={}", money, outTradeNo);
+            event.setProcessResult("INVALID_AMOUNT_FORMAT");
+            webhookEventRepository.save(event);
+            return "FAIL";
+        }
+        if (order.getActualAmount().compareTo(callbackAmount) != 0) {
+            log.error("Epay callback amount mismatch: order={}, callback={}", order.getActualAmount(), callbackAmount);
+            event.setProcessResult("AMOUNT_MISMATCH");
+            webhookEventRepository.save(event);
+            return "FAIL";
         }
 
-        // Step 7: Idempotent update order status
+        // Step 7: 服务端主动查询网关订单状态（防止伪造回调）
+        EpayService.ChannelConfig channelConfig = resolveChannelConfig(order);
+        if (channelConfig != null) {
+            EpayService.OrderQueryResult queryResult = epayService.queryOrder(channelConfig, outTradeNo);
+            if (queryResult == null) {
+                // 网络/网关故障 — 不写入幂等表，返回 FAIL 触发网关重试
+                log.warn("Epay callback deferred: server-side order query returned null (network issue?), out_trade_no={}", outTradeNo);
+                return "FAIL";
+            }
+            // 查询 API 的 status 字段格式可能为 "TRADE_SUCCESS" 或 "1"（已支付），兼容两种
+            if (!isQueryStatusPaid(queryResult.tradeStatus())) {
+                log.error("Epay callback rejected: query status={}, expected TRADE_SUCCESS/1, out_trade_no={}",
+                        queryResult.tradeStatus(), outTradeNo);
+                event.setProcessResult("QUERY_STATUS_MISMATCH");
+                webhookEventRepository.save(event);
+                return "FAIL";
+            }
+            // 校验网关返回的金额与订单金额一致
+            if (queryResult.money() != null) {
+                try {
+                    BigDecimal queryAmount = new BigDecimal(queryResult.money());
+                    if (order.getActualAmount().compareTo(queryAmount) != 0) {
+                        log.error("Epay callback rejected: query amount={}, order amount={}, out_trade_no={}",
+                                queryAmount, order.getActualAmount(), outTradeNo);
+                        event.setProcessResult("QUERY_AMOUNT_MISMATCH");
+                        webhookEventRepository.save(event);
+                        return "FAIL";
+                    }
+                } catch (NumberFormatException e) {
+                    log.warn("Epay order query returned invalid money format: {}", queryResult.money());
+                }
+            }
+            log.info("Epay callback server-side verification passed: out_trade_no={}, queryStatus={}", outTradeNo, queryResult.tradeStatus());
+        } else {
+            // 渠道配置不完整时降级为仅签名校验（已在 Step 3 通过），打 warn 日志
+            log.warn("Epay callback: channel config incomplete, skipping server-side query verification for out_trade_no={}", outTradeNo);
+        }
+
+        // Step 8: Idempotent update order status
         if (order.getStatus() == OrderStatus.PENDING) {
             order.setStatus(OrderStatus.PAID);
             order.setPaidAt(LocalDateTime.now());
@@ -223,9 +214,9 @@ public class WebhookServiceImpl implements WebhookService {
 
         Order order = orderRepository.findById(orderUuid).orElse(null);
         if (order == null) {
-            saveWebhookEvent(eventId, "usdt", null, signParams.toString(), "ORDER_NOT_FOUND");
-            log.warn("BEpusdt callback order not found: {}", orderId);
-            return "ok";
+            // F8: 订单未找到时不写入幂等表且返回 fail — 触发 BEpusdt 重试（可能是时序问题：回调先于订单落库）
+            log.warn("BEpusdt callback order not found: {}, returning fail to trigger retry", orderId);
+            return "fail";
         }
 
         // 3. 验签（apiToken 为空则拒绝，防止跳过签名验证）
@@ -242,27 +233,40 @@ public class WebhookServiceImpl implements WebhookService {
         }
 
         // 4. 状态检查（只处理 status=2 即支付成功）
+        // 注意：非成功状态不写入幂等表，否则后续 status=2 回调会被误拦截
         if (!"2".equals(status)) {
-            log.info("BEpusdt callback non-success status: {}", status);
-            saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(), "STATUS_" + status);
+            log.info("BEpusdt callback non-success status: {}, skipping (not saved to idempotency table)", status);
             return "ok";
         }
 
-        // 5. 金额校验（actual_amount 为 USDT 链上金额）
+        // 5. 金额校验（actual_amount 和 usdtCryptoAmount 必须都存在且一致）
         String actualAmount = signParams.get("actual_amount");
-        if (actualAmount != null && order.getUsdtCryptoAmount() != null) {
-            BigDecimal callbackAmount = new BigDecimal(actualAmount);
-            BigDecimal orderAmount = new BigDecimal(order.getUsdtCryptoAmount());
-            if (callbackAmount.compareTo(orderAmount) != 0) {
-                log.error("BEpusdt callback amount mismatch: expected={}, actual={}, order={}",
-                        orderAmount, callbackAmount, orderId);
-                saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(), "AMOUNT_MISMATCH");
-                return "ok";
-            }
+        if (actualAmount == null || actualAmount.isBlank() || order.getUsdtCryptoAmount() == null) {
+            log.error("BEpusdt callback missing amount data: actual_amount={}, orderCrypto={}, order={}",
+                    actualAmount, order.getUsdtCryptoAmount(), orderId);
+            saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(), "MISSING_AMOUNT");
+            return "ok";
+        }
+        BigDecimal bepCallbackAmount;
+        BigDecimal bepOrderAmount;
+        try {
+            bepCallbackAmount = new BigDecimal(actualAmount);
+            bepOrderAmount = new BigDecimal(order.getUsdtCryptoAmount());
+        } catch (NumberFormatException e) {
+            log.error("BEpusdt callback invalid amount format: actual_amount={}, orderCrypto={}, order={}",
+                    actualAmount, order.getUsdtCryptoAmount(), orderId);
+            saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(), "INVALID_AMOUNT_FORMAT");
+            return "ok";
+        }
+        if (bepCallbackAmount.compareTo(bepOrderAmount) != 0) {
+            log.error("BEpusdt callback amount mismatch: expected={}, actual={}, order={}",
+                    bepOrderAmount, bepCallbackAmount, orderId);
+            saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(), "AMOUNT_MISMATCH");
+            return "ok";
         }
 
-        // 6. 幂等更新订单状态
-        if (order.getStatus() == OrderStatus.PENDING) {
+        // 6. 幂等更新订单状态（PENDING 和 EXPIRED 均可标记为 PAID，与 TXID 验证和管理员手动标记行为一致）
+        if (order.getStatus() == OrderStatus.PENDING || order.getStatus() == OrderStatus.EXPIRED) {
             order.setStatus(OrderStatus.PAID);
             order.setPaidAt(LocalDateTime.now());
             order.setUsdtTxId(blockTxId);
@@ -340,5 +344,31 @@ public class WebhookServiceImpl implements WebhookService {
         log.error("Cannot resolve merchant key for order {}: channel config missing 'key' field", orderId);
         throw new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE,
                 "支付渠道配置缺少 key，请在后台「支付渠道管理」中完善配置");
+    }
+
+    /**
+     * 判断查询 API 返回的 status 是否表示"已支付"。
+     * 不同 Epay 网关实现可能返回 "TRADE_SUCCESS"（字符串）或 "1"（数字），兼容两种格式。
+     */
+    private boolean isQueryStatusPaid(String status) {
+        return "TRADE_SUCCESS".equals(status) || "1".equals(status);
+    }
+
+    /**
+     * 从订单关联的支付渠道解析完整的 ChannelConfig（pid/key/apiUrl/notifyUrl/returnUrl）。
+     * 用于 webhook 回调后发起服务端主动查询。配置不完整时返回 null（降级为仅签名校验）。
+     */
+    private EpayService.ChannelConfig resolveChannelConfig(Order order) {
+        if (order.getPaymentMethod() == null) return null;
+        PaymentChannel channel = paymentChannelRepository
+                .findByChannelCodeAndIsDeleted(order.getPaymentMethod(), 0)
+                .orElse(null);
+        if (channel == null) return null;
+        try {
+            return paymentService.buildChannelConfig(channel);
+        } catch (Exception e) {
+            log.warn("Failed to build ChannelConfig for order query: {}", e.getMessage());
+            return null;
+        }
     }
 }

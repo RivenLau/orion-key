@@ -91,7 +91,8 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
         }
 
         // ---- Step 4: Token 合约是否为 USDT ----
-        if (tx.contractAddress != null && !USDT_CONTRACTS.contains(tx.contractAddress.toLowerCase())) {
+        // F5: 必须校验 contractAddress 非 null — 否则原生代币（TRX/BNB）转账会绕过此检查
+        if (tx.contractAddress == null || !USDT_CONTRACTS.contains(tx.contractAddress.toLowerCase())) {
             saveUnmatched(order, txid, chain, VerifyResult.AUTO_REJECTED,
                     "非 USDT 交易", tx.from, tx.to, tx.amount);
             return new VerifyDetail(VerifyResult.AUTO_REJECTED,
@@ -193,12 +194,42 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
                 // TRC20 USDT 精度为 6 位
                 BigDecimal amount = new BigDecimal(rawValue).movePointLeft(6);
 
-                return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, true);
+                // F6: 通过 walletsolidity API 验证交易是否已 solidified（不可逆确认），不再硬编码 true
+                boolean confirmed = checkTronTransactionConfirmed(txid);
+                return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, confirmed);
             }
             return null;
         } catch (Exception e) {
             log.error("Failed to parse TronGrid response: {}", e.getMessage());
             throw new RuntimeException("TronGrid API 解析失败", e);
+        }
+    }
+
+    /**
+     * 通过 TronGrid walletsolidity API 验证交易是否已达到不可逆确认状态。
+     * walletsolidity 端点仅返回已 solidified（19 个区块确认）的交易信息。
+     */
+    private boolean checkTronTransactionConfirmed(String txid) {
+        try {
+            String url = "https://api.trongrid.io/walletsolidity/gettransactioninfobyid";
+            Map<String, String> body = Map.of("value", txid);
+            String response = restTemplate.postForObject(url, body, String.class);
+            if (response == null || response.isBlank() || "{}".equals(response.trim())) {
+                log.warn("TronGrid solidity: transaction not yet solidified, txid={}", txid);
+                return false;
+            }
+            Map<String, Object> info = objectMapper.readValue(response, new TypeReference<>() {});
+            // 如果无 id 字段，说明交易未被 solidified
+            if (!info.containsKey("id")) return false;
+            // 检查 receipt.result: "SUCCESS" 或 null/absent 均视为成功
+            @SuppressWarnings("unchecked")
+            Map<String, Object> receipt = (Map<String, Object>) info.get("receipt");
+            if (receipt == null) return true; // 无 receipt 表示简单转账，视为成功
+            String receiptResult = (String) receipt.get("result");
+            return receiptResult == null || "SUCCESS".equals(receiptResult) || "DEFAULT".equals(receiptResult);
+        } catch (Exception e) {
+            log.warn("Failed to verify TronGrid transaction confirmation: txid={}, error={}", txid, e.getMessage());
+            return false; // Fail-safe: 未确认则拒绝
         }
     }
 
@@ -264,7 +295,8 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
 
         Map<String, String> cfg = parseConfigData(channel.getConfigData());
 
-        BigDecimal tolerance = new BigDecimal(cfg.getOrDefault("auto_approve_tolerance", "1.5"));
+        // F7: 默认容差从 1.5 降至 0.01 USDT — 防止攻击者系统性少付
+        BigDecimal tolerance = new BigDecimal(cfg.getOrDefault("auto_approve_tolerance", "0.01"));
         BigDecimal upper = new BigDecimal(cfg.getOrDefault("manual_review_upper", "5.0"));
 
         return new BepusdtService.BepusdtConfig(
