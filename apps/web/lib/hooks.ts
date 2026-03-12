@@ -42,5 +42,7 @@ export function useRequireAdmin() {
     }
   }, [authLoaded, isLoggedIn, user, router, pathname])
 
-  return authLoaded ? user : null
+  // 同步判断：未加载完 或 非 ADMIN 均返回 null，阻止子组件渲染
+  if (!authLoaded || !isLoggedIn || user?.role !== "ADMIN") return null
+  return user
 }

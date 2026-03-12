@@ -9,10 +9,10 @@
 --    默认使用 BCrypt 哈希。若 application.yml 设置了 security.password-plain: true，
 --    则需将下方 password_hash 改为明文 'admin123'
 -- ────────────────────────────────────────
-INSERT INTO users (id, username, email, password_hash, role, points, is_deleted, created_at, updated_at)
+INSERT INTO users (id, username, email, password_hash, role, points, is_deleted, failed_login_attempts, lock_until, created_at, updated_at)
 SELECT gen_random_uuid(), 'admin', 'admin@orionkey.com',
        '123456',
-       'ADMIN', 0, 0, NOW(), NOW()
+       'ADMIN', 0, 0, 0, NULL, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
 -- ────────────────────────────────────────

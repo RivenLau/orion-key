@@ -29,9 +29,9 @@ public class EpayServiceImpl implements EpayService {
 
     @Override
     public EpayResult createPayment(ChannelConfig config, String outTradeNo, String type, String name, BigDecimal money, String clientIp, String device) {
-        // 动态拼接 return_url：基础 URL + orderId，使 epay 回跳到对应支付页
+        // 动态拼接 return_url：基础 URL + orderId 查询参数，使 epay 回跳到订单查询页
         String baseReturnUrl = config.returnUrl();
-        String dynamicReturnUrl = baseReturnUrl + (baseReturnUrl.endsWith("/") ? "" : "/") + outTradeNo;
+        String dynamicReturnUrl = baseReturnUrl + (baseReturnUrl.contains("?") ? "&" : "?") + "orderId=" + outTradeNo;
 
         Map<String, String> params = new LinkedHashMap<>();
         params.put("pid", config.pid());

@@ -154,10 +154,31 @@ export default function OrderQueryPage() {
     return deliverResults.find(d => d.order_id === orderId)
   }
 
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => toast.success(t("order.copied")),
+        () => fallbackCopy(text)
+      )
+    } else {
+      fallbackCopy(text)
+    }
+    function fallbackCopy(val: string) {
+      const ta = document.createElement("textarea")
+      ta.value = val
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand("copy")
+      document.body.removeChild(ta)
+      toast.success(t("order.copied"))
+    }
+  }
+
   const copyAllKeys = (deliver: DeliverResult) => {
     const allKeys = deliver.groups.flatMap(g => g.card_keys).join("\n")
-    navigator.clipboard.writeText(allKeys)
-    toast.success(t("order.copied"))
+    copyToClipboard(allKeys)
   }
 
   const downloadKeys = (deliver: DeliverResult) => {
@@ -304,10 +325,7 @@ export default function OrderQueryPage() {
                     {order.usdt_tx_id.length > 20
                       ? `${order.usdt_tx_id.slice(0, 8)}...${order.usdt_tx_id.slice(-8)}`
                       : order.usdt_tx_id}
-                    <button type="button" onClick={() => {
-                      navigator.clipboard.writeText(order.usdt_tx_id!)
-                      toast.success(t("order.copied"))
-                    }} className="text-muted-foreground hover:text-foreground">
+                    <button type="button" onClick={() => copyToClipboard(order.usdt_tx_id!)} className="text-muted-foreground hover:text-foreground">
                       <Copy className="h-3 w-3" />
                     </button>
                   </span>
@@ -447,10 +465,7 @@ export default function OrderQueryPage() {
                           >
                             <code className="font-mono text-sm text-foreground">{key}</code>
                             <button
-                              onClick={() => {
-                                navigator.clipboard.writeText(key)
-                                toast.success(t("order.copied"))
-                              }}
+                              onClick={() => copyToClipboard(key)}
                               className="text-muted-foreground hover:text-foreground"
                             >
                               <Copy className="h-3.5 w-3.5" />

@@ -2,6 +2,7 @@ server:
   port: 8083
   servlet:
     context-path: /api
+  forward-headers-strategy: native
 
 spring:
   autoconfigure:

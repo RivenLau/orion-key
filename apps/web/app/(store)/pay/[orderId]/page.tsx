@@ -244,7 +244,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   }
 
   // Success state — 倒计时自动跳转订单查询页
-  const [redirectCount, setRedirectCount] = useState(5)
+  const [redirectCount, setRedirectCount] = useState(3)
 
   useEffect(() => {
     if (status !== "PAID" && status !== "DELIVERED") return
