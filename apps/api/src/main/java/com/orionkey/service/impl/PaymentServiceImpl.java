@@ -38,6 +38,8 @@ public class PaymentServiceImpl implements PaymentService {
             "wechat", "wxpay"
     );
 
+    private static final String QIUPAY_ALIPAY_CHANNEL_CODE = "qiupay_alipay";
+
     private final PaymentChannelRepository paymentChannelRepository;
     private final OrderRepository orderRepository;
     private final OrderItemRepository orderItemRepository;
@@ -72,6 +74,7 @@ public class PaymentServiceImpl implements PaymentService {
         String providerType = channel.getProviderType();
         switch (providerType) {
             case "epay" -> createEpayPayment(channel, order, paymentMethod, amount, device);
+            case "qiupay" -> createQiupayPayment(channel, order, paymentMethod, amount, device);
             case "native_alipay" -> throw new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "原生支付宝支付尚未实现，请使用易支付渠道");
             case "native_wxpay" -> throw new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "原生微信支付尚未实现，请使用易支付渠道");
             case "usdt" -> createBepusdtPayment(channel, order, amount);
@@ -143,6 +146,33 @@ public class PaymentServiceImpl implements PaymentService {
         );
 
         // 分别存储：payUrl 是 H5 跳转链接，qrcodeUrl 是二维码 URL
+        order.setPaymentUrl(epayResult.payUrl());
+        order.setQrcodeUrl(epayResult.qrcodeUrl());
+        order.setEpayTradeNo(epayResult.tradeNo());
+        orderRepository.save(order);
+    }
+
+    /**
+     * Qiupay 下单流程（协议与易支付一致，复用 EpayService 实现）
+     */
+    private void createQiupayPayment(PaymentChannel channel, Order order, String paymentMethod, BigDecimal amount, String device) {
+        if (!QIUPAY_ALIPAY_CHANNEL_CODE.equalsIgnoreCase(paymentMethod)) {
+            throw new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "Qiupay 仅支持 qiupay_alipay 渠道");
+        }
+
+        ChannelConfig config = buildChannelConfig(channel);
+        String productName = buildProductName(order.getId());
+
+        EpayResult epayResult = epayService.createPayment(
+                config,
+                order.getId().toString(),
+                "alipay",
+                productName,
+                amount,
+                order.getClientIp(),
+                device
+        );
+
         order.setPaymentUrl(epayResult.payUrl());
         order.setQrcodeUrl(epayResult.qrcodeUrl());
         order.setEpayTradeNo(epayResult.tradeNo());
