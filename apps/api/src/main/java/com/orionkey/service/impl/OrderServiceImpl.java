@@ -173,6 +173,11 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
 
         for (CartItem ci : cartItems) {
+            // F15: 防御性数量校验 — 购物车项数量必须为正整数，防止负数数量绕过价格计算
+            if (ci.getQuantity() < 1) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "购物车包含无效数量，请刷新购物车后重试");
+            }
+
             Product product = productRepository.findById(ci.getProductId())
                     .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
                     .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在或已下架"));
@@ -207,6 +212,11 @@ public class OrderServiceImpl implements OrderService {
             item.setUnitPrice(unitPrice);
             item.setSubtotal(subtotal);
             orderItemRepository.save(item);
+        }
+
+        // F16: 订单金额必须为正数 — 防止负数商品价格叠加导致极低金额下单
+        if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额异常，请联系客服");
         }
 
         order.setTotalAmount(totalAmount);
