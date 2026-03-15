@@ -112,6 +112,18 @@ public class DeliverServiceImpl implements DeliverService {
             }
             case PAID -> {
                 List<OrderItem> items = orderItemRepository.findByOrderId(orderId);
+                // F17: 发货前校验所有订单项数量，异常时立即标记 EXPIRED，防止前端反复重试
+                for (OrderItem item : items) {
+                    if (item.getQuantity() <= 0) {
+                        log.error("Order {} contains item with invalid quantity={}, marking EXPIRED to block retries",
+                                orderId, item.getQuantity());
+                        order.setStatus(OrderStatus.EXPIRED);
+                        orderRepository.save(order);
+                        result.put("status", "EXPIRED");
+                        result.put("groups", List.of());
+                        return result;
+                    }
+                }
                 try {
                     List<CardKey> allAllocated = new ArrayList<>();
                     for (OrderItem item : items) {
