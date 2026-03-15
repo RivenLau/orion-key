@@ -66,6 +66,10 @@ public class CartServiceImpl implements CartService {
         UUID specId = req.get("spec_id") != null ? UUID.fromString((String) req.get("spec_id")) : null;
         int quantity = ((Number) req.get("quantity")).intValue();
 
+        if (quantity < 1 || quantity > 999) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "购买数量无效，允许范围 1~999");
+        }
+
         Product product = productRepository.findById(productId)
                 .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在或已下架"));
@@ -115,6 +119,10 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public void updateItem(UUID userId, String sessionToken, UUID itemId, int quantity) {
+        if (quantity < 1 || quantity > 999) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "购买数量无效，允许范围 1~999");
+        }
+
         CartItem item = cartItemRepository.findById(itemId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.NOT_FOUND, "购物车项不存在"));
         verifyOwnership(item, userId, sessionToken);
