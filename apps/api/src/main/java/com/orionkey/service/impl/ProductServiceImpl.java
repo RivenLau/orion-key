@@ -205,14 +205,9 @@ public class ProductServiceImpl implements ProductService {
                 .filter(s -> s.getProductId().equals(productId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.SPEC_NOT_FOUND, "规格不存在"));
 
-        // 检查规格下是否有有效卡密（AVAILABLE/SOLD/LOCKED），防止误删导致卡密丢失
-        long cardKeyCount = cardKeyRepository.countByProductIdAndSpecIdExcludingStatus(
-                productId, specId, CardKeyStatus.INVALID);
-        if (cardKeyCount > 0) {
-            throw new BusinessException(ErrorCode.SPEC_HAS_CARD_KEYS,
-                    "该规格下有 " + cardKeyCount + " 个有效卡密，请先处理后再删除",
-                    Map.of("card_key_count", cardKeyCount));
-        }
+        // 自动作废该规格下的可用卡密（AVAILABLE → INVALID），避免留下永远无法售出的幽灵库存
+        cardKeyRepository.updateStatusByProductIdAndSpecId(
+                productId, specId, CardKeyStatus.AVAILABLE, CardKeyStatus.INVALID);
 
         spec.setIsDeleted(1);
         productSpecRepository.save(spec);

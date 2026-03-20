@@ -101,7 +101,7 @@ public class AdminCardKeyServiceImpl implements AdminCardKeyService {
             if (trimmed.isEmpty()) continue;
             total++;
 
-            if (cardKeyRepository.existsByContentAndProductId(trimmed, productId)) {
+            if (cardKeyRepository.existsByContentAndProductIdAndSpecId(trimmed, productId, specId)) {
                 fail++;
                 failDetail.append("重复: ").append(trimmed).append("\n");
                 continue;

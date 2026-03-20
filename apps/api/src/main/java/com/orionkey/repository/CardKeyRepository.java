@@ -32,6 +32,13 @@ public interface CardKeyRepository extends JpaRepository<CardKey, UUID> {
 
     boolean existsByContentAndProductId(String content, UUID productId);
 
+    @Query("SELECT CASE WHEN COUNT(ck) > 0 THEN true ELSE false END FROM CardKey ck " +
+            "WHERE ck.content = :content AND ck.productId = :productId " +
+            "AND ((:specId IS NULL AND ck.specId IS NULL) OR ck.specId = :specId)")
+    boolean existsByContentAndProductIdAndSpecId(@Param("content") String content,
+                                                 @Param("productId") UUID productId,
+                                                 @Param("specId") UUID specId);
+
     @Query("SELECT COUNT(ck) FROM CardKey ck WHERE ck.productId = :productId " +
             "AND ((:specId IS NULL AND ck.specId IS NULL) OR ck.specId = :specId) " +
             "AND ck.status <> :excludeStatus")

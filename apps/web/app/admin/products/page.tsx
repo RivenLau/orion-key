@@ -827,7 +827,7 @@ export default function AdminProductsPage() {
                   <h3 className="text-base font-semibold text-foreground">确认删除规格</h3>
                   {specDeleteConfirm && (
                     <p className="mt-1 text-sm text-muted-foreground">
-                      规格「{specDeleteConfirm.name}」下有 <span className="font-medium text-foreground">{specDeleteConfirm.count}</span> 个有效卡密（含可用/已售/锁定），删除后这些卡密将无法分配和显示。确认删除？
+                      规格「{specDeleteConfirm.name}」下有 <span className="font-medium text-foreground">{specDeleteConfirm.count}</span> 个有效卡密，删除后可用卡密将自动作废，已售卡密保留在订单记录中。确认删除？
                     </p>
                   )}
                 </div>

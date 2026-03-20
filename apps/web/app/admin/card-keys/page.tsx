@@ -380,7 +380,7 @@ export default function AdminCardKeysPage() {
                       <td className="px-4 py-3 text-muted-foreground">
                         {item.spec_name
                           ? <>{item.spec_name}{item.spec_enabled === false && <span className="ml-1 text-xs text-amber-500">(已停用)</span>}</>
-                          : item.spec_enabled ? <span className="text-xs text-muted-foreground/60">默认规格</span> : "-"
+                          : "-"
                         }
                       </td>
                       <td className="px-4 py-3 text-foreground">{item.total}</td>
@@ -563,8 +563,7 @@ export default function AdminCardKeysPage() {
             {detailItem && (
               <p className="text-sm text-muted-foreground">
                 {detailItem.product_title}
-                {detailItem.spec_name ? ` — ${detailItem.spec_name}` : detailItem.spec_enabled ? " — 默认规格" : ""}
-                {detailItem.spec_name && detailItem.spec_enabled === false && <span className="ml-1 text-amber-500">(多规格已停用)</span>}
+                {detailItem.spec_name ? <>{` — ${detailItem.spec_name}`}{detailItem.spec_enabled === false && <span className="ml-1 text-amber-500">(已停用)</span>}</> : ""}
               </p>
             )}
           </div>
