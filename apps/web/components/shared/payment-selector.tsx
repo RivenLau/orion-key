@@ -12,13 +12,13 @@ interface PaymentSelectorProps {
 
 export function PaymentSelector({ channels, selected, onSelect }: PaymentSelectorProps) {
   return (
-    <div className="flex gap-2">
+    <div className="flex flex-wrap gap-2">
       {channels.map((ch) => (
         <button
           key={ch.channel_code}
           onClick={() => onSelect(ch.channel_code)}
           className={cn(
-            "flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium transition-all",
+            "flex items-center gap-2 rounded-lg border px-4 py-2 text-sm font-medium whitespace-nowrap transition-all",
             selected === ch.channel_code
               ? "border-primary bg-primary/5 text-primary"
               : "border-border text-foreground hover:border-primary/50 hover:bg-accent"

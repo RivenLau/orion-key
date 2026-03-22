@@ -122,7 +122,6 @@ export default function AdminCardKeysPage() {
         () => []
       )
       setImportSpecs(specs)
-      if (specs.length > 0) setImportSpecId(specs[0].id)
     } catch {
       setImportSpecs([])
     } finally {
@@ -378,7 +377,12 @@ export default function AdminCardKeysPage() {
                   {stockList.map((item, idx) => (
                     <tr key={`${item.product_id}-${item.spec_id}-${idx}`} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3 font-medium text-foreground">{item.product_title}</td>
-                      <td className="px-4 py-3 text-muted-foreground">{item.spec_name || "-"}</td>
+                      <td className="px-4 py-3 text-muted-foreground">
+                        {item.spec_name
+                          ? <>{item.spec_name}{item.spec_enabled === false && <span className="ml-1 text-xs text-amber-500">(已停用)</span>}</>
+                          : "-"
+                        }
+                      </td>
                       <td className="px-4 py-3 text-foreground">{item.total}</td>
                       <td className="px-4 py-3 text-foreground">{item.sold}</td>
                       <td className="px-4 py-3">
@@ -511,6 +515,7 @@ export default function AdminCardKeysPage() {
                     value={importSpecId}
                     onChange={(e) => setImportSpecId(e.target.value)}
                   >
+                    <option value="">默认规格</option>
                     {importSpecs.map((spec) => (
                       <option key={spec.id} value={spec.id}>{spec.name} — {spec.stock_available} 件库存</option>
                     ))}
@@ -557,7 +562,8 @@ export default function AdminCardKeysPage() {
             <h2 className="text-lg font-semibold text-foreground">卡密详情</h2>
             {detailItem && (
               <p className="text-sm text-muted-foreground">
-                {detailItem.product_title}{detailItem.spec_name ? ` — ${detailItem.spec_name}` : ""}
+                {detailItem.product_title}
+                {detailItem.spec_name ? <>{` — ${detailItem.spec_name}`}{detailItem.spec_enabled === false && <span className="ml-1 text-amber-500">(已停用)</span>}</> : ""}
               </p>
             )}
           </div>

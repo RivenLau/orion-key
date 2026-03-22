@@ -11,7 +11,7 @@
 -- ────────────────────────────────────────
 INSERT INTO users (id, username, email, password_hash, role, points, is_deleted, failed_login_attempts, lock_until, created_at, updated_at)
 SELECT gen_random_uuid(), 'admin', 'admin@orionkey.com',
-       '123456',
+       '123456#',
        'ADMIN', 0, 0, 0, NULL, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 

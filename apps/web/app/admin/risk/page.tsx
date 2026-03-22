@@ -14,6 +14,14 @@ export default function AdminRiskPage() {
   const { t } = useLocale()
   const [tab, setTab] = useState<"config" | "flagged">("config")
   const [config, setConfig] = useState<RiskConfig>({
+    turnstile_enabled: true,
+    device_rate_limit_enabled: true,
+    device_order_limit_per_hour: 10,
+    device_txid_limit_per_hour: 5,
+    txid_submit_limit_per_order: 3,
+    device_query_limit_per_hour: 20,
+    device_login_limit_per_hour: 10,
+    device_register_limit_per_hour: 5,
     rate_limit_per_second: 10,
     login_attempt_limit: 5,
     max_purchase_per_user: 10,
@@ -122,6 +130,84 @@ export default function AdminRiskPage() {
       {/* Risk Config */}
       {tab === "config" && (
         <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
+          {/* Turnstile (人机验证) */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="mb-4 font-semibold text-foreground">人机验证 (Turnstile)</h3>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-foreground">启用 Turnstile</label>
+                  <p className="text-xs text-muted-foreground">关闭后所有接口跳过人机验证，仅建议调试时关闭</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={config.turnstile_enabled}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                    config.turnstile_enabled ? "bg-primary" : "bg-input"
+                  )}
+                  onClick={() => setConfig({ ...config, turnstile_enabled: !config.turnstile_enabled })}
+                >
+                  <span className={cn(
+                    "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
+                    config.turnstile_enabled ? "translate-x-5" : "translate-x-0"
+                  )} />
+                </button>
+              </div>
+            </div>
+          </div>
+
+          {/* 设备指纹限流 */}
+          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+            <h3 className="mb-4 font-semibold text-foreground">设备指纹限流</h3>
+            <div className="flex flex-col gap-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-foreground">启用设备限流</label>
+                  <p className="text-xs text-muted-foreground">基于设备指纹进行频率限制，不依赖 IP</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={config.device_rate_limit_enabled}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                    config.device_rate_limit_enabled ? "bg-primary" : "bg-input"
+                  )}
+                  onClick={() => setConfig({ ...config, device_rate_limit_enabled: !config.device_rate_limit_enabled })}
+                >
+                  <span className={cn(
+                    "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
+                    config.device_rate_limit_enabled ? "translate-x-5" : "translate-x-0"
+                  )} />
+                </button>
+              </div>
+              {[
+                { key: "device_order_limit_per_hour" as const, label: "下单频率上限 (次/小时/设备)" },
+                { key: "device_txid_limit_per_hour" as const, label: "TXID 提交上限 (次/小时/设备)" },
+                { key: "txid_submit_limit_per_order" as const, label: "TXID 提交上限 (次/订单)" },
+                { key: "device_query_limit_per_hour" as const, label: "查询频率上限 (次/小时/设备)" },
+                { key: "device_login_limit_per_hour" as const, label: "登录频率上限 (次/小时/设备)" },
+                { key: "device_register_limit_per_hour" as const, label: "注册频率上限 (次/小时/设备)" },
+              ].map((item) => (
+                <div key={item.key} className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">{item.label}</label>
+                  <input
+                    type="number"
+                    className={cn(
+                      "h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+                      !config.device_rate_limit_enabled && "opacity-50 cursor-not-allowed"
+                    )}
+                    value={config[item.key]}
+                    onChange={(e) => setConfig({ ...config, [item.key]: parseInt(e.target.value) || 0 })}
+                    disabled={!config.device_rate_limit_enabled}
+                  />
+                </div>
+              ))}
+            </div>
+          </div>
+
           {/* API Rate Limiting */}
           <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
             <h3 className="mb-4 font-semibold text-foreground">{t("admin.apiRateLimit")}</h3>

@@ -44,12 +44,29 @@ public class AdminCardKeyServiceImpl implements AdminCardKeyService {
         for (Product p : products) {
             if (p.getIsDeleted() != 0) continue;
             var specs = productSpecRepository.findByProductIdAndIsDeletedOrderBySortOrderAsc(p.getId(), 0);
-            if (specs.isEmpty()) {
-                result.add(buildStockEntry(p.getId(), p.getTitle(), null, null));
-            } else {
+
+            if (specId == null) {
+                // 无规格筛选：展示默认库存池（spec_id=null）+ 所有规格库存
+                Map<String, Object> defaultEntry = buildStockEntry(p.getId(), p.getTitle(), null, null);
+                long defaultTotal = ((Number) defaultEntry.get("total")).longValue();
+                // 如果默认池有卡密，或者商品没有任何规格，则显示默认池条目
+                if (defaultTotal > 0 || specs.isEmpty()) {
+                    defaultEntry.put("spec_enabled", p.isSpecEnabled());
+                    result.add(defaultEntry);
+                }
                 for (var spec : specs) {
-                    if (specId != null && !spec.getId().equals(specId)) continue;
-                    result.add(buildStockEntry(p.getId(), p.getTitle(), spec.getId(), spec.getName()));
+                    Map<String, Object> entry = buildStockEntry(p.getId(), p.getTitle(), spec.getId(), spec.getName());
+                    entry.put("spec_enabled", p.isSpecEnabled());
+                    result.add(entry);
+                }
+            } else {
+                // 按指定规格筛选
+                for (var spec : specs) {
+                    if (spec.getId().equals(specId)) {
+                        Map<String, Object> entry = buildStockEntry(p.getId(), p.getTitle(), spec.getId(), spec.getName());
+                        entry.put("spec_enabled", p.isSpecEnabled());
+                        result.add(entry);
+                    }
                 }
             }
         }
@@ -67,6 +84,13 @@ public class AdminCardKeyServiceImpl implements AdminCardKeyService {
                 .filter(p -> p.getIsDeleted() == 0)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在"));
 
+        // 校验 specId 归属：防止传入不属于该商品的规格 ID
+        if (specId != null) {
+            productSpecRepository.findById(specId)
+                    .filter(s -> s.getProductId().equals(productId) && s.getIsDeleted() == 0)
+                    .orElseThrow(() -> new BusinessException(ErrorCode.SPEC_NOT_FOUND, "规格不存在或不属于该商品"));
+        }
+
         String[] lines = content.split("\\r?\\n");
         int total = 0, success = 0, fail = 0;
         StringBuilder failDetail = new StringBuilder();
@@ -77,7 +101,7 @@ public class AdminCardKeyServiceImpl implements AdminCardKeyService {
             if (trimmed.isEmpty()) continue;
             total++;
 
-            if (cardKeyRepository.existsByContentAndProductId(trimmed, productId)) {
+            if (cardKeyRepository.existsByContentAndProductIdAndSpecId(trimmed, productId, specId)) {
                 fail++;
                 failDetail.append("重复: ").append(trimmed).append("\n");
                 continue;

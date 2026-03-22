@@ -6,13 +6,14 @@ import Link from "next/link"
 import { Search, Copy, Download, FileText, CheckCircle2, X, Clock, HelpCircle, ExternalLink, Loader2, AlertCircle, Info } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useSiteConfig } from "@/lib/context"
-import { orderApi, withMockFallback, getApiErrorMessage } from "@/services/api"
+import { orderApi, withMockFallback, getApiErrorMessage, setTurnstileHeaders } from "@/services/api"
 import { mockQueryOrders, mockDeliver } from "@/lib/mock-data"
 import { OrderStatusBadge } from "@/components/shared/order-status-badge"
 import { PaymentIcon, getPaymentLabel } from "@/components/shared/payment-icon"
 import type { OrderBrief, DeliverResult, TxidVerifyResult } from "@/types"
 import { cn } from "@/lib/utils"
 import { Modal } from "@/components/ui/modal"
+import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
 
 interface RecentQuery {
   value: string
@@ -37,6 +38,10 @@ export default function OrderQueryPage() {
   const [txidInput, setTxidInput] = useState("")
   const [txidSubmitting, setTxidSubmitting] = useState(false)
   const [txidResult, setTxidResult] = useState<Record<string, TxidVerifyResult>>({})
+  const { turnstileToken, setTurnstileToken, handleTurnstileReset } = useTurnstile()
+  // Ref 避免 doSearch 闭包捕获过期 token
+  const turnstileTokenRef = useRef(turnstileToken)
+  useEffect(() => { turnstileTokenRef.current = turnstileToken }, [turnstileToken])
 
   // Load recent queries + handle URL params on mount
   useEffect(() => {
@@ -73,6 +78,7 @@ export default function OrderQueryPage() {
     setDeliverResults([])
 
     try {
+      setTurnstileHeaders(turnstileTokenRef.current)
       // Determine if input is email or order ID
       const isEmail = trimmed.includes("@")
       const queryParams = isEmail
@@ -202,6 +208,7 @@ export default function OrderQueryPage() {
     if (!txid) return
     setTxidSubmitting(true)
     try {
+      setTurnstileHeaders(turnstileToken)
       const result = await orderApi.submitTxid(orderId, txid)
       setTxidResult(prev => ({ ...prev, [orderId]: result }))
       if (result.result === "AUTO_APPROVED") {
@@ -211,10 +218,11 @@ export default function OrderQueryPage() {
       }
     } catch (err) {
       toast.error(getApiErrorMessage(err, t))
+      handleTurnstileReset()
     } finally {
       setTxidSubmitting(false)
     }
-  }, [txidInput, t, doSearch, queryValue])
+  }, [txidInput, t, doSearch, queryValue, turnstileToken, handleTurnstileReset])
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -262,6 +270,8 @@ export default function OrderQueryPage() {
         </div>
       </div>
 
+      <Turnstile onSuccess={setTurnstileToken} onError={handleTurnstileReset} />
+
       {/* Results — 有查询结果时优先展示在最近订单上方 */}
       {isSearching && (
         <div className="flex items-center justify-center py-12">
@@ -283,10 +293,23 @@ export default function OrderQueryPage() {
             {/* Order Header */}
             <div className="flex items-center justify-between">
               <div>
-                <p className="text-xs text-muted-foreground">{t("payment.orderNo")}</p>
-                <p className="font-mono text-xs font-medium text-foreground">
-                  {order.id.length > 30 ? `${order.id.slice(0, 12)}...${order.id.slice(-8)}` : order.id}
-                </p>
+                <p className="text-sm text-muted-foreground">{t("payment.orderNo")}</p>
+                <span className="flex items-center gap-1">
+                  <span
+                    className="cursor-pointer font-mono text-sm font-medium text-foreground underline-offset-4 transition-all hover:underline hover:text-primary"
+                    title={order.id}
+                    onClick={() => copyToClipboard(order.id)}
+                  >
+                    {order.id.length > 30 ? `${order.id.slice(0, 12)}...${order.id.slice(-8)}` : order.id}
+                  </span>
+                  <button
+                    type="button"
+                    onClick={() => copyToClipboard(order.id)}
+                    className="text-muted-foreground transition-colors hover:text-foreground"
+                  >
+                    <Copy className="h-3.5 w-3.5" />
+                  </button>
+                </span>
               </div>
               <OrderStatusBadge status={order.status} />
             </div>
@@ -454,7 +477,7 @@ export default function OrderQueryPage() {
                   </div>
                   {deliver.groups.map((group, gIdx) => (
                     <div key={gIdx} className="mb-2">
-                      <p className="mb-1 text-xs font-medium text-muted-foreground">
+                      <p className="mb-1 text-sm font-medium text-muted-foreground">
                         {group.product_title}{group.spec_name ? ` - ${group.spec_name}` : ""}
                       </p>
                       <div className="rounded-md bg-muted p-3">
@@ -463,7 +486,7 @@ export default function OrderQueryPage() {
                             key={kIdx}
                             className="flex items-center justify-between py-1"
                           >
-                            <code className="font-mono text-sm text-foreground">{key}</code>
+                            <code className="min-w-0 break-all font-mono text-sm text-foreground">{key}</code>
                             <button
                               onClick={() => copyToClipboard(key)}
                               className="text-muted-foreground hover:text-foreground"

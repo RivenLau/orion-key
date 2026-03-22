@@ -33,6 +33,7 @@ public class OrderServiceImpl implements OrderService {
     private final CartItemRepository cartItemRepository;
     private final CardKeyRepository cardKeyRepository;
     private final SiteConfigRepository siteConfigRepository;
+    private final PaymentChannelRepository paymentChannelRepository;
     private final PaymentService paymentService;
 
     @Override
@@ -69,10 +70,14 @@ public class OrderServiceImpl implements OrderService {
         // F14: 提前提取 email，用于 pending 订单限制（email + IP 双维度防刷）
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
+        validatePaymentMethod(paymentMethod);
 
         Product product = productRepository.findById(productId)
                 .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在或已下架"));
+
+        // F18: 规格模式安全校验 — 防止通过伪造 spec_id 访问非当前模式的库存池或获取不同价格
+        validateSpecConsistency(product, specId);
 
         // Stock check (advisory)
         long available = specId != null
@@ -85,6 +90,9 @@ public class OrderServiceImpl implements OrderService {
 
         BigDecimal unitPrice = getUnitPrice(product, specId, quantity);
         BigDecimal totalAmount = unitPrice.multiply(BigDecimal.valueOf(quantity));
+        if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额异常，请联系客服");
+        }
         int expireMinutes = getConfigInt("order_expire_minutes", 15);
 
         Order order = new Order();
@@ -144,6 +152,7 @@ public class OrderServiceImpl implements OrderService {
         String email = (String) req.get("email");
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
+        validatePaymentMethod(paymentMethod);
 
         List<CartItem> cartItems;
         if (userId != null) {
@@ -173,9 +182,17 @@ public class OrderServiceImpl implements OrderService {
         orderRepository.save(order);
 
         for (CartItem ci : cartItems) {
+            // F15: 防御性数量校验 — 购物车项数量必须为正整数，防止负数数量绕过价格计算
+            if (ci.getQuantity() < 1) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "购物车包含无效数量，请刷新购物车后重试");
+            }
+
             Product product = productRepository.findById(ci.getProductId())
                     .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
                     .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在或已下架"));
+
+            // F18: 规格模式安全校验
+            validateSpecConsistency(product, ci.getSpecId());
 
             // Advisory stock check (same pattern as createDirectOrder)
             long available = ci.getSpecId() != null
@@ -207,6 +224,11 @@ public class OrderServiceImpl implements OrderService {
             item.setUnitPrice(unitPrice);
             item.setSubtotal(subtotal);
             orderItemRepository.save(item);
+        }
+
+        // F16: 订单金额必须为正数 — 防止负数商品价格叠加导致极低金额下单
+        if (totalAmount.compareTo(BigDecimal.ZERO) <= 0) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "订单金额异常，请联系客服");
         }
 
         order.setTotalAmount(totalAmount);
@@ -361,6 +383,37 @@ public class OrderServiceImpl implements OrderService {
             return im;
         }).toList());
         return map;
+    }
+
+    /**
+     * F18: 规格模式安全校验
+     * - specEnabled=true 且有规格时，必须提供 spec_id（防止跨池分配卡密）
+     * - specEnabled=false 时，不允许传 spec_id（防止绕过模式获取规格价格）
+     */
+    private void validateSpecConsistency(Product product, UUID specId) {
+        if (product.isSpecEnabled()) {
+            List<ProductSpec> activeSpecs = productSpecRepository
+                    .findByProductIdAndIsDeletedOrderBySortOrderAsc(product.getId(), 0);
+            if (!activeSpecs.isEmpty() && specId == null) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "该商品需要选择规格");
+            }
+        } else {
+            if (specId != null) {
+                throw new BusinessException(ErrorCode.BAD_REQUEST, "该商品不支持规格选择");
+            }
+        }
+    }
+
+    /**
+     * 支付渠道前置校验 — 在订单落库前确认渠道存在且启用，防止伪造不存在的支付方式绕过后续校验
+     */
+    private void validatePaymentMethod(String paymentMethod) {
+        if (paymentMethod == null || paymentMethod.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "支付方式不能为空");
+        }
+        paymentChannelRepository.findByChannelCodeAndIsDeleted(paymentMethod, 0)
+                .filter(PaymentChannel::isEnabled)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "支付渠道不可用"));
     }
 
     private int getConfigInt(String key, int defaultValue) {

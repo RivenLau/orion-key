@@ -125,6 +125,47 @@ function buildQuery(params: Record<string, string | number | boolean | undefined
 }
 
 // ============================================================
+// Device Fingerprint
+// ============================================================
+
+let cachedDeviceId: string | null = null
+
+async function ensureDeviceId(): Promise<string> {
+  if (cachedDeviceId) return cachedDeviceId
+  if (typeof window === "undefined") return ""
+  try {
+    const { getDeviceId } = await import("@/lib/fingerprint")
+    cachedDeviceId = await getDeviceId()
+    return cachedDeviceId
+  } catch {
+    return ""
+  }
+}
+
+// 启动时异步预热，不阻塞首屏
+if (typeof window !== "undefined") {
+  ensureDeviceId()
+}
+
+// ============================================================
+// Turnstile token（模块级别，由页面组件设置）
+// ============================================================
+
+let pendingTurnstileToken: string | null = null
+
+/** 设置 Turnstile token（在调用受保护 API 前由页面组件调用） */
+export function setTurnstileHeaders(token: string) {
+  pendingTurnstileToken = token
+}
+
+/** 消费并清除 Turnstile token（request 内部使用） */
+function consumeTurnstileToken(): string | null {
+  const t = pendingTurnstileToken
+  pendingTurnstileToken = null
+  return t
+}
+
+// ============================================================
 // Core request
 // ============================================================
 
@@ -145,6 +186,18 @@ async function request<T>(
   const sessionToken = getSessionToken()
   if (sessionToken) {
     headers["X-Session-Token"] = sessionToken
+  }
+
+  // 设备指纹 — 始终发送
+  const deviceId = cachedDeviceId || (await ensureDeviceId())
+  if (deviceId) {
+    headers["X-Device-Id"] = deviceId
+  }
+
+  // Turnstile token — 如果有 pending token 则发送（单次消费）
+  const turnstileToken = consumeTurnstileToken()
+  if (turnstileToken) {
+    headers["X-Turnstile-Token"] = turnstileToken
   }
 
   const res = await fetch(`${API_BASE}${path}`, {
@@ -586,6 +639,8 @@ const ERROR_CODE_I18N: Record<number, string> = {
   30002: "error.insufficientStock",
   30003: "error.specNotFound",
   30004: "error.purchaseLimitExceeded",
+  30005: "error.specHasCardKeys",
+  30006: "error.specNameDuplicate",
   // Order
   40001: "error.orderNotFound",
   40002: "error.orderExpired",

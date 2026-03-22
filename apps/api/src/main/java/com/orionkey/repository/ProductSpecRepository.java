@@ -9,4 +9,6 @@ import java.util.UUID;
 public interface ProductSpecRepository extends JpaRepository<ProductSpec, UUID> {
 
     List<ProductSpec> findByProductIdAndIsDeletedOrderBySortOrderAsc(UUID productId, int isDeleted);
+
+    boolean existsByProductIdAndNameAndIsDeleted(UUID productId, String name, int isDeleted);
 }

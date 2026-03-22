@@ -75,6 +75,11 @@ mail:
 rate-limit:
   trusted-proxies: ${RATE_LIMIT_TRUSTED_PROXIES:127.0.0.1,::1,0:0:0:0:0:0:0:1}
 
+# Turnstile
+turnstile:
+  secret-key: ${TURNSTILE_SECRET_KEY:}
+  site-key: ${TURNSTILE_SITE_KEY:}
+
 # Logging
 logging:
   level:

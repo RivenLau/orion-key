@@ -107,7 +107,7 @@ export function HomeContent({ products, categories, siteSlogan, siteDescription 
       {/* Controls */}
       <div className="flex flex-col gap-5">
         {/* Trust badges */}
-        <div className="flex items-center justify-center gap-5 py-3 sm:gap-7">
+        <div className="flex flex-wrap items-center justify-center gap-x-5 gap-y-2 py-3 sm:gap-x-7">
           {trustBadges.map((badge, i) => (
             <div key={badge.label} className="flex items-center gap-1.5">
               <div
