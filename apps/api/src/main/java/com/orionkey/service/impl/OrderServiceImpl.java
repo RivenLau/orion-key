@@ -33,6 +33,7 @@ public class OrderServiceImpl implements OrderService {
     private final CartItemRepository cartItemRepository;
     private final CardKeyRepository cardKeyRepository;
     private final SiteConfigRepository siteConfigRepository;
+    private final PaymentChannelRepository paymentChannelRepository;
     private final PaymentService paymentService;
 
     @Override
@@ -69,6 +70,7 @@ public class OrderServiceImpl implements OrderService {
         // F14: 提前提取 email，用于 pending 订单限制（email + IP 双维度防刷）
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
+        validatePaymentMethod(paymentMethod);
 
         Product product = productRepository.findById(productId)
                 .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
@@ -150,6 +152,7 @@ public class OrderServiceImpl implements OrderService {
         String email = (String) req.get("email");
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
+        validatePaymentMethod(paymentMethod);
 
         List<CartItem> cartItems;
         if (userId != null) {
@@ -399,6 +402,18 @@ public class OrderServiceImpl implements OrderService {
                 throw new BusinessException(ErrorCode.BAD_REQUEST, "该商品不支持规格选择");
             }
         }
+    }
+
+    /**
+     * 支付渠道前置校验 — 在订单落库前确认渠道存在且启用，防止伪造不存在的支付方式绕过后续校验
+     */
+    private void validatePaymentMethod(String paymentMethod) {
+        if (paymentMethod == null || paymentMethod.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "支付方式不能为空");
+        }
+        paymentChannelRepository.findByChannelCodeAndIsDeleted(paymentMethod, 0)
+                .filter(PaymentChannel::isEnabled)
+                .orElseThrow(() -> new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "支付渠道不可用"));
     }
 
     private int getConfigInt(String key, int defaultValue) {
