@@ -159,10 +159,11 @@ jobs:
           echo "WEB_IMAGE=${{ steps.meta.outputs.web_image }}" >> .env
 
           # ③ 拉取最新镜像 + 启动/重建容器
-          #    pull:  根据 .env 中的 IMAGE 标签拉取镜像
+          #    只 pull CI 构建的 api 和 web（来自 GHCR），不拉第三方镜像（如 bepusdt）
+          #    避免 Docker Hub 不可达时阻塞部署；bepusdt 更新按部署指南 §10.4 手动操作
           #    up -d: 比较当前运行状态与 compose 配置，只重建有变化的容器
           #    --remove-orphans: 清理不再定义的旧容器
-          docker compose pull
+          docker compose pull api web
           docker compose up -d --remove-orphans
 
           # ④ 验证
