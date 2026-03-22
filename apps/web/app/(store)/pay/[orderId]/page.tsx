@@ -21,7 +21,7 @@ import {
 import { QRCodeSVG } from "qrcode.react"
 import { toast } from "sonner"
 import { useLocale, useCart, useSiteConfig } from "@/lib/context"
-import { orderApi, withMockFallback, setTurnstileHeaders } from "@/services/api"
+import { orderApi, setTurnstileHeaders } from "@/services/api"
 import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
 import type { OrderStatus } from "@/types"
 import { cn, detectPaymentDevice, isMobileDevice } from "@/lib/utils"
@@ -118,29 +118,22 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   }, [isMobile, payUrlH5, status, orderId, isUsdtPayment, isWechatMobile])
 
   // Countdown timer — 仅在服务端返回真实倒计时后才开始递减
+  // 倒计时归零时仅停止递减，不单方面设置 EXPIRED — 等待下一次轮询从服务端获取真实状态
   useEffect(() => {
     if (status !== "PENDING" || timeLeft < 0) return
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setStatus("EXPIRED")
-          return 0
-        }
-        return prev - 1
-      })
+      setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1))
     }, 1000)
     return () => clearInterval(timer)
   }, [status, timeLeft < 0])
 
   // Auto polling for payment status
+  // 网络错误时静默跳过（不更新任何状态），等待下次轮询；避免 mock 数据污染倒计时
   useEffect(() => {
     if (status !== "PENDING") return
     const poll = setInterval(async () => {
       try {
-        const result = await withMockFallback(
-          () => orderApi.getStatus(orderId),
-          () => ({ order_id: orderId, status: "PENDING" as const, expires_at: "", remaining_seconds: 0 })
-        )
+        const result = await orderApi.getStatus(orderId)
         // 同步服务端倒计时，防止客户端时间漂移
         if (result.remaining_seconds !== undefined) {
           setTimeLeft(result.remaining_seconds)
@@ -152,7 +145,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           }
         }
       } catch {
-        // silent — continue polling
+        // silent — 网络抖动时继续轮询，不更新状态
       }
     }, POLL_INTERVAL)
     return () => clearInterval(poll)
@@ -171,10 +164,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     if (refreshCooldown > 0 || isRefreshing) return
     setIsRefreshing(true)
     try {
-      const result = await withMockFallback(
-        () => orderApi.getStatus(orderId),
-        () => ({ order_id: orderId, status: "PENDING" as const, expires_at: "", remaining_seconds: 0 })
-      )
+      const result = await orderApi.getStatus(orderId)
       if (result.status !== "PENDING") {
         setStatus(result.status)
         if (result.status === "PAID" || result.status === "DELIVERED") {
