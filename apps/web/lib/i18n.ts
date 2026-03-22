@@ -176,7 +176,7 @@ const zh = {
   "payment.statusRefreshed": "状态已刷新",
   // USDT 支付
   "payment.usdt.amount": "转账金额",
-  "payment.usdt.amountHint": "需为实际到账金额",
+  "payment.usdt.amountHint": "需实际到账金额",
   "payment.usdt.address": "收款地址",
   "payment.usdt.warnExact": "请确保实际到账金额为 {amount} USDT",
   "payment.usdt.warnFee": "从交易所提现会扣手续费，建议使用链上钱包直接转账",

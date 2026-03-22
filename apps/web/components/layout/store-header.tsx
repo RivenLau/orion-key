@@ -3,7 +3,7 @@
 import { useCallback, useRef, useState, useEffect } from "react"
 import { usePathname } from "next/navigation"
 import Link from "next/link"
-import { ShoppingCart, User, LogIn, Menu, X, Globe, Moon, Sun, Package, Search, Settings, ChevronDown, SlidersHorizontal, LogOut } from "lucide-react"
+import { ShoppingCart, User, LogIn, Menu, X, Globe, Moon, Sun, Package, Search, Settings, ChevronDown, SlidersHorizontal, LogOut, ClipboardList } from "lucide-react"
 import { useAuth, useLocale, useTheme, useColorScheme, useSearch, useCart, useSiteConfig, COLOR_SCHEMES, type SortKey } from "@/lib/context"
 import { cn } from "@/lib/utils"
 
@@ -160,8 +160,8 @@ export function StoreHeader({ siteName }: StoreHeaderProps) {
             )}
           </button>
 
-          {/* Color Scheme Picker */}
-          <div className="relative">
+          {/* Color Scheme Picker (hidden on mobile, in hamburger menu) */}
+          <div className="relative hidden sm:block">
             <button
               onClick={() => setColorPickerOpen(!colorPickerOpen)}
               className="inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground"
@@ -215,10 +215,19 @@ export function StoreHeader({ siteName }: StoreHeaderProps) {
             <Globe className="h-4 w-4" />
           </button>
 
-          {/* Cart (mobile) */}
+          {/* Order Query (mobile only) */}
+          <Link
+            href="/order/query"
+            className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground md:hidden"
+            aria-label={t("nav.orders")}
+          >
+            <ClipboardList className="h-4 w-4" />
+          </Link>
+
+          {/* Cart (tablet only, mobile in hamburger menu) */}
           <Link
             href="/cart"
-            className="relative inline-flex h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground md:hidden"
+            className="relative hidden h-9 w-9 items-center justify-center rounded-md text-muted-foreground transition-colors hover:bg-accent hover:text-accent-foreground sm:inline-flex md:hidden"
             aria-label={t("nav.cart")}
           >
             <ShoppingCart className="h-4 w-4" />
@@ -265,8 +274,9 @@ export function StoreHeader({ siteName }: StoreHeaderProps) {
               )}
             </div>
           ) : (
-            <Link href="/login" className="inline-flex h-9 items-center rounded-md bg-primary px-4 text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90">
-              {t("nav.login")}
+            <Link href="/login" className="inline-flex h-9 items-center rounded-md bg-primary text-sm font-semibold text-primary-foreground shadow-sm transition-colors hover:bg-primary/90 px-2.5 sm:px-4">
+              <LogIn className="h-4 w-4 sm:hidden" />
+              <span className="hidden sm:inline">{t("nav.login")}</span>
             </Link>
           )}
 
@@ -384,21 +394,51 @@ export function StoreHeader({ siteName }: StoreHeaderProps) {
       {mobileMenuOpen && (
         <nav className="border-t border-border px-4 py-3 md:hidden" aria-label="Mobile navigation">
           <div className="flex flex-col gap-1">
-            {navLinks.map((link) => (
-              <Link
-                key={link.href}
-                href={link.href}
-                onClick={() => setMobileMenuOpen(false)}
-                className={cn(
-                  "rounded-md px-3 py-2 text-sm font-medium transition-colors",
-                  pathname === link.href
-                    ? "bg-accent text-accent-foreground"
-                    : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
-                )}
-              >
-                {link.label}
-              </Link>
-            ))}
+            {navLinks.map((link) => {
+              const isCart = link.href === "/cart"
+              return (
+                <Link
+                  key={link.href}
+                  href={link.href}
+                  onClick={() => setMobileMenuOpen(false)}
+                  className={cn(
+                    "flex items-center gap-2 rounded-md px-3 py-2 text-sm font-medium transition-colors",
+                    pathname === link.href
+                      ? "bg-accent text-accent-foreground"
+                      : "text-muted-foreground hover:bg-accent hover:text-accent-foreground"
+                  )}
+                >
+                  {isCart && <ShoppingCart className="h-4 w-4" />}
+                  {link.label}
+                  {isCart && cartItemCount > 0 && (
+                    <span className="flex h-4 min-w-4 items-center justify-center rounded-full bg-primary px-1 text-[10px] font-bold text-primary-foreground">
+                      {cartItemCount > 99 ? "99+" : cartItemCount}
+                    </span>
+                  )}
+                </Link>
+              )
+            })}
+            {/* Color scheme (mobile only) */}
+            <hr className="my-1 border-border sm:hidden" />
+            <div className="flex items-center gap-2 px-3 py-2 sm:hidden">
+              <span className="text-sm text-muted-foreground">{locale === "zh" ? "主题色" : "Theme"}</span>
+              <div className="flex gap-1.5">
+                {COLOR_SCHEMES.map((scheme) => (
+                  <button
+                    key={scheme.key}
+                    onClick={() => setColorScheme(scheme.key)}
+                    style={{ backgroundColor: scheme.color }}
+                    className={cn(
+                      "h-5 w-5 rounded-full transition-all",
+                      colorScheme === scheme.key
+                        ? "ring-2 ring-foreground ring-offset-1 ring-offset-background"
+                        : ""
+                    )}
+                    aria-label={scheme.label}
+                  />
+                ))}
+              </div>
+            </div>
           </div>
         </nav>
       )}

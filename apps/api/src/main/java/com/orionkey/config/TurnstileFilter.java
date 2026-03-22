@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * 对配置的敏感路径拦截请求，从 Header 中提取 Turnstile token，
  * 调用 Cloudflare siteverify API 验证。验证失败返回 400。
  * <p>
- * 开关：site_configs 表中 turnstile_enabled（默认 true）。
+ * 开关：site_configs 表中 turnstile_enabled（默认 false，需在后台手动启用）。
  * Cloudflare API 不可用时降级放行（WARN 日志）。
  */
 @Slf4j
@@ -190,7 +190,7 @@ public class TurnstileFilter implements Filter {
             try {
                 cachedEnabled = siteConfigRepository.findByConfigKey("turnstile_enabled")
                         .map(c -> !"false".equalsIgnoreCase(c.getConfigValue()))
-                        .orElse(true);
+                        .orElse(false);
             } catch (Exception e) {
                 // DB 不可用时使用缓存值
             }

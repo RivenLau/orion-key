@@ -81,8 +81,11 @@ public class SiteConfigServiceImpl implements SiteConfigService {
         if (result.containsKey("custom_css") && result.get("custom_css") instanceof String css) {
             result.put("custom_css", sanitizeCss(css));
         }
-        // Turnstile Site Key 从环境变量注入（公钥，安全暴露给前端）
-        if (turnstileSiteKey != null && !turnstileSiteKey.isBlank()) {
+        // Turnstile Site Key：仅在后台开关启用时才返回给前端，确保前后端状态一致
+        boolean turnstileEnabled = siteConfigRepository.findByConfigKey("turnstile_enabled")
+                .map(c -> "true".equalsIgnoreCase(c.getConfigValue()))
+                .orElse(false);
+        if (turnstileEnabled && turnstileSiteKey != null && !turnstileSiteKey.isBlank()) {
             result.put("turnstile_site_key", turnstileSiteKey);
         }
         return result;

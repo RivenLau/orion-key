@@ -304,7 +304,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   return (
     <div className="mx-auto flex max-w-lg flex-col items-center gap-6 py-8">
       {/* 外层卡片框 — 标题/倒计时/品牌卡/订单信息统一收纳 */}
-      <div className="flex w-full flex-col items-center gap-5 rounded-xl border border-border bg-card p-6 shadow-sm">
+      <div className="flex w-full flex-col items-center gap-4 rounded-xl border border-border bg-card p-6 shadow-sm">
 
         {/* 标题 + 倒计时 */}
         <h1 className="text-xl font-bold text-foreground">{t("payment.waiting")}</h1>
@@ -327,7 +327,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           /* ========== USDT 支付视图（紧凑居中布局） ========== */
           <div className="flex w-full flex-col items-center gap-3">
             {/* ① 品牌标签 — 网络类型 */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1.5 transition-all duration-200">
+            <div className="my-0.5 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1.5 transition-all duration-200">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
               <span className="text-sm font-medium text-emerald-700">{paymentMethodName}</span>
             </div>
@@ -394,7 +394,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             </div>
 
             {/* ⑤ 警告提示 — 紧凑 */}
-            <ul className="flex w-full max-w-sm flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            <ul className="flex w-full max-w-sm flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
               <li className="flex items-start gap-1.5">
                 <span className="mt-0.5 shrink-0">•</span>
                 <span>{t("payment.usdt.warnExact").replace("{amount}", cryptoAmount)}</span>
@@ -410,7 +410,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             </ul>
 
             {/* 检测状态 */}
-            <p className="animate-pulse text-xs text-primary">{t("payment.detecting")}</p>
+            <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
           </div>
         ) : (!isMobile || isWechatMobile) ? (
           /* ========== PC / 微信移动端 — 二维码视图 ========== */
@@ -496,7 +496,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
         {/* 订单号 */}
         <div className="flex w-full items-center justify-between border-t border-border pt-4 text-sm">
           <span className="text-muted-foreground">{t("payment.orderNo")}</span>
-          <span className="flex items-center gap-1 font-mono text-xs text-foreground">
+          <span className="flex items-center gap-1 font-mono text-sm text-foreground">
             <span
               className="cursor-pointer underline-offset-4 transition-all hover:underline hover:text-primary"
               title={orderId}

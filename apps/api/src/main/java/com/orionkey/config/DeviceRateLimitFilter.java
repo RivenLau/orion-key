@@ -28,7 +28,7 @@ import java.util.regex.Pattern;
  * 以前端传递的 X-Device-Id 为维度进行滑动窗口限流。
  * X-Device-Id 缺失或格式异常时降级为 IP 限流（不拒绝请求）。
  * <p>
- * 开关：site_configs 表中 device_rate_limit_enabled（默认 true）。
+ * 开关：site_configs 表中 device_rate_limit_enabled（默认 false，需在后台手动启用）。
  */
 @Slf4j
 @Component
@@ -214,7 +214,7 @@ public class DeviceRateLimitFilter implements Filter {
         long now = System.currentTimeMillis();
         if (now > configCacheExpiry) {
             try {
-                cachedEnabled = getConfigBool("device_rate_limit_enabled", true);
+                cachedEnabled = getConfigBool("device_rate_limit_enabled", false);
                 orderLimit = getConfigInt("device_order_limit_per_hour", 10);
                 txidDeviceLimit = getConfigInt("device_txid_limit_per_hour", 5);
                 txidOrderLimit = getConfigInt("txid_submit_limit_per_order", 3);
