@@ -285,6 +285,56 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
         }
     }
 
+    @Override
+    public ChainVerifyResult verifyForWebhook(String chain, String txid,
+                                               String expectedWalletAddress, String expectedCryptoAmount) {
+        ChainTransaction tx;
+        try {
+            tx = queryTransaction(chain, txid);
+        } catch (Exception e) {
+            log.warn("Webhook on-chain query failed: chain={}, txid={}, error={}", chain, txid, e.getMessage());
+            return null; // 查询失败 → 调用方应触发重试
+        }
+
+        // 1. 交易是否存在
+        if (tx == null) {
+            return new ChainVerifyResult(false, "交易不存在");
+        }
+
+        // 2. 交易是否已达到不可逆确认
+        // TRC20 需 19 个区块确认（solidification ≈ 57s），BEpusdt 可能在 1-3 个确认时就发送回调。
+        // 此时交易真实存在但尚未 solidified — 返回 null 触发 BEpusdt 重试，等待后续区块确认。
+        if (!tx.confirmed()) {
+            log.info("Webhook on-chain: transaction exists but not yet confirmed (solidified), deferring: txid={}", txid);
+            return null;
+        }
+
+        // 3. 收款地址是否匹配
+        if (tx.to() == null || !tx.to().equalsIgnoreCase(expectedWalletAddress)) {
+            return new ChainVerifyResult(false,
+                    "收款地址不匹配: expected=" + expectedWalletAddress + ", actual=" + tx.to());
+        }
+
+        // 4. Token 合约是否为 USDT
+        if (tx.contractAddress() == null || !USDT_CONTRACTS.contains(tx.contractAddress().toLowerCase())) {
+            return new ChainVerifyResult(false, "非 USDT 合约交易");
+        }
+
+        // 5. 金额是否匹配（容差 0.001 USDT 防止链上精度差异）
+        try {
+            BigDecimal expected = new BigDecimal(expectedCryptoAmount);
+            BigDecimal actual = new BigDecimal(tx.amount());
+            if (expected.subtract(actual).abs().compareTo(new BigDecimal("0.001")) > 0) {
+                return new ChainVerifyResult(false,
+                        "金额不匹配: expected=" + expectedCryptoAmount + ", actual=" + tx.amount());
+            }
+        } catch (NumberFormatException e) {
+            return new ChainVerifyResult(false, "金额格式异常");
+        }
+
+        return new ChainVerifyResult(true, "链上验证通过");
+    }
+
     /**
      * 从订单的支付渠道加载 BepusdtConfig
      */

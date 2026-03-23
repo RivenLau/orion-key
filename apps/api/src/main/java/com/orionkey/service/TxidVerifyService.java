@@ -23,4 +23,15 @@ public interface TxidVerifyService {
      * 验证 TXID 并处理订单
      */
     VerifyDetail verifyAndProcess(Order order, String txid);
+
+    /**
+     * Webhook 回调链上验证（轻量级）：验证 TXID 对应的链上交易是否真实且匹配订单。
+     * 与 verifyAndProcess 不同，本方法不修改订单状态、不写 unmatched_transactions 表。
+     *
+     * @return 验证通过/失败的结果；null 表示链上 API 查询失败（调用方应触发重试）
+     */
+    ChainVerifyResult verifyForWebhook(String chain, String txid,
+                                        String expectedWalletAddress, String expectedCryptoAmount);
+
+    record ChainVerifyResult(boolean verified, String reason) {}
 }

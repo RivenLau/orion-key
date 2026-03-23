@@ -13,6 +13,7 @@ import com.orionkey.repository.PaymentChannelRepository;
 import com.orionkey.repository.WebhookEventRepository;
 import com.orionkey.service.BepusdtService;
 import com.orionkey.service.EpayService;
+import com.orionkey.service.TxidVerifyService;
 import com.orionkey.service.WebhookService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -38,6 +39,7 @@ public class WebhookServiceImpl implements WebhookService {
     private final BepusdtService bepusdtService;
     private final ObjectMapper objectMapper;
     private final PaymentServiceImpl paymentService;
+    private final TxidVerifyService txidVerifyService;
 
     @Override
     @Transactional
@@ -228,7 +230,7 @@ public class WebhookServiceImpl implements WebhookService {
         }
         if (!bepusdtService.verifySign(apiToken, signParams, signature)) {
             log.error("BEpusdt callback signature verification failed: trade_id={}", tradeId);
-            saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(), "SIGN_VERIFY_FAIL");
+            // F3: 签名失败不写入幂等表 — 否则攻击者可伪造回调占用 eventId，阻塞后续真实回调
             return "fail";
         }
 
@@ -265,7 +267,43 @@ public class WebhookServiceImpl implements WebhookService {
             return "ok";
         }
 
-        // 6. 幂等更新订单状态（PENDING 和 EXPIRED 均可标记为 PAID，与 TXID 验证和管理员手动标记行为一致）
+        // 6. 链上验证 block_transaction_id（防止伪造回调 — 与 Epay 服务端查询网关等效）
+        if (blockTxId == null || blockTxId.isBlank() || blockTxId.equals(tradeId)) {
+            // status=2 但 block_transaction_id 不是真实链上哈希（等于 tradeId 或为空）
+            // 不写入幂等表，返回 fail 触发 BEpusdt 重试（等待链上确认后重新回调）
+            log.warn("BEpusdt callback status=2 but no real block_tx_id: trade_id={}, block_tx_id={}", tradeId, blockTxId);
+            return "fail";
+        }
+
+        String chain = order.getUsdtChain() != null ? order.getUsdtChain() : order.getPaymentMethod();
+        TxidVerifyService.ChainVerifyResult chainResult =
+                txidVerifyService.verifyForWebhook(chain, blockTxId, order.getUsdtWalletAddress(), order.getUsdtCryptoAmount());
+
+        if (chainResult == null) {
+            // 链上 API 查询失败（TronGrid/BscScan 不可用）— 不写入幂等表，返回 fail 触发重试
+            log.warn("BEpusdt callback deferred: on-chain API unavailable, trade_id={}, txid={}", tradeId, blockTxId);
+            return "fail";
+        }
+        if (!chainResult.verified()) {
+            // 链上验证失败（交易不存在/未确认/地址不匹配/非USDT/金额不匹配）— 写入幂等表拒绝
+            log.error("BEpusdt callback rejected by on-chain verification: {}, trade_id={}, txid={}",
+                    chainResult.reason(), tradeId, blockTxId);
+            saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(),
+                    "ONCHAIN_VERIFY_FAILED: " + chainResult.reason());
+            return "ok";
+        }
+        log.info("BEpusdt callback on-chain verification passed: trade_id={}, txid={}", tradeId, blockTxId);
+
+        // 7. TXID 唯一性前置检查（防止同一链上交易被关联到多个订单）
+        Optional<Order> txidExisting = orderRepository.findByUsdtTxId(blockTxId);
+        if (txidExisting.isPresent() && !txidExisting.get().getId().equals(order.getId())) {
+            log.error("BEpusdt callback TXID collision: txid={} already used by order {}, current order {}",
+                    blockTxId, txidExisting.get().getId(), order.getId());
+            saveWebhookEvent(eventId, "usdt", order.getId(), signParams.toString(), "TXID_ALREADY_USED");
+            return "ok";
+        }
+
+        // 8. 幂等更新订单状态（PENDING 和 EXPIRED 均可标记为 PAID，与 TXID 验证和管理员手动标记行为一致）
         if (order.getStatus() == OrderStatus.PENDING || order.getStatus() == OrderStatus.EXPIRED) {
             order.setStatus(OrderStatus.PAID);
             order.setPaidAt(LocalDateTime.now());
