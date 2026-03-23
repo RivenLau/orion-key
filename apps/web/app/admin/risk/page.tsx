@@ -13,8 +13,7 @@ import type { RiskConfig, AdminOrderItem } from "@/types"
 export default function AdminRiskPage() {
   const { t } = useLocale()
   const [tab, setTab] = useState<"config" | "flagged">("config")
-  // 默认值：Turnstile 和设备限流默认关闭（需后台手动启用），其余为合理默认
-  const defaultConfig: RiskConfig = {
+  const [config, setConfig] = useState<RiskConfig>({
     turnstile_enabled: false,
     device_rate_limit_enabled: false,
     device_order_limit_per_hour: 10,
@@ -29,8 +28,7 @@ export default function AdminRiskPage() {
     order_expire_minutes: 15,
     max_pending_orders_per_ip: 3,
     max_pending_orders_per_user: 3,
-  }
-  const [config, setConfig] = useState<RiskConfig>(defaultConfig)
+  })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [flaggedOrders, setFlaggedOrders] = useState<AdminOrderItem[]>([])
@@ -40,8 +38,7 @@ export default function AdminRiskPage() {
   const fetchConfig = useCallback(async () => {
     try {
       const data = await adminRiskApi.getConfig()
-      // 后端仅返回 DB 中已有的 key（稀疏对象），用默认值兜底缺失字段
-      setConfig({ ...defaultConfig, ...data })
+      setConfig(data)
     } catch {
       // API 失败时保留默认值
     } finally {
