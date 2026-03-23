@@ -20,6 +20,8 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.web.client.RestTemplate;
 
 import java.math.BigDecimal;
+import java.math.BigInteger;
+import java.security.MessageDigest;
 import java.time.LocalDateTime;
 import java.util.List;
 import java.util.Map;
@@ -186,8 +188,8 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
                 Map<String, Object> eventResult = (Map<String, Object>) event.get("result");
                 if (eventResult == null) continue;
 
-                String from = (String) eventResult.get("from");
-                String to = (String) eventResult.get("to");
+                String from = hexToTronBase58((String) eventResult.get("from"));
+                String to = hexToTronBase58((String) eventResult.get("to"));
                 Object valueObj = eventResult.get("value");
                 String rawValue = valueObj != null ? valueObj.toString() : "0";
 
@@ -234,54 +236,68 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
     }
 
     /**
-     * 通过 BscScan API 查询 BEP20 交易
+     * 通过 BSC 公共 RPC 查询 BEP20 交易。
+     * 使用 eth_getTransactionReceipt JSON-RPC 方法获取交易收据，
+     * 从 logs 中解析 Transfer 事件提取 from/to/amount/contract。
+     * 不依赖 BscScan REST API（已废弃 V1，V2 需付费）。
      */
     private ChainTransaction queryBscTransaction(String txid) {
-        // 先查询交易收据确认交易存在
-        String receiptUrl = "https://api.bscscan.com/api?module=proxy&action=eth_getTransactionReceipt&txhash=" + txid;
-        log.info("Querying BscScan receipt: {}", receiptUrl);
+        String rpcUrl = "https://bsc-dataseed.bnbchain.org/";
+        log.info("Querying BSC RPC receipt: txid={}", txid);
 
-        String receiptBody = restTemplate.getForObject(receiptUrl, String.class);
-        if (receiptBody == null) return null;
+        Map<String, Object> rpcRequest = Map.of(
+                "jsonrpc", "2.0",
+                "method", "eth_getTransactionReceipt",
+                "params", List.of(txid),
+                "id", 1
+        );
+
+        String responseBody = restTemplate.postForObject(rpcUrl, rpcRequest, String.class);
+        if (responseBody == null) return null;
 
         try {
-            Map<String, Object> receiptResult = objectMapper.readValue(receiptBody, new TypeReference<>() {});
+            Map<String, Object> rpcResponse = objectMapper.readValue(responseBody, new TypeReference<>() {});
             @SuppressWarnings("unchecked")
-            Map<String, Object> receiptData = (Map<String, Object>) receiptResult.get("result");
-            if (receiptData == null) return null;
+            Map<String, Object> receipt = (Map<String, Object>) rpcResponse.get("result");
+            if (receipt == null) return null;
 
-            String status = (String) receiptData.get("status");
-            boolean confirmed = "0x1".equals(status);
+            String statusHex = (String) receipt.get("status");
+            boolean confirmed = "0x1".equals(statusHex);
 
-            // 查询 token 转账事件
-            String tokenTxUrl = "https://api.bscscan.com/api?module=account&action=tokentx&sort=desc&page=1&offset=1"
-                    + "&txhash=" + txid;
-            log.info("Querying BscScan tokentx: {}", tokenTxUrl);
-
-            String tokenBody = restTemplate.getForObject(tokenTxUrl, String.class);
-            if (tokenBody == null) return new ChainTransaction(null, null, "0", null, confirmed);
-
-            Map<String, Object> tokenResult = objectMapper.readValue(tokenBody, new TypeReference<>() {});
+            // 解析 Transfer 事件日志
+            // Transfer(address indexed from, address indexed to, uint256 value)
             @SuppressWarnings("unchecked")
-            List<Map<String, Object>> tokenTxList = (List<Map<String, Object>>) tokenResult.get("result");
-            if (tokenTxList == null || tokenTxList.isEmpty()) {
+            List<Map<String, Object>> logs = (List<Map<String, Object>>) receipt.get("logs");
+            if (logs == null || logs.isEmpty()) {
                 return new ChainTransaction(null, null, "0", null, confirmed);
             }
 
-            Map<String, Object> tokenTx = tokenTxList.getFirst();
-            String from = (String) tokenTx.get("from");
-            String to = (String) tokenTx.get("to");
-            String contractAddress = (String) tokenTx.get("contractAddress");
-            String rawValue = (String) tokenTx.get("value");
-            String tokenDecimal = (String) tokenTx.get("tokenDecimal");
+            String transferSig = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
 
-            int decimals = tokenDecimal != null ? Integer.parseInt(tokenDecimal) : 18;
-            BigDecimal amount = new BigDecimal(rawValue != null ? rawValue : "0").movePointLeft(decimals);
+            for (Map<String, Object> logEntry : logs) {
+                @SuppressWarnings("unchecked")
+                List<String> topics = (List<String>) logEntry.get("topics");
+                if (topics == null || topics.size() < 3) continue;
+                if (!transferSig.equals(topics.get(0))) continue;
 
-            return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, confirmed);
+                String contractAddress = (String) logEntry.get("address");
+                // topics[1] = from（32 字节左填充，取后 40 位 hex）
+                String from = "0x" + topics.get(1).substring(26);
+                // topics[2] = to
+                String to = "0x" + topics.get(2).substring(26);
+                // data = value（uint256 hex）
+                String data = (String) logEntry.get("data");
+                BigInteger rawValue = new BigInteger(data.substring(2), 16);
+                // BSC USDT (Binance-Peg BSC-USD) 精度为 18 位
+                BigDecimal amount = new BigDecimal(rawValue).movePointLeft(18);
+
+                return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, confirmed);
+            }
+
+            return new ChainTransaction(null, null, "0", null, confirmed);
         } catch (Exception e) {
-            log.error("Failed to parse BscScan response: {}", e.getMessage());
-            throw new RuntimeException("BscScan API 解析失败", e);
+            log.error("Failed to parse BSC RPC response: {}", e.getMessage());
+            throw new RuntimeException("BSC RPC 解析失败", e);
         }
     }
 
@@ -404,5 +420,63 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
         ut.setVerifyReason(reason);
         ut.setSubmittedAt(LocalDateTime.now());
         unmatchedTransactionRepository.save(ut);
+    }
+
+    // ── Tron 地址格式转换工具 ──
+
+    private static final String BASE58_ALPHABET = "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz";
+
+    /**
+     * 将 TronGrid 事件返回的 hex 地址转换为 Tron Base58Check 地址。
+     * TronGrid 事件 result 中的 from/to 为 20 字节 hex（如 0x0854...），
+     * 而订单中存储的 Tron 钱包地址为 Base58Check 格式（如 TAjF...）。
+     * 转换规则：Base58Check(0x41 + 20字节地址)
+     */
+    private String hexToTronBase58(String hexAddress) {
+        if (hexAddress == null || hexAddress.isBlank()) return hexAddress;
+        // 已经是 Base58 格式（T 开头）则直接返回
+        if (hexAddress.startsWith("T")) return hexAddress;
+        try {
+            String hex = hexAddress.startsWith("0x") ? hexAddress.substring(2) : hexAddress;
+            byte[] rawAddress = hexStringToBytes("41" + hex);
+            // SHA-256 双重哈希取前 4 字节作为校验码
+            MessageDigest sha256 = MessageDigest.getInstance("SHA-256");
+            byte[] hash1 = sha256.digest(rawAddress);
+            byte[] hash2 = sha256.digest(hash1);
+            byte[] addressWithChecksum = new byte[rawAddress.length + 4];
+            System.arraycopy(rawAddress, 0, addressWithChecksum, 0, rawAddress.length);
+            System.arraycopy(hash2, 0, addressWithChecksum, rawAddress.length, 4);
+            return base58Encode(addressWithChecksum);
+        } catch (Exception e) {
+            log.warn("Failed to convert hex to Tron Base58: {}, returning original", hexAddress);
+            return hexAddress;
+        }
+    }
+
+    private byte[] hexStringToBytes(String hex) {
+        int len = hex.length();
+        byte[] data = new byte[len / 2];
+        for (int i = 0; i < len; i += 2) {
+            data[i / 2] = (byte) ((Character.digit(hex.charAt(i), 16) << 4)
+                    + Character.digit(hex.charAt(i + 1), 16));
+        }
+        return data;
+    }
+
+    private String base58Encode(byte[] input) {
+        BigInteger value = new BigInteger(1, input);
+        BigInteger base = BigInteger.valueOf(58);
+        StringBuilder sb = new StringBuilder();
+        while (value.compareTo(BigInteger.ZERO) > 0) {
+            BigInteger[] divmod = value.divideAndRemainder(base);
+            value = divmod[0];
+            sb.append(BASE58_ALPHABET.charAt(divmod[1].intValue()));
+        }
+        // 前导零字节对应 Base58 的 '1'
+        for (byte b : input) {
+            if (b == 0) sb.append('1');
+            else break;
+        }
+        return sb.reverse().toString();
     }
 }
