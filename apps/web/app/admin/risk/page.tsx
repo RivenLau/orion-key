@@ -62,6 +62,19 @@ export default function AdminRiskPage() {
   useEffect(() => { fetchConfig() }, [fetchConfig])
   useEffect(() => { if (tab === "flagged") fetchFlaggedOrders() }, [tab, fetchFlaggedOrders])
 
+  // 开关即时保存（点击立即生效，无需手动保存）
+  const handleToggle = async (key: "turnstile_enabled" | "device_rate_limit_enabled") => {
+    const newValue = !config[key]
+    setConfig({ ...config, [key]: newValue })
+    try {
+      await adminRiskApi.updateConfig({ [key]: newValue })
+    } catch {
+      // 保存失败 → 回滚 UI 状态
+      setConfig((prev) => ({ ...prev, [key]: !newValue }))
+      toast.error("保存失败，请重试")
+    }
+  }
+
   const handleSaveConfig = async () => {
     setSaving(true)
     try {
@@ -142,7 +155,7 @@ export default function AdminRiskPage() {
                     "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
                     config.turnstile_enabled ? "bg-primary" : "bg-input"
                   )}
-                  onClick={() => setConfig({ ...config, turnstile_enabled: !config.turnstile_enabled })}
+                  onClick={() => handleToggle("turnstile_enabled")}
                 >
                   <span className={cn(
                     "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
@@ -226,7 +239,7 @@ export default function AdminRiskPage() {
                       "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
                       config.device_rate_limit_enabled ? "bg-primary" : "bg-input"
                     )}
-                    onClick={() => setConfig({ ...config, device_rate_limit_enabled: !config.device_rate_limit_enabled })}
+                    onClick={() => handleToggle("device_rate_limit_enabled")}
                   >
                     <span className={cn(
                       "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
