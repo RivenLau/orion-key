@@ -215,7 +215,7 @@ export default function AdminOrdersPage() {
                   <tr key={order.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs font-medium text-foreground">
+                        <span className="font-mono text-sm font-medium text-foreground">
                           {order.id.length > 16 ? `${order.id.slice(0, 8)}...${order.id.slice(-4)}` : order.id}
                         </span>
                         {order.is_risk_flagged && (
@@ -262,7 +262,7 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3">
                       <OrderStatusBadge status={order.status} />
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                       {new Date(order.created_at).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
