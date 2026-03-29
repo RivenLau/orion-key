@@ -325,7 +325,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             {/* ②③ 转账金额 + 收款地址 — 合并卡片 */}
             <div className="flex w-full max-w-sm flex-col rounded-xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:border-border hover:shadow-md">
               {/* 转账金额 */}
-              <div className="flex flex-col gap-1 px-4 py-3">
+              <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                 <span className="text-sm text-muted-foreground">{t("payment.usdt.amount")}（{t("payment.usdt.amountHint")}）</span>
                 <span className="flex items-center gap-2">
                   <span
@@ -343,7 +343,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
               {/* 分割线 */}
               <div className="mx-4 border-t border-border/40" />
               {/* 收款地址 */}
-              <div className="flex flex-col gap-1 px-4 py-3">
+              <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                 <span className="text-sm text-muted-foreground">{t("payment.usdt.address")}</span>
                 <span className="flex items-center gap-2">
                   <span
