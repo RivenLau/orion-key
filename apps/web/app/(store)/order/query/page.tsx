@@ -6,6 +6,7 @@ import Link from "next/link"
 import { Search, Copy, Download, FileText, CheckCircle2, X, Clock, HelpCircle, ExternalLink, Loader2, AlertCircle, Info } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useSiteConfig } from "@/lib/context"
+import type { TranslationKey } from "@/lib/i18n"
 import { orderApi, withMockFallback, getApiErrorMessage, setTurnstileHeaders } from "@/services/api"
 import { mockQueryOrders, mockDeliver } from "@/lib/mock-data"
 import { OrderStatusBadge } from "@/components/shared/order-status-badge"
@@ -18,6 +19,22 @@ import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
 interface RecentQuery {
   value: string
   timestamp: number
+}
+
+/** 将后端返回的 TXID 验证错误码转为 i18n 翻译文本 */
+function formatTxidReason(reason: string, t: (key: TranslationKey) => string): string {
+  // 带参数的错误码格式: "AMOUNT_TOO_LARGE:1.23" 或 "AMOUNT_MISMATCH:0.5"
+  const colonIndex = reason.indexOf(":")
+  const code = colonIndex > 0 ? reason.substring(0, colonIndex) : reason
+  const param = colonIndex > 0 ? reason.substring(colonIndex + 1) : ""
+
+  const i18nKey = `order.usdt.reason.${code}` as TranslationKey
+  const translated = t(i18nKey)
+
+  // 如果 i18n 没有对应 key，返回值等于 key 本身，此时回退显示原始 reason
+  if (translated === i18nKey) return reason
+
+  return param ? translated.replace("{diff}", param) : translated
 }
 
 export default function OrderQueryPage() {
@@ -379,7 +396,7 @@ export default function OrderQueryPage() {
                     txidResult[order.id].result === "PENDING_REVIEW" && "bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200"
                   )}>
                     {txidResult[order.id].result === "AUTO_APPROVED" && t("order.usdt.autoApproved")}
-                    {txidResult[order.id].result === "AUTO_REJECTED" && t("order.usdt.autoRejected").replace("{reason}", txidResult[order.id].reason)}
+                    {txidResult[order.id].result === "AUTO_REJECTED" && t("order.usdt.autoRejected").replace("{reason}", formatTxidReason(txidResult[order.id].reason, t))}
                     {txidResult[order.id].result === "PENDING_REVIEW" && t("order.usdt.pendingReview")}
                   </div>
                 ) : txidExpandedOrder === order.id ? (
