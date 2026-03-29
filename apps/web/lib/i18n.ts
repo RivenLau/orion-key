@@ -144,7 +144,13 @@ const zh = {
   "order.usdt.submitVerify": "提交验证",
   "order.usdt.autoApproved": "支付已确认！",
   "order.usdt.autoRejected": "验证失败：{reason}",
-  "order.usdt.pendingReview": "已提交，转账金额存在差异，预计数分钟内人工处理",
+  "order.usdt.pendingReview": "已提交人工复核，请稍后重新查询订单获取结果",
+  "order.usdt.reason.TX_NOT_FOUND_OR_UNCONFIRMED": "交易不存在或尚未被区块链确认",
+  "order.usdt.reason.ADDRESS_MISMATCH": "该交易的收款地址与订单不匹配",
+  "order.usdt.reason.NOT_USDT": "该交易转账的不是 USDT",
+  "order.usdt.reason.AMOUNT_TOO_LARGE": "转账金额与订单金额相差 {diff} USDT，超出允许范围",
+  "order.usdt.reason.AMOUNT_MISMATCH": "转账金额与订单存在差异，已提交人工复核",
+  "order.usdt.reason.CHAIN_API_ERROR": "查询链上交易超时，已转人工复核",
   "order.usdt.txHash": "交易哈希",
 
   // Payment
@@ -715,7 +721,13 @@ const en: Record<keyof typeof zh, string> = {
   "order.usdt.submitVerify": "Submit for Verification",
   "order.usdt.autoApproved": "Payment confirmed!",
   "order.usdt.autoRejected": "Verification failed: {reason}",
-  "order.usdt.pendingReview": "Submitted. Amount discrepancy detected, manual review in progress",
+  "order.usdt.pendingReview": "Submitted for manual review, please check back later",
+  "order.usdt.reason.TX_NOT_FOUND_OR_UNCONFIRMED": "Transaction not found or not yet confirmed on blockchain",
+  "order.usdt.reason.ADDRESS_MISMATCH": "The receiving address does not match this order",
+  "order.usdt.reason.NOT_USDT": "The transaction is not a USDT transfer",
+  "order.usdt.reason.AMOUNT_TOO_LARGE": "Transfer amount differs from order by {diff} USDT, exceeding allowed range",
+  "order.usdt.reason.AMOUNT_MISMATCH": "Transfer amount discrepancy detected, submitted for manual review",
+  "order.usdt.reason.CHAIN_API_ERROR": "Blockchain query timed out, submitted for manual review",
   "order.usdt.txHash": "Transaction Hash",
 
   // Payment

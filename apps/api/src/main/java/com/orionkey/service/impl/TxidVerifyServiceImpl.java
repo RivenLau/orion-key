@@ -69,17 +69,17 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
         } catch (Exception e) {
             log.error("链上 API 查询失败: chain={}, txid={}, error={}", chain, txid, e.getMessage());
             saveUnmatched(order, txid, chain, VerifyResult.PENDING_REVIEW,
-                    "链上 API 查询失败，转人工审核", null, null, null);
+                    "CHAIN_API_ERROR", null, null, null);
             return new VerifyDetail(VerifyResult.PENDING_REVIEW,
-                    "查询链上交易超时，已转人工处理", null, null, null, false);
+                    "CHAIN_API_ERROR", null, null, null, false);
         }
 
         // ---- Step 2: 交易是否存在且已确认 ----
         if (tx == null || !tx.confirmed) {
             saveUnmatched(order, txid, chain, VerifyResult.AUTO_REJECTED,
-                    "交易不存在或未确认", null, null, null);
+                    "TX_NOT_FOUND_OR_UNCONFIRMED", null, null, null);
             return new VerifyDetail(VerifyResult.AUTO_REJECTED,
-                    "交易不存在或尚未被区块链确认",
+                    "TX_NOT_FOUND_OR_UNCONFIRMED",
                     tx != null ? tx.from : null, tx != null ? tx.to : null,
                     tx != null ? tx.amount : null, false);
         }
@@ -87,18 +87,18 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
         // ---- Step 3: 收款地址是否匹配我方钱包 ----
         if (!tx.to.equalsIgnoreCase(order.getUsdtWalletAddress())) {
             saveUnmatched(order, txid, chain, VerifyResult.AUTO_REJECTED,
-                    "收款地址不匹配", tx.from, tx.to, tx.amount);
+                    "ADDRESS_MISMATCH", tx.from, tx.to, tx.amount);
             return new VerifyDetail(VerifyResult.AUTO_REJECTED,
-                    "该交易的收款地址与订单不匹配", tx.from, tx.to, tx.amount, true);
+                    "ADDRESS_MISMATCH", tx.from, tx.to, tx.amount, true);
         }
 
         // ---- Step 4: Token 合约是否为 USDT ----
         // F5: 必须校验 contractAddress 非 null — 否则原生代币（TRX/BNB）转账会绕过此检查
         if (tx.contractAddress == null || !USDT_CONTRACTS.contains(tx.contractAddress.toLowerCase())) {
             saveUnmatched(order, txid, chain, VerifyResult.AUTO_REJECTED,
-                    "非 USDT 交易", tx.from, tx.to, tx.amount);
+                    "NOT_USDT", tx.from, tx.to, tx.amount);
             return new VerifyDetail(VerifyResult.AUTO_REJECTED,
-                    "该交易转账的不是 USDT", tx.from, tx.to, tx.amount, true);
+                    "NOT_USDT", tx.from, tx.to, tx.amount, true);
         }
 
         // ---- Step 5: 金额差异判定 ----
@@ -113,25 +113,25 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
             order.setUsdtTxId(txid);
             orderRepository.save(order);
             saveUnmatched(order, txid, chain, VerifyResult.AUTO_APPROVED,
-                    "自动通过，差额 " + diff.toPlainString() + " USDT", tx.from, tx.to, tx.amount);
+                    "AUTO_APPROVED", tx.from, tx.to, tx.amount);
             return new VerifyDetail(VerifyResult.AUTO_APPROVED,
-                    "支付已确认", tx.from, tx.to, tx.amount, true);
+                    "AUTO_APPROVED", tx.from, tx.to, tx.amount, true);
         }
 
         if (diff.compareTo(config.manualReviewUpper()) > 0) {
             // 差额 > 人工审核上限 → 自动拒绝
             saveUnmatched(order, txid, chain, VerifyResult.AUTO_REJECTED,
-                    "金额差异过大: " + diff.toPlainString() + " USDT", tx.from, tx.to, tx.amount);
+                    "AMOUNT_TOO_LARGE:" + diff.toPlainString(), tx.from, tx.to, tx.amount);
             return new VerifyDetail(VerifyResult.AUTO_REJECTED,
-                    "转账金额与订单金额相差 " + diff.toPlainString() + " USDT，超出允许范围",
+                    "AMOUNT_TOO_LARGE:" + diff.toPlainString(),
                     tx.from, tx.to, tx.amount, true);
         }
 
         // 差额在 (容差, 上限] 之间 → 转人工
         saveUnmatched(order, txid, chain, VerifyResult.PENDING_REVIEW,
-                "金额差异 " + diff.toPlainString() + " USDT，需人工确认", tx.from, tx.to, tx.amount);
+                "AMOUNT_MISMATCH:" + diff.toPlainString(), tx.from, tx.to, tx.amount);
         return new VerifyDetail(VerifyResult.PENDING_REVIEW,
-                "转账金额与订单存在差异，已提交人工审核", tx.from, tx.to, tx.amount, true);
+                "AMOUNT_MISMATCH:" + diff.toPlainString(), tx.from, tx.to, tx.amount, true);
     }
 
     /**
@@ -149,8 +149,12 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
      * 查询链上交易
      */
     private ChainTransaction queryTransaction(String chain, String txid) {
+        return queryTransaction(chain, txid, true);
+    }
+
+    private ChainTransaction queryTransaction(String chain, String txid, boolean requireSolidified) {
         if (chain != null && chain.contains("trc20")) {
-            return queryTronTransaction(txid);
+            return queryTronTransaction(txid, requireSolidified);
         } else if (chain != null && chain.contains("bep20")) {
             return queryBscTransaction(txid);
         }
@@ -160,7 +164,7 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
     /**
      * 通过 TronGrid API 查询 TRC20 交易
      */
-    private ChainTransaction queryTronTransaction(String txid) {
+    private ChainTransaction queryTronTransaction(String txid, boolean requireSolidified) {
         String url = "https://api.trongrid.io/v1/transactions/" + txid + "/events";
         log.info("Querying TronGrid: {}", url);
 
@@ -196,8 +200,9 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
                 // TRC20 USDT 精度为 6 位
                 BigDecimal amount = new BigDecimal(rawValue).movePointLeft(6);
 
-                // F6: 通过 walletsolidity API 验证交易是否已 solidified（不可逆确认），不再硬编码 true
-                boolean confirmed = checkTronTransactionConfirmed(txid);
+                // 手动 TXID 验证：通过 walletsolidity API 验证交易是否已 solidified（不可逆确认）
+                // Webhook 回调：跳过 solidification 检查（BEpusdt 自己扫链发现的交易，可信度高）
+                boolean confirmed = !requireSolidified || checkTronTransactionConfirmed(txid);
                 return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, confirmed);
             }
             return null;
@@ -306,7 +311,8 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
                                                String expectedWalletAddress, String expectedCryptoAmount) {
         ChainTransaction tx;
         try {
-            tx = queryTransaction(chain, txid);
+            // Webhook 回调来自 BEpusdt 自身的链上扫描，可信度高，跳过 TRC20 solidification 检查
+            tx = queryTransaction(chain, txid, false);
         } catch (Exception e) {
             log.warn("Webhook on-chain query failed: chain={}, txid={}, error={}", chain, txid, e.getMessage());
             return null; // 查询失败 → 调用方应触发重试
@@ -317,26 +323,18 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
             return new ChainVerifyResult(false, "交易不存在");
         }
 
-        // 2. 交易是否已达到不可逆确认
-        // TRC20 需 19 个区块确认（solidification ≈ 57s），BEpusdt 可能在 1-3 个确认时就发送回调。
-        // 此时交易真实存在但尚未 solidified — 返回 null 触发 BEpusdt 重试，等待后续区块确认。
-        if (!tx.confirmed()) {
-            log.info("Webhook on-chain: transaction exists but not yet confirmed (solidified), deferring: txid={}", txid);
-            return null;
-        }
-
-        // 3. 收款地址是否匹配
+        // 2. 收款地址是否匹配
         if (tx.to() == null || !tx.to().equalsIgnoreCase(expectedWalletAddress)) {
             return new ChainVerifyResult(false,
                     "收款地址不匹配: expected=" + expectedWalletAddress + ", actual=" + tx.to());
         }
 
-        // 4. Token 合约是否为 USDT
+        // 3. Token 合约是否为 USDT
         if (tx.contractAddress() == null || !USDT_CONTRACTS.contains(tx.contractAddress().toLowerCase())) {
             return new ChainVerifyResult(false, "非 USDT 合约交易");
         }
 
-        // 5. 金额是否匹配（容差 0.001 USDT 防止链上精度差异）
+        // 4. 金额是否匹配（容差 0.001 USDT 防止链上精度差异）
         try {
             BigDecimal expected = new BigDecimal(expectedCryptoAmount);
             BigDecimal actual = new BigDecimal(tx.amount());

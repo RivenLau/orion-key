@@ -77,11 +77,13 @@ export function PaymentIcon({ method, className = "h-5 w-5", variant = "badge" }
   }
 
   return (
-    <img
-      src={src}
-      alt={method}
-      className={cn(className, variant === "plain" && "brightness-0 invert")}
-      draggable={false}
-    />
+    <span className={cn("inline-flex shrink-0 items-center justify-center", className)}>
+      <img
+        src={src}
+        alt={method}
+        className={cn("h-full w-full object-contain", variant === "plain" && "brightness-0 invert")}
+        draggable={false}
+      />
+    </span>
   )
 }
