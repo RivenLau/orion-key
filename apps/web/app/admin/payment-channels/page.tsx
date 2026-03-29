@@ -44,7 +44,7 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
       { key: "key", label: "商户密钥 (Key)", placeholder: "MD5 密钥", type: "password" },
       { key: "api_url", label: "API 地址", placeholder: "例如：https://pay.example.com/" },
       { key: "notify_url", label: "异步回调地址", placeholder: "例如：https://yourdomain.com/api/payments/webhook/epay" },
-      { key: "return_url", label: "同步跳转地址", placeholder: "例如：https://yourdomain.com/pay" },
+      { key: "return_url", label: "同步跳转地址", placeholder: "例如：https://yourdomain.com/order/query" },
     ],
   },
   {
