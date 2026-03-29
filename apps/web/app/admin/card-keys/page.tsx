@@ -526,7 +526,7 @@ export default function AdminCardKeysPage() {
                 <label className="text-sm font-medium text-foreground">{t("admin.cardKeyContentReq")}</label>
                 <textarea
                   ref={importContentRef}
-                  className={cn("min-h-32 rounded-lg border bg-background px-3 py-2 text-sm font-mono text-foreground focus:outline-none focus:ring-2", importErrors.content ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")}
+                  className={cn("min-h-32 rounded-lg border bg-background px-3 py-2 text-sm font-mono text-foreground break-all focus:outline-none focus:ring-2", importErrors.content ? "border-destructive ring-destructive/20" : "border-input focus:ring-ring")}
                   placeholder={t("admin.cardKeyContentPlaceholder")}
                   value={importContent}
                   onChange={(e) => { setImportContent(e.target.value); setImportErrors(prev => ({ ...prev, content: false })) }}
