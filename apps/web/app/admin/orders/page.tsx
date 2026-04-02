@@ -16,6 +16,29 @@ const ITEMS_PER_PAGE = 10
 
 export default function AdminOrdersPage() {
   const { t } = useLocale()
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => toast.success(t("order.copied")),
+        () => fallbackCopy(text)
+      )
+    } else {
+      fallbackCopy(text)
+    }
+    function fallbackCopy(val: string) {
+      const ta = document.createElement("textarea")
+      ta.value = val
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand("copy")
+      document.body.removeChild(ta)
+      toast.success(t("order.copied"))
+    }
+  }
+
   const [orders, setOrders] = useState<AdminOrderItem[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -215,7 +238,11 @@ export default function AdminOrdersPage() {
                   <tr key={order.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-sm font-medium text-foreground">
+                        <span
+                          className="cursor-pointer font-mono text-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                          title={order.id}
+                          onClick={() => copyToClipboard(order.id)}
+                        >
                           {order.id.length > 16 ? `${order.id.slice(0, 8)}...${order.id.slice(-4)}` : order.id}
                         </span>
                         {order.is_risk_flagged && (
