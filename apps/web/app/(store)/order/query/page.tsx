@@ -7,14 +7,13 @@ import { Search, Copy, Download, FileText, CheckCircle2, X, Clock, HelpCircle, E
 import { toast } from "sonner"
 import { useLocale, useSiteConfig } from "@/lib/context"
 import type { TranslationKey } from "@/lib/i18n"
-import { orderApi, withMockFallback, getApiErrorMessage, setTurnstileHeaders } from "@/services/api"
+import { orderApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockQueryOrders, mockDeliver } from "@/lib/mock-data"
 import { OrderStatusBadge } from "@/components/shared/order-status-badge"
 import { PaymentIcon, getPaymentLabel } from "@/components/shared/payment-icon"
 import type { OrderBrief, DeliverResult, TxidVerifyResult } from "@/types"
 import { cn } from "@/lib/utils"
 import { Modal } from "@/components/ui/modal"
-import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
 
 interface RecentQuery {
   value: string
@@ -39,7 +38,7 @@ function formatTxidReason(reason: string, t: (key: TranslationKey) => string): s
 
 export default function OrderQueryPage() {
   const { t } = useLocale()
-  const { config, isLoading: configLoading } = useSiteConfig()
+  const { config } = useSiteConfig()
   const searchParams = useSearchParams()
   const [queryValue, setQueryValue] = useState("")
   const [orders, setOrders] = useState<OrderBrief[]>([])
@@ -55,59 +54,26 @@ export default function OrderQueryPage() {
   const [txidInput, setTxidInput] = useState("")
   const [txidSubmitting, setTxidSubmitting] = useState(false)
   const [txidResult, setTxidResult] = useState<Record<string, TxidVerifyResult>>({})
-  const { turnstileToken, setTurnstileToken, handleTurnstileReset } = useTurnstile()
-  // Ref 避免 doSearch 闭包捕获过期 token
-  const turnstileTokenRef = useRef(turnstileToken)
-  useEffect(() => { turnstileTokenRef.current = turnstileToken }, [turnstileToken])
 
-  // 判断 Turnstile 是否启用（后端返回了 site key）
-  const turnstileSiteKey = config ? (config as unknown as Record<string, unknown>).turnstile_site_key as string | undefined : undefined
-  const turnstileEnabled = !!turnstileSiteKey
-
-  // 待自动查询的 orderId（从 URL 参数来），等 Turnstile 就绪后自动执行
-  const [pendingAutoQuery, setPendingAutoQuery] = useState<{ value: string; recent: RecentQuery[] } | null>(null)
-
-  // Load recent queries from localStorage（仅一次）
+  // Load recent queries + handle URL params on mount
   useEffect(() => {
     if (initRef.current) return
     initRef.current = true
 
+    let recent: RecentQuery[] = []
     try {
       const saved = localStorage.getItem("recentOrderQueries")
-      if (saved) setRecentQueries(JSON.parse(saved))
+      if (saved) recent = JSON.parse(saved)
     } catch { /* empty */ }
-  }, [])
+    setRecentQueries(recent)
 
-  // config 加载完成后，处理 URL 参数 orderId 的自动查询
-  // 必须等 config 加载完才能判断 Turnstile 是否启用
-  const autoQueryHandled = useRef(false)
-  useEffect(() => {
-    if (configLoading || autoQueryHandled.current) return
-    autoQueryHandled.current = true
-
+    // Auto-query from URL params
     const orderIdParam = searchParams.get("orderId")
-    if (!orderIdParam) return
-
-    setQueryValue(orderIdParam)
-    if (!turnstileEnabled) {
-      // Turnstile 未开启：直接查询（保持原有行为）
-      doSearch(orderIdParam, recentQueries)
-    } else if (turnstileToken) {
-      // Turnstile 已开启且 token 已就绪（极少数情况，如缓存的 token）
-      doSearch(orderIdParam, recentQueries)
-    } else {
-      // Turnstile 已开启但 token 未就绪：暂存查询意图
-      setPendingAutoQuery({ value: orderIdParam, recent: recentQueries })
+    if (orderIdParam) {
+      setQueryValue(orderIdParam)
+      doSearch(orderIdParam, recent)
     }
-  }, [configLoading, searchParams])
-
-  // Turnstile 开启时：token 就绪后自动执行挂起的查询
-  useEffect(() => {
-    if (pendingAutoQuery && turnstileToken) {
-      doSearch(pendingAutoQuery.value, pendingAutoQuery.recent)
-      setPendingAutoQuery(null)
-    }
-  }, [turnstileToken, pendingAutoQuery])
+  }, [searchParams])
 
   // Core search logic: query → deliver for DELIVERED orders
   const doSearch = useCallback(async (searchValue: string, currentRecent?: RecentQuery[]) => {
@@ -124,7 +90,6 @@ export default function OrderQueryPage() {
     setDeliverResults([])
 
     try {
-      setTurnstileHeaders(turnstileTokenRef.current)
       // Determine if input is email or order ID
       const isEmail = trimmed.includes("@")
       const queryParams = isEmail
@@ -167,6 +132,7 @@ export default function OrderQueryPage() {
           return updated
         })
       }
+
     } catch {
       // fallback already handled by withMockFallback
     } finally {
@@ -254,7 +220,6 @@ export default function OrderQueryPage() {
     if (!txid) return
     setTxidSubmitting(true)
     try {
-      setTurnstileHeaders(turnstileToken)
       const result = await orderApi.submitTxid(orderId, txid)
       setTxidResult(prev => ({ ...prev, [orderId]: result }))
       if (result.result === "AUTO_APPROVED") {
@@ -264,11 +229,10 @@ export default function OrderQueryPage() {
       }
     } catch (err) {
       toast.error(getApiErrorMessage(err, t))
-      handleTurnstileReset()
     } finally {
       setTxidSubmitting(false)
     }
-  }, [txidInput, t, doSearch, queryValue, turnstileToken, handleTurnstileReset])
+  }, [txidInput, t, doSearch, queryValue])
 
   return (
     <div className="mx-auto flex max-w-2xl flex-col gap-6">
@@ -315,16 +279,6 @@ export default function OrderQueryPage() {
           </button>
         </div>
       </div>
-
-      <Turnstile onSuccess={setTurnstileToken} onError={handleTurnstileReset} />
-
-      {/* Turnstile 等待提示：有挂起的自动查询但 token 尚未就绪 */}
-      {pendingAutoQuery && !turnstileToken && (
-        <div className="flex items-center justify-center gap-2 py-6">
-          <Loader2 className="h-5 w-5 animate-spin text-primary" />
-          <span className="text-sm text-muted-foreground">{t("order.waitingVerification")}</span>
-        </div>
-      )}
 
       {/* Results — 有查询结果时优先展示在最近订单上方 */}
       {isSearching && (

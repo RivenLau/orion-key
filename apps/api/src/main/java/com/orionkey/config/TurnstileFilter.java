@@ -17,10 +17,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.web.client.RestTemplate;
 
 import java.io.IOException;
-import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.regex.Pattern;
 
 /**
  * Cloudflare Turnstile 人机验证 Filter。
@@ -47,21 +45,18 @@ public class TurnstileFilter implements Filter {
     private static final String SITEVERIFY_URL = "https://challenges.cloudflare.com/turnstile/v0/siteverify";
     private static final int TIMEOUT_MS = 3000;
 
-    /** 精确匹配路径（含 context-path /api） */
-    /** deliver 不需要 Turnstile：它是 query 的程序化后续调用（query 已验证），且有 deviceId 限流保护 */
+    /**
+     * Turnstile 保护的路径（一次性高风险操作）。
+     * <p>
+     * 订单查询/TXID 提交不在此列：它们是同一页面可重复触发的"查看"操作，
+     * Cloudflare token 单次消费特性会导致连续操作失败。
+     * 这些路径已有设备指纹限流（query: 20次/h, txid: 5次/h + 3次/24h/订单）保护。
+     */
     private static final Set<String> EXACT_PATHS = Set.of(
             "/api/orders",
             "/api/orders/from-cart",
-            "/api/orders/query",
             "/api/auth/login",
             "/api/auth/register"
-    );
-
-    /** 正则匹配路径（含动态路径段） */
-    /** repay 不需要 Turnstile：用户在结算页已通过验证，repay 仅重新生成支付链接，风险低 */
-    /** export 不需要 Turnstile：仅导出已发货订单的卡密，有设备指纹限流保护 */
-    private static final List<Pattern> PATTERN_PATHS = List.of(
-            Pattern.compile("^/api/orders/[^/]+/txid-verify$")
     );
 
     /** 开关配置缓存（60 秒刷新） */
@@ -117,17 +112,7 @@ public class TurnstileFilter implements Filter {
         if (!"POST".equalsIgnoreCase(method)) {
             return false;
         }
-
-        if (EXACT_PATHS.contains(path)) {
-            return true;
-        }
-
-        for (Pattern p : PATTERN_PATHS) {
-            if (p.matcher(path).matches()) {
-                return true;
-            }
-        }
-        return false;
+        return EXACT_PATHS.contains(path);
     }
 
     private static RestTemplate createTurnstileRestTemplate() {
