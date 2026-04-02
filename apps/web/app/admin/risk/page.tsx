@@ -16,18 +16,18 @@ export default function AdminRiskPage() {
   const [config, setConfig] = useState<RiskConfig>({
     turnstile_enabled: false,
     device_rate_limit_enabled: false,
-    device_order_limit_per_hour: 10,
+    device_order_limit_per_hour: 15,
     device_txid_limit_per_hour: 5,
     txid_submit_limit_per_order: 3,
-    device_query_limit_per_hour: 20,
+    device_query_limit_per_hour: 50,
     device_login_limit_per_hour: 10,
-    device_register_limit_per_hour: 5,
-    rate_limit_per_second: 10,
+    device_register_limit_per_hour: 10,
+    rate_limit_per_second: 25,
     login_attempt_limit: 5,
-    max_purchase_per_user: 10,
+    max_purchase_per_user: 50,
     order_expire_minutes: 15,
-    max_pending_orders_per_ip: 3,
-    max_pending_orders_per_user: 3,
+    max_pending_orders_per_ip: 5,
+    max_pending_orders_per_user: 5,
   })
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
@@ -251,7 +251,7 @@ export default function AdminRiskPage() {
                   { key: "device_order_limit_per_hour" as const, label: "下单频率上限 (次/小时/设备)" },
                   { key: "device_txid_limit_per_hour" as const, label: "TXID 提交上限 (次/小时/设备)" },
                   { key: "txid_submit_limit_per_order" as const, label: "TXID 提交上限 (次/订单)" },
-                  { key: "device_query_limit_per_hour" as const, label: "查询频率上限 (次/小时/设备)" },
+                  { key: "device_query_limit_per_hour" as const, label: "订单查询频率上限 (次/小时/设备)" },
                   { key: "device_login_limit_per_hour" as const, label: "登录频率上限 (次/小时/设备)" },
                   { key: "device_register_limit_per_hour" as const, label: "注册频率上限 (次/小时/设备)" },
                 ].map((item) => (
