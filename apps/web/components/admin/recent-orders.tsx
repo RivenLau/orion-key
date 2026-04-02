@@ -64,16 +64,18 @@ export function RecentOrders({ orders }: { orders: AdminOrderItem[] }) {
                     {order.id.length > 20 ? `${order.id.slice(0, 8)}...${order.id.slice(-8)}` : order.id}
                   </span>
                 </td>
-                <td className="py-3 truncate text-sm text-foreground" title={
-                  (order.items?.[0]?.product_title || "-") + (order.items?.[0]?.spec_name ? ` - ${order.items[0].spec_name}` : "") + ((order.items?.length ?? 0) > 1 ? ` 等${order.items.length}件` : "")
-                }>
-                  {order.items?.[0]?.product_title || "-"}
-                  {order.items?.[0]?.spec_name && (
-                    <span className="text-muted-foreground"> - {order.items[0].spec_name}</span>
-                  )}
-                  {(order.items?.length ?? 0) > 1 && (
-                    <span className="ml-1 text-xs text-muted-foreground">等{order.items.length}件</span>
-                  )}
+                <td className="py-3 text-sm text-foreground">
+                  <div className="max-w-[80%] truncate" title={
+                    (order.items?.[0]?.product_title || "-") + (order.items?.[0]?.spec_name ? ` - ${order.items[0].spec_name}` : "") + ((order.items?.length ?? 0) > 1 ? ` 等${order.items.length}件` : "")
+                  }>
+                    {order.items?.[0]?.product_title || "-"}
+                    {order.items?.[0]?.spec_name && (
+                      <span className="text-muted-foreground"> - {order.items[0].spec_name}</span>
+                    )}
+                    {(order.items?.length ?? 0) > 1 && (
+                      <span className="ml-1 text-xs text-muted-foreground">等{order.items.length}件</span>
+                    )}
+                  </div>
                 </td>
                 <td className="py-3 truncate text-foreground" title={order.username || order.email}>{order.username || order.email}</td>
                 <td className="py-3 font-medium text-foreground">¥{order.actual_amount.toFixed(2)}</td>
