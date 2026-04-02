@@ -21,8 +21,7 @@ import {
 import { QRCodeSVG } from "qrcode.react"
 import { toast } from "sonner"
 import { useLocale, useCart, useSiteConfig } from "@/lib/context"
-import { orderApi, setTurnstileHeaders } from "@/services/api"
-import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
+import { orderApi } from "@/services/api"
 import type { OrderStatus } from "@/types"
 import { cn, detectPaymentDevice, isMobileDevice } from "@/lib/utils"
 import { PaymentIcon, getPaymentLabel, getPaymentBrandColor, getPaymentScanHint } from "@/components/shared/payment-icon"
@@ -48,7 +47,6 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   const [retrying, setRetrying] = useState(false)
   // 标记是否已经跳转过支付 App（从 sessionStorage 初始化，防止返回后文案错误）
   const [hasRedirected, setHasRedirected] = useState(false)
-  const { turnstileToken, setTurnstileToken, handleTurnstileReset } = useTurnstile()
 
   const isMobile = isMobileDevice()
 
@@ -185,7 +183,6 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     if (retrying) return
     setRetrying(true)
     try {
-      setTurnstileHeaders(turnstileToken)
       const device = detectPaymentDevice()
       const result = await orderApi.repay(orderId, device)
       // 更新支付链接
@@ -203,11 +200,10 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("common.error")
       toast.error(msg)
-      handleTurnstileReset()
     } finally {
       setRetrying(false)
     }
-  }, [retrying, orderId, isMobile, t, turnstileToken, handleTurnstileReset])
+  }, [retrying, orderId, isMobile, t])
 
   const copyToClipboard = useCallback((text: string) => {
     if (navigator.clipboard?.writeText) {
@@ -310,8 +306,6 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             {timeLeft < 0 ? "--:--" : formatTime(timeLeft)}
           </span>
         </div>
-
-        <Turnstile onSuccess={setTurnstileToken} onError={handleTurnstileReset} className="mb-2" />
 
         {isUsdtPayment ? (
           /* ========== USDT 支付视图（紧凑居中布局） ========== */

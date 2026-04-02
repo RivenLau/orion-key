@@ -39,7 +39,7 @@ function formatTxidReason(reason: string, t: (key: TranslationKey) => string): s
 
 export default function OrderQueryPage() {
   const { t } = useLocale()
-  const { config } = useSiteConfig()
+  const { config, isLoading: configLoading } = useSiteConfig()
   const searchParams = useSearchParams()
   const [queryValue, setQueryValue] = useState("")
   const [orders, setOrders] = useState<OrderBrief[]>([])
@@ -60,25 +60,54 @@ export default function OrderQueryPage() {
   const turnstileTokenRef = useRef(turnstileToken)
   useEffect(() => { turnstileTokenRef.current = turnstileToken }, [turnstileToken])
 
-  // Load recent queries + handle URL params on mount
+  // 判断 Turnstile 是否启用（后端返回了 site key）
+  const turnstileSiteKey = config ? (config as unknown as Record<string, unknown>).turnstile_site_key as string | undefined : undefined
+  const turnstileEnabled = !!turnstileSiteKey
+
+  // 待自动查询的 orderId（从 URL 参数来），等 Turnstile 就绪后自动执行
+  const [pendingAutoQuery, setPendingAutoQuery] = useState<{ value: string; recent: RecentQuery[] } | null>(null)
+
+  // Load recent queries from localStorage（仅一次）
   useEffect(() => {
     if (initRef.current) return
     initRef.current = true
 
-    let recent: RecentQuery[] = []
     try {
       const saved = localStorage.getItem("recentOrderQueries")
-      if (saved) recent = JSON.parse(saved)
+      if (saved) setRecentQueries(JSON.parse(saved))
     } catch { /* empty */ }
-    setRecentQueries(recent)
+  }, [])
 
-    // Auto-query from URL params
+  // config 加载完成后，处理 URL 参数 orderId 的自动查询
+  // 必须等 config 加载完才能判断 Turnstile 是否启用
+  const autoQueryHandled = useRef(false)
+  useEffect(() => {
+    if (configLoading || autoQueryHandled.current) return
+    autoQueryHandled.current = true
+
     const orderIdParam = searchParams.get("orderId")
-    if (orderIdParam) {
-      setQueryValue(orderIdParam)
-      doSearch(orderIdParam, recent)
+    if (!orderIdParam) return
+
+    setQueryValue(orderIdParam)
+    if (!turnstileEnabled) {
+      // Turnstile 未开启：直接查询（保持原有行为）
+      doSearch(orderIdParam, recentQueries)
+    } else if (turnstileToken) {
+      // Turnstile 已开启且 token 已就绪（极少数情况，如缓存的 token）
+      doSearch(orderIdParam, recentQueries)
+    } else {
+      // Turnstile 已开启但 token 未就绪：暂存查询意图
+      setPendingAutoQuery({ value: orderIdParam, recent: recentQueries })
     }
-  }, [searchParams])
+  }, [configLoading, searchParams])
+
+  // Turnstile 开启时：token 就绪后自动执行挂起的查询
+  useEffect(() => {
+    if (pendingAutoQuery && turnstileToken) {
+      doSearch(pendingAutoQuery.value, pendingAutoQuery.recent)
+      setPendingAutoQuery(null)
+    }
+  }, [turnstileToken, pendingAutoQuery])
 
   // Core search logic: query → deliver for DELIVERED orders
   const doSearch = useCallback(async (searchValue: string, currentRecent?: RecentQuery[]) => {
@@ -288,6 +317,14 @@ export default function OrderQueryPage() {
       </div>
 
       <Turnstile onSuccess={setTurnstileToken} onError={handleTurnstileReset} />
+
+      {/* Turnstile 等待提示：有挂起的自动查询但 token 尚未就绪 */}
+      {pendingAutoQuery && !turnstileToken && (
+        <div className="flex items-center justify-center gap-2 py-6">
+          <Loader2 className="h-5 w-5 animate-spin text-primary" />
+          <span className="text-sm text-muted-foreground">{t("order.waitingVerification")}</span>
+        </div>
+      )}
 
       {/* Results — 有查询结果时优先展示在最近订单上方 */}
       {isSearching && (

@@ -141,7 +141,7 @@ export default function AdminRiskPage() {
           <div className="flex flex-1 flex-col gap-6">
             {/* Turnstile (人机验证) */}
             <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-              <h3 className="mb-4 font-semibold text-foreground">人机验证 (Turnstile)</h3>
+              <h3 className="mb-4 font-semibold text-foreground">人机验证 (Cloudflare Turnstile)</h3>
               <div className="flex items-center justify-between">
                 <div>
                   <label className="text-sm font-medium text-foreground">启用 Turnstile</label>

@@ -58,10 +58,10 @@ public class TurnstileFilter implements Filter {
     );
 
     /** 正则匹配路径（含动态路径段） */
+    /** repay 不需要 Turnstile：用户在结算页已通过验证，repay 仅重新生成支付链接，风险低 */
+    /** export 不需要 Turnstile：仅导出已发货订单的卡密，有设备指纹限流保护 */
     private static final List<Pattern> PATTERN_PATHS = List.of(
-            Pattern.compile("^/api/orders/[^/]+/txid-verify$"),
-            Pattern.compile("^/api/orders/[^/]+/repay$"),
-            Pattern.compile("^/api/orders/[^/]+/export$")
+            Pattern.compile("^/api/orders/[^/]+/txid-verify$")
     );
 
     /** 开关配置缓存（60 秒刷新） */
@@ -114,16 +114,6 @@ public class TurnstileFilter implements Filter {
     }
 
     private boolean shouldVerify(String path, String method) {
-        // export 是 GET，其余都是 POST
-        if ("GET".equalsIgnoreCase(method)) {
-            for (Pattern p : PATTERN_PATHS) {
-                if (p.matcher(path).matches() && path.endsWith("/export")) {
-                    return true;
-                }
-            }
-            return false;
-        }
-
         if (!"POST".equalsIgnoreCase(method)) {
             return false;
         }
