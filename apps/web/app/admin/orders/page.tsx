@@ -226,6 +226,9 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3">
                       <span className="text-sm text-foreground">
                         {order.items?.[0]?.product_title || "-"}
+                        {order.items?.[0]?.spec_name && (
+                          <span className="text-muted-foreground"> - {order.items[0].spec_name}</span>
+                        )}
                         {(order.items?.length ?? 0) > 1 && (
                           <span className="ml-1 text-xs text-muted-foreground">等{order.items.length}件</span>
                         )}
@@ -366,7 +369,7 @@ export default function AdminOrdersPage() {
                   <span className="text-xs text-muted-foreground">商品名称</span>
                   <span className="text-sm font-medium text-foreground">
                     {showDetail.items.length > 0
-                      ? showDetail.items[0].product_title + (showDetail.items.length > 1 ? ` 等${showDetail.items.length}件` : "")
+                      ? (showDetail.items[0].product_title + (showDetail.items[0].spec_name ? ` - ${showDetail.items[0].spec_name}` : "") + (showDetail.items.length > 1 ? ` 等${showDetail.items.length}件` : ""))
                       : "-"}
                   </span>
                 </div>
