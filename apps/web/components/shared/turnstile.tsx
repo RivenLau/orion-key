@@ -1,7 +1,7 @@
 "use client"
 
 import { useEffect, useRef, useCallback, useState } from "react"
-import { useSiteConfig } from "@/lib/context"
+import { useSiteConfig, useTheme } from "@/lib/context"
 
 const TURNSTILE_SCRIPT_URL = "https://challenges.cloudflare.com/turnstile/v0/api.js?render=explicit"
 
@@ -57,6 +57,7 @@ export function Turnstile({ onSuccess, onError, className }: TurnstileProps) {
   const containerRef = useRef<HTMLDivElement>(null)
   const widgetIdRef = useRef<string | null>(null)
   const { config } = useSiteConfig()
+  const { resolvedTheme } = useTheme()
   // 从后端 /api/site/config 获取 site key（运行时读取，不依赖构建时环境变量）
   // turnstile_site_key 是后端动态注入的字段，不在 SiteConfig 接口定义中
   const siteKey = config ? (config as unknown as Record<string, unknown>).turnstile_site_key as string | undefined : undefined
@@ -87,7 +88,7 @@ export function Turnstile({ onSuccess, onError, className }: TurnstileProps) {
         callback: (token: string) => onSuccess(token),
         "error-callback": () => onError?.(),
         "expired-callback": () => onError?.(),
-        theme: "auto",
+        theme: resolvedTheme === "dark" ? "dark" : "light",
         size: "flexible",
       })
     })
@@ -104,7 +105,7 @@ export function Turnstile({ onSuccess, onError, className }: TurnstileProps) {
         widgetIdRef.current = null
       }
     }
-  }, [siteKey, onSuccess, onError])
+  }, [siteKey, resolvedTheme, onSuccess, onError])
 
   // 无 site key 时不渲染（Turnstile 未配置/关闭）
   if (!siteKey) return null
