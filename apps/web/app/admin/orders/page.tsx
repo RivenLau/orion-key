@@ -364,22 +364,29 @@ export default function AdminOrdersPage() {
               </button>
             </div>
             <div className="flex flex-col gap-5 p-6">
-              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">商品名称</span>
-                  <span className="text-sm font-medium text-foreground">
-                    {showDetail.items.length > 0
-                      ? (showDetail.items[0].product_title + (showDetail.items[0].spec_name ? ` - ${showDetail.items[0].spec_name}` : "") + (showDetail.items.length > 1 ? ` 等${showDetail.items.length}件` : ""))
-                      : "-"}
-                  </span>
+              {/* 商品明细 */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">商品明细</p>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  {showDetail.items.length > 0 ? showDetail.items.map((item, idx) => (
+                    <div key={item.id} className={cn("flex items-center justify-between px-3 py-2 text-sm", idx > 0 && "border-t border-border/50")}>
+                      <span className="text-foreground">
+                        {item.product_title}
+                        {item.spec_name && <span className="text-muted-foreground"> - {item.spec_name}</span>}
+                        <span className="ml-2 text-muted-foreground">×{item.quantity}</span>
+                      </span>
+                      <span className="font-medium text-foreground">¥{item.subtotal.toFixed(2)}</span>
+                    </div>
+                  )) : (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">-</div>
+                  )}
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-muted-foreground">支付金额</span>
                   <span className="text-sm font-medium text-foreground">¥{showDetail.actual_amount.toFixed(2)}</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">联系邮箱</span>
-                  <span className="text-sm text-foreground">{showDetail.email}</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-muted-foreground">支付方式</span>
@@ -387,6 +394,10 @@ export default function AdminOrdersPage() {
                     <PaymentIcon method={showDetail.payment_method} className="h-4 w-4" />
                     {getPaymentLabel(showDetail.payment_method)}
                   </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">联系邮箱</span>
+                  <span className="text-sm text-foreground">{showDetail.email}</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-muted-foreground">创建时间</span>
@@ -402,13 +413,46 @@ export default function AdminOrdersPage() {
               {showDetail.status === "DELIVERED" && detailCardKeys.length > 0 && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">已发卡密</p>
-                  <div className="flex flex-col gap-1.5">
-                    {detailCardKeys.map((ck) => (
-                      <div key={ck.card_key_id} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                        <code className="text-sm text-foreground">{ck.content}</code>
+                  {(() => {
+                    // 判断是否多商品：按 product_title + spec_name 去重
+                    const groups = new Map<string, typeof detailCardKeys>()
+                    for (const ck of detailCardKeys) {
+                      const key = ck.product_title + (ck.spec_name ? ` - ${ck.spec_name}` : "")
+                      if (!groups.has(key)) groups.set(key, [])
+                      groups.get(key)!.push(ck)
+                    }
+                    const isMultiGroup = groups.size > 1
+
+                    if (!isMultiGroup) {
+                      // 单商品：直接平铺卡密
+                      return (
+                        <div className="flex flex-col gap-1.5">
+                          {detailCardKeys.map((ck) => (
+                            <div key={ck.card_key_id} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                              <code className="text-sm text-foreground">{ck.content}</code>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                    // 多商品：按商品分组
+                    return (
+                      <div className="flex flex-col gap-3">
+                        {Array.from(groups.entries()).map(([groupName, keys]) => (
+                          <div key={groupName}>
+                            <p className="mb-1.5 text-xs font-medium text-muted-foreground">{groupName}</p>
+                            <div className="flex flex-col gap-1.5">
+                              {keys.map((ck) => (
+                                <div key={ck.card_key_id} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                                  <code className="text-sm text-foreground">{ck.content}</code>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
