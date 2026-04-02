@@ -4,6 +4,7 @@ import com.orionkey.entity.Product;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.Modifying;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
@@ -44,4 +45,11 @@ public interface ProductRepository extends JpaRepository<Product, UUID> {
                                              Pageable pageable);
 
     long countByCategoryIdAndIsDeleted(UUID categoryId, int isDeleted);
+
+    // 一次性迁移：将已有规格的商品自动设置 spec_enabled=true
+    @Modifying
+    @Query("UPDATE Product p SET p.specEnabled = true WHERE p.specEnabled = false " +
+            "AND p.isDeleted = 0 AND EXISTS (" +
+            "SELECT 1 FROM ProductSpec s WHERE s.productId = p.id AND s.isDeleted = 0)")
+    int migrateSpecEnabled();
 }

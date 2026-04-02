@@ -16,6 +16,29 @@ const ITEMS_PER_PAGE = 10
 
 export default function AdminOrdersPage() {
   const { t } = useLocale()
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => toast.success(t("order.copied")),
+        () => fallbackCopy(text)
+      )
+    } else {
+      fallbackCopy(text)
+    }
+    function fallbackCopy(val: string) {
+      const ta = document.createElement("textarea")
+      ta.value = val
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand("copy")
+      document.body.removeChild(ta)
+      toast.success(t("order.copied"))
+    }
+  }
+
   const [orders, setOrders] = useState<AdminOrderItem[]>([])
   const [total, setTotal] = useState(0)
   const [loading, setLoading] = useState(true)
@@ -28,6 +51,7 @@ export default function AdminOrdersPage() {
   const [detailCardKeys, setDetailCardKeys] = useState<OrderCardKey[]>([])
 
   const [debouncedSearch, setDebouncedSearch] = useState("")
+  const [markPaidConfirm, setMarkPaidConfirm] = useState<string | null>(null)
 
   const fetchOrders = async () => {
     setLoading(true)
@@ -96,6 +120,7 @@ export default function AdminOrdersPage() {
         () => null
       )
       toast.success("已标记为已支付")
+      setMarkPaidConfirm(null)
       setShowDetail(null)
       await fetchOrders()
     } catch (err: unknown) {
@@ -213,7 +238,11 @@ export default function AdminOrdersPage() {
                   <tr key={order.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                     <td className="px-4 py-3">
                       <div className="flex items-center gap-1.5">
-                        <span className="font-mono text-xs font-medium text-foreground">
+                        <span
+                          className="cursor-pointer font-mono text-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                          title={order.id}
+                          onClick={() => copyToClipboard(order.id)}
+                        >
                           {order.id.length > 16 ? `${order.id.slice(0, 8)}...${order.id.slice(-4)}` : order.id}
                         </span>
                         {order.is_risk_flagged && (
@@ -224,6 +253,9 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3">
                       <span className="text-sm text-foreground">
                         {order.items?.[0]?.product_title || "-"}
+                        {order.items?.[0]?.spec_name && (
+                          <span className="text-muted-foreground"> - {order.items[0].spec_name}</span>
+                        )}
                         {(order.items?.length ?? 0) > 1 && (
                           <span className="ml-1 text-xs text-muted-foreground">等{order.items.length}件</span>
                         )}
@@ -260,7 +292,7 @@ export default function AdminOrdersPage() {
                     <td className="px-4 py-3">
                       <OrderStatusBadge status={order.status} />
                     </td>
-                    <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
+                    <td className="px-4 py-3 text-sm text-muted-foreground whitespace-nowrap">
                       {new Date(order.created_at).toLocaleString()}
                     </td>
                     <td className="px-4 py-3">
@@ -276,7 +308,7 @@ export default function AdminOrdersPage() {
                         {order.status === "PENDING" && (
                           <button
                             type="button"
-                            onClick={() => handleMarkPaid(order.id)}
+                            onClick={() => setMarkPaidConfirm(order.id)}
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
                             title={t("admin.markPaid")}
                           >
@@ -359,22 +391,29 @@ export default function AdminOrdersPage() {
               </button>
             </div>
             <div className="flex flex-col gap-5 p-6">
-              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">商品名称</span>
-                  <span className="text-sm font-medium text-foreground">
-                    {showDetail.items.length > 0
-                      ? showDetail.items[0].product_title + (showDetail.items.length > 1 ? ` 等${showDetail.items.length}件` : "")
-                      : "-"}
-                  </span>
+              {/* 商品明细 */}
+              <div>
+                <p className="text-xs text-muted-foreground mb-2">商品明细</p>
+                <div className="rounded-lg border border-border overflow-hidden">
+                  {showDetail.items.length > 0 ? showDetail.items.map((item, idx) => (
+                    <div key={item.id} className={cn("flex items-center justify-between px-3 py-2 text-sm", idx > 0 && "border-t border-border/50")}>
+                      <span className="text-foreground">
+                        {item.product_title}
+                        {item.spec_name && <span className="text-muted-foreground"> - {item.spec_name}</span>}
+                        <span className="ml-2 text-muted-foreground">×{item.quantity}</span>
+                      </span>
+                      <span className="font-medium text-foreground">¥{item.subtotal.toFixed(2)}</span>
+                    </div>
+                  )) : (
+                    <div className="px-3 py-2 text-sm text-muted-foreground">-</div>
+                  )}
                 </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-x-8 gap-y-4">
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-muted-foreground">支付金额</span>
                   <span className="text-sm font-medium text-foreground">¥{showDetail.actual_amount.toFixed(2)}</span>
-                </div>
-                <div className="flex flex-col gap-1">
-                  <span className="text-xs text-muted-foreground">联系邮箱</span>
-                  <span className="text-sm text-foreground">{showDetail.email}</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-muted-foreground">支付方式</span>
@@ -382,6 +421,10 @@ export default function AdminOrdersPage() {
                     <PaymentIcon method={showDetail.payment_method} className="h-4 w-4" />
                     {getPaymentLabel(showDetail.payment_method)}
                   </span>
+                </div>
+                <div className="flex flex-col gap-1">
+                  <span className="text-xs text-muted-foreground">联系邮箱</span>
+                  <span className="text-sm text-foreground">{showDetail.email}</span>
                 </div>
                 <div className="flex flex-col gap-1">
                   <span className="text-xs text-muted-foreground">创建时间</span>
@@ -397,26 +440,50 @@ export default function AdminOrdersPage() {
               {showDetail.status === "DELIVERED" && detailCardKeys.length > 0 && (
                 <div>
                   <p className="text-xs text-muted-foreground mb-2">已发卡密</p>
-                  <div className="flex flex-col gap-1.5">
-                    {detailCardKeys.map((ck) => (
-                      <div key={ck.card_key_id} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
-                        <code className="text-sm text-foreground">{ck.content}</code>
+                  {(() => {
+                    // 判断是否多商品：按 product_title + spec_name 去重
+                    const groups = new Map<string, typeof detailCardKeys>()
+                    for (const ck of detailCardKeys) {
+                      const key = ck.product_title + (ck.spec_name ? ` - ${ck.spec_name}` : "")
+                      if (!groups.has(key)) groups.set(key, [])
+                      groups.get(key)!.push(ck)
+                    }
+                    const isMultiGroup = groups.size > 1
+
+                    if (!isMultiGroup) {
+                      // 单商品：直接平铺卡密
+                      return (
+                        <div className="flex flex-col gap-1.5">
+                          {detailCardKeys.map((ck) => (
+                            <div key={ck.card_key_id} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                              <code className="text-sm text-foreground">{ck.content}</code>
+                            </div>
+                          ))}
+                        </div>
+                      )
+                    }
+                    // 多商品：按商品分组
+                    return (
+                      <div className="flex flex-col gap-3">
+                        {Array.from(groups.entries()).map(([groupName, keys]) => (
+                          <div key={groupName}>
+                            <p className="mb-1.5 text-xs font-medium text-muted-foreground">{groupName}</p>
+                            <div className="flex flex-col gap-1.5">
+                              {keys.map((ck) => (
+                                <div key={ck.card_key_id} className="rounded-lg border border-border bg-muted/30 px-3 py-2">
+                                  <code className="text-sm text-foreground">{ck.content}</code>
+                                </div>
+                              ))}
+                            </div>
+                          </div>
+                        ))}
                       </div>
-                    ))}
-                  </div>
+                    )
+                  })()}
                 </div>
               )}
             </div>
             <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
-              {showDetail.status === "PENDING" && (
-                <button
-                  type="button"
-                  className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
-                  onClick={() => handleMarkPaid(showDetail.id)}
-                >
-                  {t("admin.markPaid")}
-                </button>
-              )}
               <button
                 type="button"
                 className="rounded-lg border border-input bg-transparent px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
@@ -424,9 +491,44 @@ export default function AdminOrdersPage() {
               >
                 {t("common.close")}
               </button>
+              {showDetail.status === "PENDING" && (
+                <button
+                  type="button"
+                  className="rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+                  onClick={() => setMarkPaidConfirm(showDetail.id)}
+                >
+                  {t("admin.markPaid")}
+                </button>
+              )}
             </div>
           </>
         )}
+      </Modal>
+
+      {/* Mark Paid Confirmation */}
+      <Modal open={markPaidConfirm !== null} onClose={() => setMarkPaidConfirm(null)} className="max-w-sm">
+        <div className="flex flex-col items-center gap-4 p-6 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+            <CheckCircle className="h-6 w-6 text-emerald-600" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground">{t("admin.markPaidConfirm")}</h3>
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              className="flex-1 rounded-lg border border-input bg-transparent px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+              onClick={() => setMarkPaidConfirm(null)}
+            >
+              {t("admin.cancel")}
+            </button>
+            <button
+              type="button"
+              className="flex-1 rounded-lg bg-primary px-4 py-2 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors"
+              onClick={() => markPaidConfirm && handleMarkPaid(markPaidConfirm)}
+            >
+              {t("admin.markPaidBtn")}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

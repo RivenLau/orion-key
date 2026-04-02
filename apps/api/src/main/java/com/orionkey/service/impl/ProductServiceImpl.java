@@ -52,7 +52,12 @@ public class ProductServiceImpl implements ProductService {
         Product product = productRepository.findById(id)
                 .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在或已下架"));
-        return toProductDetail(product);
+        Map<String, Object> detail = toProductDetail(product);
+        // 前台公开接口：多规格未启用时隐藏规格信息，防止泄露未启用的规格数据
+        if (!product.isSpecEnabled()) {
+            detail.put("specs", List.of());
+        }
+        return detail;
     }
 
     @Override
@@ -105,6 +110,7 @@ public class ProductServiceImpl implements ProductService {
         product.setCategoryId(UUID.fromString((String) req.get("category_id")));
         if (req.containsKey("low_stock_threshold")) product.setLowStockThreshold(((Number) req.get("low_stock_threshold")).intValue());
         if (req.containsKey("wholesale_enabled")) product.setWholesaleEnabled((boolean) req.get("wholesale_enabled"));
+        if (req.containsKey("spec_enabled")) product.setSpecEnabled((boolean) req.get("spec_enabled"));
         if (req.containsKey("is_enabled")) product.setEnabled((boolean) req.get("is_enabled"));
         if (req.containsKey("initial_sales")) product.setInitialSales(((Number) req.get("initial_sales")).intValue());
         if (req.containsKey("sort_order")) product.setSortOrder(((Number) req.get("sort_order")).intValue());
@@ -128,6 +134,7 @@ public class ProductServiceImpl implements ProductService {
         if (req.containsKey("category_id")) product.setCategoryId(UUID.fromString((String) req.get("category_id")));
         if (req.containsKey("low_stock_threshold")) product.setLowStockThreshold(((Number) req.get("low_stock_threshold")).intValue());
         if (req.containsKey("wholesale_enabled")) product.setWholesaleEnabled((boolean) req.get("wholesale_enabled"));
+        if (req.containsKey("spec_enabled")) product.setSpecEnabled((boolean) req.get("spec_enabled"));
         if (req.containsKey("is_enabled")) product.setEnabled((boolean) req.get("is_enabled"));
         if (req.containsKey("initial_sales")) product.setInitialSales(((Number) req.get("initial_sales")).intValue());
         if (req.containsKey("sort_order")) product.setSortOrder(((Number) req.get("sort_order")).intValue());
@@ -155,9 +162,15 @@ public class ProductServiceImpl implements ProductService {
         productRepository.findById(productId)
                 .filter(p -> p.getIsDeleted() == 0)
                 .orElseThrow(() -> new BusinessException(ErrorCode.PRODUCT_NOT_FOUND, "商品不存在"));
+
+        String name = (String) req.get("name");
+        if (productSpecRepository.existsByProductIdAndNameAndIsDeleted(productId, name, 0)) {
+            throw new BusinessException(ErrorCode.SPEC_NAME_DUPLICATE, "同一商品下规格名称不能重复");
+        }
+
         ProductSpec spec = new ProductSpec();
         spec.setProductId(productId);
-        spec.setName((String) req.get("name"));
+        spec.setName(name);
         spec.setPrice(new BigDecimal(req.get("price").toString()));
         if (req.containsKey("is_visible")) spec.setVisible((boolean) req.get("is_visible"));
         if (req.containsKey("sort_order")) spec.setSortOrder(((Number) req.get("sort_order")).intValue());
@@ -170,7 +183,15 @@ public class ProductServiceImpl implements ProductService {
         ProductSpec spec = productSpecRepository.findById(specId)
                 .filter(s -> s.getProductId().equals(productId) && s.getIsDeleted() == 0)
                 .orElseThrow(() -> new BusinessException(ErrorCode.SPEC_NOT_FOUND, "规格不存在"));
-        if (req.containsKey("name")) spec.setName((String) req.get("name"));
+
+        if (req.containsKey("name")) {
+            String newName = (String) req.get("name");
+            if (!newName.equals(spec.getName())
+                    && productSpecRepository.existsByProductIdAndNameAndIsDeleted(productId, newName, 0)) {
+                throw new BusinessException(ErrorCode.SPEC_NAME_DUPLICATE, "同一商品下规格名称不能重复");
+            }
+            spec.setName(newName);
+        }
         if (req.containsKey("price")) spec.setPrice(new BigDecimal(req.get("price").toString()));
         if (req.containsKey("is_visible")) spec.setVisible((boolean) req.get("is_visible"));
         if (req.containsKey("sort_order")) spec.setSortOrder(((Number) req.get("sort_order")).intValue());
@@ -183,6 +204,11 @@ public class ProductServiceImpl implements ProductService {
         ProductSpec spec = productSpecRepository.findById(specId)
                 .filter(s -> s.getProductId().equals(productId))
                 .orElseThrow(() -> new BusinessException(ErrorCode.SPEC_NOT_FOUND, "规格不存在"));
+
+        // 自动作废该规格下的可用卡密（AVAILABLE → INVALID），避免留下永远无法售出的幽灵库存
+        cardKeyRepository.updateStatusByProductIdAndSpecId(
+                productId, specId, CardKeyStatus.AVAILABLE, CardKeyStatus.INVALID);
+
         spec.setIsDeleted(1);
         productSpecRepository.save(spec);
     }
@@ -237,12 +263,19 @@ public class ProductServiceImpl implements ProductService {
         map.put("currency", p.getCurrency());
         map.put("category_id", p.getCategoryId());
         List<ProductSpec> specs = productSpecRepository.findByProductIdAndIsDeletedOrderBySortOrderAsc(p.getId(), 0);
-        // For products with specs, sum stock across all specs; for products without specs, count spec-null keys
-        long stockAvailable = specs.isEmpty()
-                ? cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(p.getId(), CardKeyStatus.AVAILABLE)
-                : cardKeyRepository.countByProductIdAndStatus(p.getId(), CardKeyStatus.AVAILABLE);
+        boolean hasSpecs = p.isSpecEnabled() && !specs.isEmpty();
+        long stockAvailable;
+        if (hasSpecs) {
+            // 多规格模式：按各规格分别统计可用库存求和（精确隔离，不含默认库存池和已删除规格的卡密）
+            stockAvailable = specs.stream()
+                    .mapToLong(s -> cardKeyRepository.countByProductIdAndSpecIdAndStatus(p.getId(), s.getId(), CardKeyStatus.AVAILABLE))
+                    .sum();
+        } else {
+            // 无规格模式：仅统计 spec_id=null 的卡密
+            stockAvailable = cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(p.getId(), CardKeyStatus.AVAILABLE);
+        }
         map.put("stock_available", stockAvailable);
-        map.put("has_specs", !specs.isEmpty());
+        map.put("has_specs", hasSpecs);
         map.put("delivery_type", p.getDeliveryType());
         map.put("sales_count", orderItemRepository.sumQuantityByProductId(p.getId()));
         map.put("initial_sales", p.getInitialSales());
@@ -255,6 +288,7 @@ public class ProductServiceImpl implements ProductService {
         map.put("detail_md", p.getDetailMd());
         List<ProductSpec> specs = productSpecRepository.findByProductIdAndIsDeletedOrderBySortOrderAsc(p.getId(), 0);
         map.put("specs", specs.stream().map(this::toSpecMap).toList());
+        map.put("spec_enabled", p.isSpecEnabled());
         map.put("wholesale_enabled", p.isWholesaleEnabled());
         map.put("wholesale_rules", wholesaleRuleRepository.findByProductIdOrderByMinQuantityAsc(p.getId()).stream()
                 .map(r -> {
@@ -272,6 +306,9 @@ public class ProductServiceImpl implements ProductService {
         map.put("name", s.getName());
         map.put("price", s.getPrice());
         map.put("stock_available", getStockAvailable(s.getProductId(), s.getId()));
+        // 有效卡密数量（AVAILABLE/SOLD/LOCKED），用于前端判断删除规格时是否需要确认
+        map.put("card_key_count", cardKeyRepository.countByProductIdAndSpecIdExcludingStatus(
+                s.getProductId(), s.getId(), CardKeyStatus.INVALID));
         return map;
     }
 }

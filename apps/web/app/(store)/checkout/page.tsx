@@ -9,6 +9,8 @@ import { orderApi, paymentApi, withMockFallback, getApiErrorMessage } from "@/se
 import { mockPaymentChannels, mockCreateOrder } from "@/lib/mock-data"
 import { validateEmail, generateIdempotencyKey, getCurrencySymbol, detectPaymentDevice, isMobileDevice } from "@/lib/utils"
 import { PaymentSelector } from "@/components/shared/payment-selector"
+import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
+import { setTurnstileHeaders } from "@/services/api"
 import type { PaymentChannelItem } from "@/types"
 
 export default function CheckoutPage() {
@@ -21,6 +23,7 @@ export default function CheckoutPage() {
   const [selectedPayment, setSelectedPayment] = useState("")
   const [submitting, setSubmitting] = useState(false)
   const emailInputRef = useRef<HTMLInputElement>(null)
+  const { turnstileToken, setTurnstileToken, handleTurnstileReset } = useTurnstile()
 
   // Fetch payment channels on mount
   useEffect(() => {
@@ -64,6 +67,7 @@ export default function CheckoutPage() {
 
     setSubmitting(true)
     try {
+      setTurnstileHeaders(turnstileToken)
       const device = detectPaymentDevice()
       const result = await withMockFallback(
         () => orderApi.createFromCart({
@@ -99,6 +103,7 @@ export default function CheckoutPage() {
       router.push(payUrl)
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, t))
+      handleTurnstileReset()
     } finally {
       setSubmitting(false)
     }
@@ -184,6 +189,8 @@ export default function CheckoutPage() {
             <p>{t("checkout.securePaymentDesc")}</p>
           </div>
         </div>
+
+        <Turnstile onSuccess={setTurnstileToken} onError={handleTurnstileReset} className="mb-4" />
 
         {/* Confirm button */}
         <button

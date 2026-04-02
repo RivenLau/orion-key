@@ -68,7 +68,8 @@ export default function AdminProductsPage() {
     sort_order: "",
     delivery_type: "AUTO",
   })
-  const [formSpecs, setFormSpecs] = useState<{ id?: string; name: string; price: string }[]>([])
+  const [formSpecs, setFormSpecs] = useState<{ id?: string; name: string; price: string; card_key_count?: number }[]>([])
+  const [specDeleteConfirm, setSpecDeleteConfirm] = useState<{ idx: number; name: string; count: number } | null>(null)
 
   // Import modal state
   const [importSpecId, setImportSpecId] = useState("")
@@ -163,9 +164,10 @@ export default function AdminProductsPage() {
       id: s.id,
       name: s.name,
       price: String(s.price),
+      card_key_count: s.card_key_count,
     }))
     setFormSpecs(specs)
-    setSpecsEnabled(specs.length > 0)
+    setSpecsEnabled(product.spec_enabled === true)
     setShowModal(true)
   }
 
@@ -225,9 +227,13 @@ export default function AdminProductsPage() {
     setFormErrors({})
 
     if (specsEnabled) {
+      const specNames = new Set<string>()
       for (const spec of formSpecs) {
         if (!spec.name.trim()) { toast.error("规格名称不能为空"); return }
         if (!spec.price || parseFloat(spec.price) <= 0) { toast.error(`规格「${spec.name || "未命名"}」价格无效`); return }
+        const normalizedName = spec.name.trim()
+        if (specNames.has(normalizedName)) { toast.error(`规格名称「${normalizedName}」重复`); return }
+        specNames.add(normalizedName)
       }
     }
     setSaving(true)
@@ -251,6 +257,7 @@ export default function AdminProductsPage() {
         cover_url: formData.cover_url || undefined,
         low_stock_threshold: parseInt(formData.low_stock_threshold) || 10,
         wholesale_enabled: false,
+        spec_enabled: specsEnabled,
         is_enabled: formData.is_enabled,
         initial_sales: parseInt(formData.initial_sales) || 0,
         sort_order: parseInt(formData.sort_order) || undefined,
@@ -272,34 +279,32 @@ export default function AdminProductsPage() {
         productId = created.id
       }
 
-      // Sync specs
-      if (productId && productId !== "mock-id") {
+      // Sync specs：仅在多规格启用时执行增删改，停用时仅通过 spec_enabled=false 控制显示，不删除规格
+      if (productId && productId !== "mock-id" && specsEnabled) {
         const existingSpecs = editingProduct?.specs || []
         const existingIds = new Set(existingSpecs.map(s => s.id))
         const keepIds = new Set(formSpecs.filter(s => s.id).map(s => s.id!))
 
-        if (specsEnabled) {
-          // Delete removed specs
-          for (const oldSpec of existingSpecs) {
-            if (!keepIds.has(oldSpec.id)) {
-              try { await adminProductApi.deleteSpec(productId, oldSpec.id) } catch { /* ignore */ }
+        // Delete removed specs (backend will reject if spec has card keys)
+        for (const oldSpec of existingSpecs) {
+          if (!keepIds.has(oldSpec.id)) {
+            try {
+              await adminProductApi.deleteSpec(productId, oldSpec.id)
+            } catch (err: unknown) {
+              // 后端拒绝删除（有卡密）：提示用户但不中断保存流程
+              if (err instanceof Error) toast.error(err.message)
             }
           }
-          // Update existing + add new specs
-          for (const spec of formSpecs) {
-            if (spec.id && existingIds.has(spec.id)) {
-              const old = existingSpecs.find(s => s.id === spec.id)
-              if (old && (old.name !== spec.name || String(old.price) !== spec.price)) {
-                try { await adminProductApi.updateSpec(productId, spec.id, { name: spec.name, price: parseFloat(spec.price) }) } catch { /* ignore */ }
-              }
-            } else {
-              try { await adminProductApi.addSpec(productId, { name: spec.name, price: parseFloat(spec.price) }) } catch { /* ignore */ }
+        }
+        // Update existing + add new specs
+        for (const spec of formSpecs) {
+          if (spec.id && existingIds.has(spec.id)) {
+            const old = existingSpecs.find(s => s.id === spec.id)
+            if (old && (old.name !== spec.name || String(old.price) !== spec.price)) {
+              try { await adminProductApi.updateSpec(productId, spec.id, { name: spec.name, price: parseFloat(spec.price) }) } catch { /* ignore */ }
             }
-          }
-        } else {
-          // Specs disabled — delete all existing
-          for (const oldSpec of existingSpecs) {
-            try { await adminProductApi.deleteSpec(productId, oldSpec.id) } catch { /* ignore */ }
+          } else {
+            try { await adminProductApi.addSpec(productId, { name: spec.name, price: parseFloat(spec.price) }) } catch { /* ignore */ }
           }
         }
       }
@@ -320,6 +325,7 @@ export default function AdminProductsPage() {
     setFormData({ title: "", description: "", detail_md: "", category_id: "", base_price: "", currency: "CNY", cover_url: "", low_stock_threshold: "10", wholesale_enabled: false, is_enabled: true, initial_sales: "", sort_order: "", delivery_type: "AUTO" })
     setFormSpecs([])
     setSpecsEnabled(false)
+    setSpecDeleteConfirm(null)
     setFormErrors({})
   }
 
@@ -475,7 +481,7 @@ export default function AdminProductsPage() {
                         <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title="编辑" onClick={() => handleEdit(product)}>
                           <Edit className="h-4 w-4" />
                         </button>
-                        <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title="导入卡密" onClick={() => { setShowImportModal(product); setImportSpecId(product.specs[0]?.id || "") }}>
+                        <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title="导入卡密" onClick={() => { setShowImportModal(product); setImportSpecId("") }}>
                           <KeyRound className="h-4 w-4" />
                         </button>
                         <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={product.is_enabled !== false ? "下架" : "上架"} onClick={() => handleToggleStatus(product)}>
@@ -665,6 +671,7 @@ export default function AdminProductsPage() {
                     </button>
                   </div>
                 </div>
+                {/* 多规格启用时：可编辑 */}
                 {specsEnabled && (
                   <div className="rounded-lg border border-border bg-muted/20 p-3 flex flex-col gap-2">
                     {formSpecs.map((spec, idx) => (
@@ -695,7 +702,14 @@ export default function AdminProductsPage() {
                         <button
                           type="button"
                           className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                          onClick={() => setFormSpecs(prev => prev.filter((_, i) => i !== idx))}
+                          onClick={() => {
+                            const s = formSpecs[idx]
+                            if (s.id && s.card_key_count && s.card_key_count > 0) {
+                              setSpecDeleteConfirm({ idx, name: s.name, count: s.card_key_count })
+                            } else {
+                              setFormSpecs(prev => prev.filter((_, i) => i !== idx))
+                            }
+                          }}
                         >
                           <X className="h-4 w-4" />
                         </button>
@@ -709,6 +723,18 @@ export default function AdminProductsPage() {
                       <Plus className="h-3.5 w-3.5" />
                       添加规格
                     </button>
+                  </div>
+                )}
+                {/* 多规格停用但有已保存的规格时：只读置灰展示，提示规格和卡密已保留 */}
+                {!specsEnabled && formSpecs.length > 0 && formSpecs.some(s => s.id) && (
+                  <div className="rounded-lg border border-border bg-muted/30 p-3 flex flex-col gap-2 opacity-60">
+                    <p className="text-xs text-muted-foreground">以下规格及其卡密已保留，重新启用多规格后可继续使用</p>
+                    {formSpecs.filter(s => s.id).map((spec) => (
+                      <div key={spec.id} className="flex items-center gap-2">
+                        <span className="h-9 flex-1 rounded-lg border border-input bg-muted px-3 text-sm text-muted-foreground leading-9">{spec.name}</span>
+                        <span className="h-9 w-32 rounded-lg border border-input bg-muted px-3 text-sm text-muted-foreground leading-9">{spec.price}</span>
+                      </div>
+                    ))}
                   </div>
                 )}
               </div>
@@ -792,6 +818,32 @@ export default function AdminProductsPage() {
             </div>
       </Modal>
 
+      {/* Spec Delete Confirmation */}
+      <Modal open={specDeleteConfirm !== null} onClose={() => setSpecDeleteConfirm(null)} className="max-w-md">
+            <div className="flex flex-col gap-4 p-6">
+              <div className="flex items-start gap-3">
+                <div className="rounded-full bg-destructive/10 p-2"><AlertCircle className="h-5 w-5 text-destructive" /></div>
+                <div className="flex-1">
+                  <h3 className="text-base font-semibold text-foreground">确认删除规格</h3>
+                  {specDeleteConfirm && (
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      规格「{specDeleteConfirm.name}」下有 <span className="font-medium text-foreground">{specDeleteConfirm.count}</span> 个有效卡密，删除后可用卡密将自动作废，已售卡密保留在订单记录中。确认删除？
+                    </p>
+                  )}
+                </div>
+              </div>
+              <div className="flex justify-end gap-3">
+                <button type="button" className="rounded-lg border border-input bg-transparent px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors" onClick={() => setSpecDeleteConfirm(null)}>取消</button>
+                <button type="button" className="rounded-lg bg-destructive px-4 py-2 text-sm font-medium text-destructive-foreground hover:bg-destructive/90 transition-colors" onClick={() => {
+                  if (specDeleteConfirm) {
+                    setFormSpecs(prev => prev.filter((_, i) => i !== specDeleteConfirm.idx))
+                    setSpecDeleteConfirm(null)
+                  }
+                }}>确认删除</button>
+              </div>
+            </div>
+      </Modal>
+
       {/* Import Card Keys Modal */}
       <Modal open={showImportModal !== null} onClose={() => setShowImportModal(null)} className="max-w-2xl">
             <div className="border-b border-border px-6 py-4 flex items-center justify-between">
@@ -805,6 +857,7 @@ export default function AdminProductsPage() {
                 <div className="flex flex-col gap-1.5">
                   <label className="text-sm font-medium text-foreground">{t("admin.selectSpec")}</label>
                   <select className="h-10 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring" value={importSpecId} onChange={(e) => setImportSpecId(e.target.value)}>
+                    <option value="">默认规格</option>
                     {showImportModal.specs.map((spec) => (
                       <option key={spec.id} value={spec.id}>{spec.name}</option>
                     ))}
@@ -813,7 +866,7 @@ export default function AdminProductsPage() {
               )}
               <div className="flex flex-col gap-1.5">
                 <label className="text-sm font-medium text-foreground">{t("admin.importContent")}</label>
-                <textarea className="min-h-48 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground font-mono focus:outline-none focus:ring-2 focus:ring-ring" placeholder={"请输入卡密，每行一个\n例如：\nXXXX-YYYY-ZZZZ-AAAA\nBBBB-CCCC-DDDD-EEEE"} value={importContent} onChange={(e) => setImportContent(e.target.value)} />
+                <textarea className="min-h-48 rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground font-mono break-all focus:outline-none focus:ring-2 focus:ring-ring" placeholder={"请输入卡密，每行一个\n例如：\nXXXX-YYYY-ZZZZ-AAAA\nBBBB-CCCC-DDDD-EEEE"} value={importContent} onChange={(e) => setImportContent(e.target.value)} />
               </div>
               <p className="text-xs text-muted-foreground">提示：支持批量导入，每行一个卡密。导入后会自动增加对应的库存数量。</p>
             </div>

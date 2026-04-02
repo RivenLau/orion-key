@@ -24,6 +24,14 @@ public class RiskConfigServiceImpl implements RiskConfigService {
     private final OrderRepository orderRepository;
 
     private static final List<String> RISK_KEYS = List.of(
+            // 人机验证
+            "turnstile_enabled",
+            // 设备指纹限流
+            "device_rate_limit_enabled",
+            "device_order_limit_per_hour", "device_txid_limit_per_hour",
+            "txid_submit_limit_per_order", "device_query_limit_per_hour",
+            "device_login_limit_per_hour", "device_register_limit_per_hour",
+            // 已有配置
             "rate_limit_per_second", "login_attempt_limit", "max_purchase_per_user",
             "max_pending_orders_per_ip", "max_pending_orders_per_user", "order_expire_minutes"
     );
@@ -33,8 +41,14 @@ public class RiskConfigServiceImpl implements RiskConfigService {
         Map<String, Object> result = new LinkedHashMap<>();
         for (String key : RISK_KEYS) {
             siteConfigRepository.findByConfigKey(key).ifPresent(c -> {
-                try { result.put(key, Integer.parseInt(c.getConfigValue())); }
-                catch (NumberFormatException e) { result.put(key, c.getConfigValue()); }
+                String val = c.getConfigValue();
+                // boolean 类型配置项直接返回 boolean
+                if ("true".equalsIgnoreCase(val) || "false".equalsIgnoreCase(val)) {
+                    result.put(key, Boolean.parseBoolean(val));
+                } else {
+                    try { result.put(key, Integer.parseInt(val)); }
+                    catch (NumberFormatException e) { result.put(key, val); }
+                }
             });
         }
         return result;

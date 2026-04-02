@@ -21,7 +21,7 @@ import {
 import { QRCodeSVG } from "qrcode.react"
 import { toast } from "sonner"
 import { useLocale, useCart, useSiteConfig } from "@/lib/context"
-import { orderApi, withMockFallback } from "@/services/api"
+import { orderApi } from "@/services/api"
 import type { OrderStatus } from "@/types"
 import { cn, detectPaymentDevice, isMobileDevice } from "@/lib/utils"
 import { PaymentIcon, getPaymentLabel, getPaymentBrandColor, getPaymentScanHint } from "@/components/shared/payment-icon"
@@ -116,29 +116,22 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   }, [isMobile, payUrlH5, status, orderId, isUsdtPayment, isWechatMobile])
 
   // Countdown timer — 仅在服务端返回真实倒计时后才开始递减
+  // 倒计时归零时仅停止递减，不单方面设置 EXPIRED — 等待下一次轮询从服务端获取真实状态
   useEffect(() => {
     if (status !== "PENDING" || timeLeft < 0) return
     const timer = setInterval(() => {
-      setTimeLeft((prev) => {
-        if (prev <= 1) {
-          setStatus("EXPIRED")
-          return 0
-        }
-        return prev - 1
-      })
+      setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1))
     }, 1000)
     return () => clearInterval(timer)
   }, [status, timeLeft < 0])
 
   // Auto polling for payment status
+  // 网络错误时静默跳过（不更新任何状态），等待下次轮询；避免 mock 数据污染倒计时
   useEffect(() => {
     if (status !== "PENDING") return
     const poll = setInterval(async () => {
       try {
-        const result = await withMockFallback(
-          () => orderApi.getStatus(orderId),
-          () => ({ order_id: orderId, status: "PENDING" as const, expires_at: "", remaining_seconds: 0 })
-        )
+        const result = await orderApi.getStatus(orderId)
         // 同步服务端倒计时，防止客户端时间漂移
         if (result.remaining_seconds !== undefined) {
           setTimeLeft(result.remaining_seconds)
@@ -150,7 +143,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           }
         }
       } catch {
-        // silent — continue polling
+        // silent — 网络抖动时继续轮询，不更新状态
       }
     }, POLL_INTERVAL)
     return () => clearInterval(poll)
@@ -169,10 +162,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     if (refreshCooldown > 0 || isRefreshing) return
     setIsRefreshing(true)
     try {
-      const result = await withMockFallback(
-        () => orderApi.getStatus(orderId),
-        () => ({ order_id: orderId, status: "PENDING" as const, expires_at: "", remaining_seconds: 0 })
-      )
+      const result = await orderApi.getStatus(orderId)
       if (result.status !== "PENDING") {
         setStatus(result.status)
         if (result.status === "PAID" || result.status === "DELIVERED") {
@@ -300,7 +290,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
   return (
     <div className="mx-auto flex max-w-lg flex-col items-center gap-6 py-8">
       {/* 外层卡片框 — 标题/倒计时/品牌卡/订单信息统一收纳 */}
-      <div className="flex w-full flex-col items-center gap-5 rounded-xl border border-border bg-card p-6 shadow-sm">
+      <div className="flex w-full flex-col items-center gap-4 rounded-xl border border-border bg-card p-6 shadow-sm">
 
         {/* 标题 + 倒计时 */}
         <h1 className="text-xl font-bold text-foreground">{t("payment.waiting")}</h1>
@@ -321,7 +311,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
           /* ========== USDT 支付视图（紧凑居中布局） ========== */
           <div className="flex w-full flex-col items-center gap-3">
             {/* ① 品牌标签 — 网络类型 */}
-            <div className="inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1.5 transition-all duration-200">
+            <div className="my-0.5 inline-flex items-center gap-2 rounded-full border border-emerald-100 bg-emerald-50 px-4 py-1.5 transition-all duration-200">
               <span className="h-2 w-2 animate-pulse rounded-full bg-emerald-500" />
               <span className="text-sm font-medium text-emerald-700">{paymentMethodName}</span>
             </div>
@@ -329,7 +319,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             {/* ②③ 转账金额 + 收款地址 — 合并卡片 */}
             <div className="flex w-full max-w-sm flex-col rounded-xl border border-border/60 bg-card shadow-sm transition-all duration-200 hover:border-border hover:shadow-md">
               {/* 转账金额 */}
-              <div className="flex items-center justify-between px-4 py-3">
+              <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
                 <span className="text-sm text-muted-foreground">{t("payment.usdt.amount")}（{t("payment.usdt.amountHint")}）</span>
                 <span className="flex items-center gap-2">
                   <span
@@ -347,8 +337,8 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
               {/* 分割线 */}
               <div className="mx-4 border-t border-border/40" />
               {/* 收款地址 */}
-              <div className="flex items-center justify-between px-4 py-3">
-                <span className="shrink-0 text-sm text-muted-foreground">{t("payment.usdt.address")}</span>
+              <div className="flex flex-col gap-1 px-4 py-3 sm:flex-row sm:items-center sm:justify-between sm:gap-2">
+                <span className="text-sm text-muted-foreground">{t("payment.usdt.address")}</span>
                 <span className="flex items-center gap-2">
                   <span
                     className="cursor-pointer font-mono text-sm font-normal text-foreground underline-offset-4 transition-all hover:underline hover:text-primary"
@@ -388,7 +378,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             </div>
 
             {/* ⑤ 警告提示 — 紧凑 */}
-            <ul className="flex w-full max-w-sm flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-xs text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
+            <ul className="flex w-full max-w-sm flex-col gap-1 rounded-lg border border-amber-200 bg-amber-50 px-3.5 py-2.5 text-sm text-amber-800 dark:border-amber-900/50 dark:bg-amber-950/30 dark:text-amber-200">
               <li className="flex items-start gap-1.5">
                 <span className="mt-0.5 shrink-0">•</span>
                 <span>{t("payment.usdt.warnExact").replace("{amount}", cryptoAmount)}</span>
@@ -404,7 +394,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             </ul>
 
             {/* 检测状态 */}
-            <p className="animate-pulse text-xs text-primary">{t("payment.detecting")}</p>
+            <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
           </div>
         ) : (!isMobile || isWechatMobile) ? (
           /* ========== PC / 微信移动端 — 二维码视图 ========== */
@@ -490,7 +480,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
         {/* 订单号 */}
         <div className="flex w-full items-center justify-between border-t border-border pt-4 text-sm">
           <span className="text-muted-foreground">{t("payment.orderNo")}</span>
-          <span className="flex items-center gap-1 font-mono text-xs text-foreground">
+          <span className="flex items-center gap-1 font-mono text-sm text-foreground">
             <span
               className="cursor-pointer underline-offset-4 transition-all hover:underline hover:text-primary"
               title={orderId}

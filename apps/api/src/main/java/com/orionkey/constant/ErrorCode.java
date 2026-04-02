@@ -27,6 +27,8 @@ public final class ErrorCode {
     public static final int INSUFFICIENT_STOCK = 30002;
     public static final int SPEC_NOT_FOUND = 30003;
     public static final int PURCHASE_LIMIT_EXCEEDED = 30004;
+    public static final int SPEC_HAS_CARD_KEYS = 30005;
+    public static final int SPEC_NAME_DUPLICATE = 30006;
 
     // ── Order 40001~40099 ──
     public static final int ORDER_NOT_FOUND = 40001;
@@ -45,6 +47,10 @@ public final class ErrorCode {
     public static final int TXID_ALREADY_USED = 50004;
     public static final int TXID_VERIFY_FAILED = 50005;
     public static final int ORDER_NOT_USDT = 50006;
+
+    // ── Security 60001~60099 ──
+    public static final int TURNSTILE_FAILED = 60001;
+    public static final int DEVICE_RATE_LIMITED = 60002;
 
     // ── Admin 70001~70099 ──
     public static final int CATEGORY_NAME_EXISTS = 70001;

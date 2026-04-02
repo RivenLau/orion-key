@@ -71,6 +71,7 @@ export interface ProductSpec {
   name: string
   price: number
   stock_available: number
+  card_key_count?: number
   is_visible?: boolean
   sort_order?: number
 }
@@ -103,6 +104,7 @@ export interface ProductCard {
 export interface ProductDetail extends ProductCard {
   detail_md?: string
   specs: ProductSpec[]
+  spec_enabled?: boolean
   wholesale_enabled: boolean
   wholesale_rules: WholesaleRule[]
   low_stock_threshold?: number
@@ -367,6 +369,7 @@ export interface CardKeyStockSummary {
   product_title: string
   spec_id: string | null
   spec_name: string | null
+  spec_enabled?: boolean
   total: number
   available: number
   sold: number
@@ -448,6 +451,17 @@ export interface OperationLog {
 // ============================================================
 
 export interface RiskConfig {
+  // 人机验证
+  turnstile_enabled: boolean
+  // 设备指纹限流
+  device_rate_limit_enabled: boolean
+  device_order_limit_per_hour: number
+  device_txid_limit_per_hour: number
+  txid_submit_limit_per_order: number
+  device_query_limit_per_hour: number
+  device_login_limit_per_hour: number
+  device_register_limit_per_hour: number
+  // 已有配置
   rate_limit_per_second: number
   login_attempt_limit: number
   max_purchase_per_user: number

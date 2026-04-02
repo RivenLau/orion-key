@@ -36,12 +36,11 @@ public class DashboardServiceImpl implements DashboardService {
         BigDecimal monthSales = orderRepository.sumSalesSince(monthStart);
         long todayOrders = orderRepository.countPaidOrdersSince(todayStart);
         long monthOrders = orderRepository.countPaidOrdersSince(monthStart);
-        long totalPaid = orderRepository.countTotalPaidOrders();
-        long totalCreated = orderRepository.count();
-
-        double conversionRate = totalCreated > 0 ? (double) totalPaid / totalCreated * 100 : 0;
-
         VisitStats todayVisit = visitStatsRepository.findByVisitDate(LocalDate.now()).orElse(null);
+        long todayUv = todayVisit != null ? todayVisit.getUv() : 0;
+
+        // 电商标准转化率 = 今日成交订单数 / 今日 UV × 100%
+        double conversionRate = todayUv > 0 ? (double) todayOrders / todayUv * 100 : 0;
 
         // Low stock products — count ALL available keys per product (across all specs)
         List<Product> products = productRepository.findAll().stream()

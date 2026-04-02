@@ -107,12 +107,13 @@ export function HomeContent({ products, categories, siteSlogan, siteDescription 
       {/* Controls */}
       <div className="flex flex-col gap-5">
         {/* Trust badges */}
-        <div className="flex items-center justify-center gap-5 py-3 sm:gap-7">
+        <div className="flex justify-center py-3 sm:block">
+          <div className="grid grid-cols-2 gap-x-10 gap-y-2 sm:flex sm:flex-wrap sm:items-center sm:justify-center sm:gap-x-7">
           {trustBadges.map((badge, i) => (
             <div key={badge.label} className="flex items-center gap-1.5">
               <div
                 className={cn(
-                  "flex h-6 w-6 items-center justify-center rounded-md",
+                  "flex h-6 w-6 shrink-0 items-center justify-center rounded-md",
                   badge.bg
                 )}
               >
@@ -126,6 +127,7 @@ export function HomeContent({ products, categories, siteSlogan, siteDescription 
               )}
             </div>
           ))}
+          </div>
         </div>
 
         {/* Category tabs */}

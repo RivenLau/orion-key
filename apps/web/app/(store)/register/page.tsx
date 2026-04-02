@@ -6,8 +6,9 @@ import { useRouter } from "next/navigation"
 import { Eye, EyeOff, UserPlus, RefreshCw } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale } from "@/lib/context"
-import { authApi, withMockFallback, getApiErrorMessage } from "@/services/api"
+import { authApi, withMockFallback, getApiErrorMessage, setTurnstileHeaders } from "@/services/api"
 import { mockCaptcha } from "@/lib/mock-data"
+import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
 
 export default function RegisterPage() {
   const { t } = useLocale()
@@ -24,6 +25,7 @@ export default function RegisterPage() {
   const [captchaId, setCaptchaId] = useState("")
   const [captchaImage, setCaptchaImage] = useState("")
   const [captchaLoading, setCaptchaLoading] = useState(false)
+  const { turnstileToken, setTurnstileToken, handleTurnstileReset } = useTurnstile()
 
   const fetchCaptcha = useCallback(async () => {
     setCaptchaLoading(true)
@@ -61,6 +63,7 @@ export default function RegisterPage() {
 
     setIsLoading(true)
     try {
+      setTurnstileHeaders(turnstileToken)
       await withMockFallback(
         () => authApi.register({
           username: form.username.trim(),
@@ -81,6 +84,7 @@ export default function RegisterPage() {
       // Refresh captcha after failed attempt
       fetchCaptcha()
       setForm((prev) => ({ ...prev, captcha: "" }))
+      handleTurnstileReset()
     } finally {
       setIsLoading(false)
     }
@@ -189,6 +193,8 @@ export default function RegisterPage() {
                 {t("auth.clickToRefresh")}
               </p>
             </div>
+
+            <Turnstile onSuccess={setTurnstileToken} onError={handleTurnstileReset} className="mb-1" />
 
             {/* Submit */}
             <button

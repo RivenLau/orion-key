@@ -6,7 +6,7 @@ import { useLocale } from "@/lib/context"
 import { cn } from "@/lib/utils"
 import { toast } from "sonner"
 import { adminRiskApi, withMockFallback } from "@/services/api"
-import { mockRiskConfig, mockAdminOrderList } from "@/lib/mock-data"
+import { mockAdminOrderList } from "@/lib/mock-data"
 import { OrderStatusBadge } from "@/components/shared/order-status-badge"
 import type { RiskConfig, AdminOrderItem } from "@/types"
 
@@ -14,6 +14,14 @@ export default function AdminRiskPage() {
   const { t } = useLocale()
   const [tab, setTab] = useState<"config" | "flagged">("config")
   const [config, setConfig] = useState<RiskConfig>({
+    turnstile_enabled: false,
+    device_rate_limit_enabled: false,
+    device_order_limit_per_hour: 10,
+    device_txid_limit_per_hour: 5,
+    txid_submit_limit_per_order: 3,
+    device_query_limit_per_hour: 20,
+    device_login_limit_per_hour: 10,
+    device_register_limit_per_hour: 5,
     rate_limit_per_second: 10,
     login_attempt_limit: 5,
     max_purchase_per_user: 10,
@@ -29,13 +37,10 @@ export default function AdminRiskPage() {
 
   const fetchConfig = useCallback(async () => {
     try {
-      const data = await withMockFallback(
-        () => adminRiskApi.getConfig(),
-        () => ({ ...mockRiskConfig })
-      )
+      const data = await adminRiskApi.getConfig()
       setConfig(data)
     } catch {
-      // withMockFallback handles network errors
+      // API 失败时保留默认值
     } finally {
       setLoading(false)
     }
@@ -57,13 +62,23 @@ export default function AdminRiskPage() {
   useEffect(() => { fetchConfig() }, [fetchConfig])
   useEffect(() => { if (tab === "flagged") fetchFlaggedOrders() }, [tab, fetchFlaggedOrders])
 
+  // 开关即时保存（点击立即生效，无需手动保存）
+  const handleToggle = async (key: "turnstile_enabled" | "device_rate_limit_enabled") => {
+    const newValue = !config[key]
+    setConfig({ ...config, [key]: newValue })
+    try {
+      await adminRiskApi.updateConfig({ [key]: newValue })
+    } catch {
+      // 保存失败 → 回滚 UI 状态
+      setConfig((prev) => ({ ...prev, [key]: !newValue }))
+      toast.error("保存失败，请重试")
+    }
+  }
+
   const handleSaveConfig = async () => {
     setSaving(true)
     try {
-      await withMockFallback(
-        () => adminRiskApi.updateConfig(config),
-        () => null
-      )
+      await adminRiskApi.updateConfig(config)
       toast.success("风控配置保存成功")
     } catch (err: unknown) {
       toast.error(err instanceof Error ? err.message : "保存失败")
@@ -121,87 +136,82 @@ export default function AdminRiskPage() {
 
       {/* Risk Config */}
       {tab === "config" && (
-        <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-          {/* API Rate Limiting */}
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 font-semibold text-foreground">{t("admin.apiRateLimit")}</h3>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-muted-foreground">{t("admin.ratePerSecond")}</label>
-                <input
-                  type="number"
-                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={config.rate_limit_per_second}
-                  onChange={(e) => setConfig({ ...config, rate_limit_per_second: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-muted-foreground">{t("admin.loginAttemptLimit")}</label>
-                <input
-                  type="number"
-                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={config.login_attempt_limit}
-                  onChange={(e) => setConfig({ ...config, login_attempt_limit: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-            </div>
-          </div>
-
-          {/* Order Limiting */}
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 font-semibold text-foreground">{t("admin.orderLimit")}</h3>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-muted-foreground">{t("admin.maxPurchasePerUser")}</label>
-                <input
-                  type="number"
-                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={config.max_purchase_per_user}
-                  onChange={(e) => setConfig({ ...config, max_purchase_per_user: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-muted-foreground">{t("admin.orderExpire")}</label>
-                <input
-                  type="number"
-                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={config.order_expire_minutes}
-                  onChange={(e) => setConfig({ ...config, order_expire_minutes: parseInt(e.target.value) || 0 })}
-                />
+        <div className="flex flex-col gap-6 lg:flex-row lg:items-start">
+          {/* 左列：人机验证(短) + 通用限制(长) + 待支付订单限制(中) */}
+          <div className="flex flex-1 flex-col gap-6">
+            {/* Turnstile (人机验证) */}
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <h3 className="mb-4 font-semibold text-foreground">人机验证 (Cloudflare Turnstile)</h3>
+              <div className="flex items-center justify-between">
+                <div>
+                  <label className="text-sm font-medium text-foreground">启用 Turnstile</label>
+                  <p className="text-xs text-muted-foreground">关闭后所有接口跳过人机验证，仅建议调试时关闭</p>
+                </div>
+                <button
+                  type="button"
+                  role="switch"
+                  aria-checked={config.turnstile_enabled}
+                  className={cn(
+                    "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                    config.turnstile_enabled ? "bg-primary" : "bg-input"
+                  )}
+                  onClick={() => handleToggle("turnstile_enabled")}
+                >
+                  <span className={cn(
+                    "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
+                    config.turnstile_enabled ? "translate-x-5" : "translate-x-0"
+                  )} />
+                </button>
               </div>
             </div>
-          </div>
 
-          {/* Pending Order Limits */}
-          <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
-            <h3 className="mb-4 font-semibold text-foreground">{t("admin.pendingOrderLimit")}</h3>
-            <div className="flex flex-col gap-4">
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-muted-foreground">{t("admin.maxPendingPerIp")}</label>
-                <input
-                  type="number"
-                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={config.max_pending_orders_per_ip}
-                  onChange={(e) => setConfig({ ...config, max_pending_orders_per_ip: parseInt(e.target.value) || 0 })}
-                />
-              </div>
-              <div className="flex flex-col gap-1.5">
-                <label className="text-xs text-muted-foreground">{t("admin.maxPendingPerUser")}</label>
-                <input
-                  type="number"
-                  className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
-                  value={config.max_pending_orders_per_user}
-                  onChange={(e) => setConfig({ ...config, max_pending_orders_per_user: parseInt(e.target.value) || 0 })}
-                />
+            {/* 通用限制 */}
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <h3 className="mb-4 font-semibold text-foreground">通用限制</h3>
+              <div className="flex flex-col gap-4">
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">{t("admin.ratePerSecond")}</label>
+                  <input
+                    type="number"
+                    className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={config.rate_limit_per_second}
+                    onChange={(e) => setConfig({ ...config, rate_limit_per_second: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">{t("admin.maxPurchasePerUser")}</label>
+                  <input
+                    type="number"
+                    className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={config.max_purchase_per_user}
+                    onChange={(e) => setConfig({ ...config, max_purchase_per_user: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">{t("admin.orderExpire")}</label>
+                  <input
+                    type="number"
+                    className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={config.order_expire_minutes}
+                    onChange={(e) => setConfig({ ...config, order_expire_minutes: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
+                <div className="flex flex-col gap-1.5">
+                  <label className="text-xs text-muted-foreground">{t("admin.maxPendingPerUser")}</label>
+                  <input
+                    type="number"
+                    className="h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring"
+                    value={config.max_pending_orders_per_user}
+                    onChange={(e) => setConfig({ ...config, max_pending_orders_per_user: parseInt(e.target.value) || 0 })}
+                  />
+                </div>
               </div>
             </div>
-          </div>
 
-          {/* Save button spanning full width */}
-          <div className="lg:col-span-2">
+            {/* 保存按钮 */}
             <button
               type="button"
-              className="flex items-center gap-2 rounded-lg bg-primary px-4 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
+              className="flex w-fit items-center gap-2 rounded-lg bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground hover:bg-primary/90 transition-colors disabled:opacity-50"
               onClick={handleSaveConfig}
               disabled={saving}
             >
@@ -209,8 +219,63 @@ export default function AdminRiskPage() {
               {saving ? t("admin.saving") : t("admin.saveRiskConfig")}
             </button>
           </div>
+
+          {/* 右列：设备指纹限流 */}
+          <div className="flex flex-1 flex-col gap-6">
+            {/* 设备指纹限流 */}
+            <div className="rounded-xl border border-border bg-card p-6 shadow-sm">
+              <h3 className="mb-4 font-semibold text-foreground">设备指纹限流</h3>
+              <div className="flex flex-col gap-4">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <label className="text-sm font-medium text-foreground">启用设备限流</label>
+                    <p className="text-xs text-muted-foreground">基于设备指纹进行频率限制，不依赖 IP</p>
+                  </div>
+                  <button
+                    type="button"
+                    role="switch"
+                    aria-checked={config.device_rate_limit_enabled}
+                    className={cn(
+                      "relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors",
+                      config.device_rate_limit_enabled ? "bg-primary" : "bg-input"
+                    )}
+                    onClick={() => handleToggle("device_rate_limit_enabled")}
+                  >
+                    <span className={cn(
+                      "pointer-events-none block h-5 w-5 rounded-full bg-background shadow-lg ring-0 transition-transform",
+                      config.device_rate_limit_enabled ? "translate-x-5" : "translate-x-0"
+                    )} />
+                  </button>
+                </div>
+                {[
+                  { key: "device_order_limit_per_hour" as const, label: "下单频率上限 (次/小时/设备)" },
+                  { key: "device_txid_limit_per_hour" as const, label: "TXID 提交上限 (次/小时/设备)" },
+                  { key: "txid_submit_limit_per_order" as const, label: "TXID 提交上限 (次/订单)" },
+                  { key: "device_query_limit_per_hour" as const, label: "查询频率上限 (次/小时/设备)" },
+                  { key: "device_login_limit_per_hour" as const, label: "登录频率上限 (次/小时/设备)" },
+                  { key: "device_register_limit_per_hour" as const, label: "注册频率上限 (次/小时/设备)" },
+                ].map((item) => (
+                  <div key={item.key} className="flex flex-col gap-1.5">
+                    <label className="text-xs text-muted-foreground">{item.label}</label>
+                    <input
+                      type="number"
+                      className={cn(
+                        "h-9 rounded-lg border border-input bg-background px-3 text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-ring",
+                        !config.device_rate_limit_enabled && "opacity-50 cursor-not-allowed"
+                      )}
+                      value={config[item.key]}
+                      onChange={(e) => setConfig({ ...config, [item.key]: parseInt(e.target.value) || 0 })}
+                      disabled={!config.device_rate_limit_enabled}
+                    />
+                  </div>
+                ))}
+              </div>
+            </div>
+
+          </div>
         </div>
       )}
+
 
       {/* Flagged Orders */}
       {tab === "flagged" && (

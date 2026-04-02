@@ -44,7 +44,7 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
       { key: "key", label: "商户密钥 (Key)", placeholder: "MD5 密钥", type: "password" },
       { key: "api_url", label: "API 地址", placeholder: "例如：https://pay.example.com/" },
       { key: "notify_url", label: "异步回调地址", placeholder: "例如：https://yourdomain.com/api/payments/webhook/epay" },
-      { key: "return_url", label: "同步跳转地址", placeholder: "例如：https://yourdomain.com/pay" },
+      { key: "return_url", label: "同步跳转地址", placeholder: "例如：https://yourdomain.com/order/query" },
     ],
   },
   {
@@ -91,7 +91,7 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
       { key: "fiat", label: "法币类型", placeholder: "CNY / USD" },
       { key: "timeout", label: "超时秒数", placeholder: "默认 900" },
       { key: "fixed_rate", label: "固定汇率", placeholder: "留空则使用动态汇率，例如 7.2 表示 1 USDT = 7.2 CNY" },
-      { key: "auto_approve_tolerance", label: "TXID 自动核销容差 (USDT)", placeholder: "默认 1.5" },
+      { key: "auto_approve_tolerance", label: "TXID 自动核销容差 (USDT)", placeholder: "默认 0.01" },
       { key: "manual_review_upper", label: "TXID 人工审核上限 (USDT)", placeholder: "默认 5.0" },
     ],
   },

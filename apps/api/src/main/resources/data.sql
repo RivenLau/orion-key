@@ -11,7 +11,7 @@
 -- ────────────────────────────────────────
 INSERT INTO users (id, username, email, password_hash, role, points, is_deleted, failed_login_attempts, lock_until, created_at, updated_at)
 SELECT gen_random_uuid(), 'admin', 'admin@orionkey.com',
-       '123456',
+       '123456#',
        'ADMIN', 0, 0, 0, NULL, NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM users WHERE username = 'admin');
 
@@ -101,6 +101,46 @@ WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'max_pending_ord
 INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
 SELECT gen_random_uuid(), 'order_expire_minutes', '15', 'risk', NOW(), NOW()
 WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'order_expire_minutes');
+
+-- Turnstile 人机验证开关（默认关闭，需后台手动启用）
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'turnstile_enabled', 'false', 'risk', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'turnstile_enabled');
+
+-- 设备指纹限流开关（默认关闭，需后台手动启用）
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'device_rate_limit_enabled', 'false', 'risk', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'device_rate_limit_enabled');
+
+-- 设备指纹限流：下单频率上限（次/小时/设备）
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'device_order_limit_per_hour', '10', 'risk', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'device_order_limit_per_hour');
+
+-- 设备指纹限流：TXID 提交上限（次/小时/设备）
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'device_txid_limit_per_hour', '5', 'risk', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'device_txid_limit_per_hour');
+
+-- TXID 提交上限（次/订单）
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'txid_submit_limit_per_order', '3', 'risk', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'txid_submit_limit_per_order');
+
+-- 设备指纹限流：查询频率上限（次/小时/设备）
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'device_query_limit_per_hour', '20', 'risk', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'device_query_limit_per_hour');
+
+-- 设备指纹限流：登录频率上限（次/小时/设备）
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'device_login_limit_per_hour', '10', 'risk', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'device_login_limit_per_hour');
+
+-- 设备指纹限流：注册频率上限（次/小时/设备）
+INSERT INTO site_configs (id, config_key, config_value, config_group, created_at, updated_at)
+SELECT gen_random_uuid(), 'device_register_limit_per_hour', '5', 'risk', NOW(), NOW()
+WHERE NOT EXISTS (SELECT 1 FROM site_configs WHERE config_key = 'device_register_limit_per_hour');
 
 
 -- ────────────────────────────────────────

@@ -18,6 +18,9 @@ public class SiteConfigServiceImpl implements SiteConfigService {
 
     private final SiteConfigRepository siteConfigRepository;
 
+    @org.springframework.beans.factory.annotation.Value("${turnstile.site-key:}")
+    private String turnstileSiteKey;
+
     private static final Set<String> NUMERIC_KEYS = Set.of("points_rate");
 
     private static final List<String> PUBLIC_KEYS = List.of(
@@ -77,6 +80,13 @@ public class SiteConfigServiceImpl implements SiteConfigService {
         // F15: 对 custom_css 进行安全过滤，防止存储型 XSS
         if (result.containsKey("custom_css") && result.get("custom_css") instanceof String css) {
             result.put("custom_css", sanitizeCss(css));
+        }
+        // Turnstile Site Key：仅在后台开关启用时才返回给前端，确保前后端状态一致
+        boolean turnstileEnabled = siteConfigRepository.findByConfigKey("turnstile_enabled")
+                .map(c -> "true".equalsIgnoreCase(c.getConfigValue()))
+                .orElse(false);
+        if (turnstileEnabled && turnstileSiteKey != null && !turnstileSiteKey.isBlank()) {
+            result.put("turnstile_site_key", turnstileSiteKey);
         }
         return result;
     }

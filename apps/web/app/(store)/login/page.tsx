@@ -6,8 +6,9 @@ import { useRouter, useSearchParams } from "next/navigation"
 import { Eye, EyeOff, LogIn } from "lucide-react"
 import { toast } from "sonner"
 import { useLocale, useAuth, useCart } from "@/lib/context"
-import { setToken, authApi, withMockFallback, getApiErrorMessage } from "@/services/api"
+import { setToken, authApi, withMockFallback, getApiErrorMessage, setTurnstileHeaders } from "@/services/api"
 import { mockLogin } from "@/lib/mock-data"
+import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
 
 export default function LoginPage() {
   const { t } = useLocale()
@@ -22,6 +23,7 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false)
   const [rememberMe, setRememberMe] = useState(false)
   const [isLoading, setIsLoading] = useState(false)
+  const { turnstileToken, setTurnstileToken, handleTurnstileReset } = useTurnstile()
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -29,6 +31,7 @@ export default function LoginPage() {
 
     setIsLoading(true)
     try {
+      setTurnstileHeaders(turnstileToken)
       const result = await withMockFallback(
         () => authApi.login({ account: account.trim(), password }),
         () => mockLogin()
@@ -50,6 +53,7 @@ export default function LoginPage() {
       router.push(redirectTo || "/")
     } catch (err: unknown) {
       toast.error(getApiErrorMessage(err, t))
+      handleTurnstileReset()
     } finally {
       setIsLoading(false)
     }
@@ -131,6 +135,8 @@ export default function LoginPage() {
                 {t("auth.rememberMe")}
               </label>
             </div>
+
+            <Turnstile onSuccess={setTurnstileToken} onError={handleTurnstileReset} className="mb-1" />
 
             {/* Submit */}
             <button

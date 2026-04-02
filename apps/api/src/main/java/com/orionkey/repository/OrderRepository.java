@@ -73,13 +73,13 @@ public interface OrderRepository extends JpaRepository<Order, UUID> {
                                 @Param("isRiskFlagged") Boolean isRiskFlagged,
                                 Pageable pageable);
 
-    // 管理后台订单列表 — 带搜索词（按订单ID或邮箱搜索，keyword 保证非 null）
-    @Query("SELECT o FROM Order o WHERE " +
+    // 管理后台订单列表 — 带搜索词（按订单ID、邮箱或商品名称搜索，keyword 保证非 null）
+    @Query("SELECT DISTINCT o FROM Order o LEFT JOIN OrderItem oi ON oi.orderId = o.id WHERE " +
             "(:status IS NULL OR o.status = :status) " +
             "AND (:orderType IS NULL OR o.orderType = :orderType) " +
             "AND (:paymentMethod IS NULL OR o.paymentMethod = :paymentMethod) " +
             "AND (:isRiskFlagged IS NULL OR o.riskFlagged = :isRiskFlagged) " +
-            "AND (str(o.id) LIKE :keywordPattern OR o.email LIKE :keywordPattern) " +
+            "AND (str(o.id) LIKE :keywordPattern OR o.email LIKE :keywordPattern OR oi.productTitle LIKE :keywordPattern) " +
             "ORDER BY o.createdAt DESC")
     Page<Order> findAdminOrdersByKeyword(@Param("status") OrderStatus status,
                                          @Param("orderType") OrderType orderType,

@@ -88,6 +88,7 @@ services:
       - bepusdt_data:/var/lib/bepusdt
 
     # BEpusdt 环境变量（敏感值应写入 .env 文件）
+    # LOG: 日志输出目录（BEpusdt 会在此目录下生成 bepusdt.log 和 task.log）
     # APP_URI: BEpusdt 外部可访问地址（用于回调签名验证，若使用 Nginx 反代则填反代地址）
     # AUTH_TOKEN: 管理后台登录密码
     # API_TOKEN: API 接口签名密钥（后端 PaymentChannel 配置中的 api_token 需与此一致）
@@ -95,6 +96,7 @@ services:
     # EXPIRE_TIME: 支付订单过期时间（秒），默认 900 = 15 分钟
     environment:
       - TZ=Asia/Shanghai
+      - LOG=/var/lib/bepusdt/logs
       - APP_URI=${BEPUSDT_APP_URI:-http://localhost:8881}
       - AUTH_TOKEN=${BEPUSDT_AUTH_TOKEN:-change-me}
       - API_TOKEN=${BEPUSDT_API_TOKEN:-change-me}
