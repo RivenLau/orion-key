@@ -62,9 +62,11 @@ public class OrderServiceImpl implements OrderService {
         int quantity = ((Number) req.get("quantity")).intValue();
         String email = (String) req.get("email");
 
-        // F4: 购买数量校验
-        if (quantity < 1 || quantity > 999) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "购买数量无效，允许范围 1~999");
+        // F4: 购买数量校验（读取后台配置，兜底 999）
+        int maxQuantity = getMaxPurchasePerUser();
+        if (quantity < 1 || quantity > maxQuantity) {
+            throw new BusinessException(ErrorCode.PURCHASE_LIMIT_EXCEEDED, "购买数量无效，允许范围 1~" + maxQuantity,
+                    Map.of("max", maxQuantity));
         }
 
         // F14: 提前提取 email，用于 pending 订单限制（email + IP 双维度防刷）
@@ -164,6 +166,16 @@ public class OrderServiceImpl implements OrderService {
         }
         if (cartItems.isEmpty()) {
             throw new BusinessException(ErrorCode.CART_EMPTY, "购物车为空");
+        }
+
+        // 购物车每项数量校验（与直接下单统一上限）
+        int maxQuantity = getMaxPurchasePerUser();
+        for (CartItem ci : cartItems) {
+            if (ci.getQuantity() < 1 || ci.getQuantity() > maxQuantity) {
+                throw new BusinessException(ErrorCode.PURCHASE_LIMIT_EXCEEDED,
+                        "购买数量无效，允许范围 1~" + maxQuantity,
+                        Map.of("max", maxQuantity));
+            }
         }
 
         int expireMinutes = getConfigInt("order_expire_minutes", 15);
@@ -320,25 +332,25 @@ public class OrderServiceImpl implements OrderService {
     }
 
     private void checkPendingOrderLimits(UUID userId, String clientIp, String email) {
-        int maxPerUser = getConfigInt("max_pending_orders_per_user", 5);
-        int maxPerIp = getConfigInt("max_pending_orders_per_ip", 10);
+        // 邮箱和 IP 共用同一配置值（面板"最大待支付订单数"）
+        int maxPending = getConfigInt("max_pending_orders_per_user", 5);
 
         if (userId != null) {
             long pending = orderRepository.countByUserIdAndStatus(userId, OrderStatus.PENDING);
-            if (pending >= maxPerUser) {
+            if (pending >= maxPending) {
                 throw new BusinessException(ErrorCode.UNPAID_ORDER_EXISTS, "您有未支付的订单，请先完成支付或等待过期");
             }
         }
         if (clientIp != null) {
             long pending = orderRepository.countByClientIpAndStatus(clientIp, OrderStatus.PENDING);
-            if (pending >= maxPerIp) {
+            if (pending >= maxPending) {
                 throw new BusinessException(ErrorCode.UNPAID_ORDER_EXISTS, "您有未支付的订单，请先完成支付或等待过期");
             }
         }
         // F14: 邮箱维度 pending 订单限制 — 防止通过 IP 轮换绕过限制
         if (email != null && !email.isBlank()) {
             long pending = orderRepository.countByEmailAndStatus(email, OrderStatus.PENDING);
-            if (pending >= maxPerUser) {
+            if (pending >= maxPending) {
                 throw new BusinessException(ErrorCode.UNPAID_ORDER_EXISTS, "该邮箱有未支付的订单，请先完成支付或等待过期");
             }
         }
@@ -414,6 +426,12 @@ public class OrderServiceImpl implements OrderService {
         paymentChannelRepository.findByChannelCodeAndIsDeleted(paymentMethod, 0)
                 .filter(PaymentChannel::isEnabled)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "支付渠道不可用"));
+    }
+
+    /** 每用户单次最大购买数量，后台可配，兜底 999（配置异常或 ≤ 0 时回退） */
+    private int getMaxPurchasePerUser() {
+        int val = getConfigInt("max_purchase_per_user", 999);
+        return (val > 0 && val <= 999) ? val : 999;
     }
 
     private int getConfigInt(String key, int defaultValue) {
