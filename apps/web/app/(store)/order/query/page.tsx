@@ -12,7 +12,7 @@ import { mockQueryOrders, mockDeliver } from "@/lib/mock-data"
 import { OrderStatusBadge } from "@/components/shared/order-status-badge"
 import { PaymentIcon, getPaymentLabel } from "@/components/shared/payment-icon"
 import type { OrderBrief, DeliverResult, TxidVerifyResult } from "@/types"
-import { cn } from "@/lib/utils"
+import { cn, stripInvisible } from "@/lib/utils"
 import { Modal } from "@/components/ui/modal"
 
 interface RecentQuery {
@@ -488,7 +488,7 @@ export default function OrderQueryPage() {
                       <p className="mb-1 text-sm font-medium text-muted-foreground">
                         {group.product_title}{group.spec_name ? ` - ${group.spec_name}` : ""}
                       </p>
-                      <div className="rounded-md bg-muted p-3">
+                      <div className="rounded-md bg-muted p-3" onCopy={(e) => { const t = window.getSelection()?.toString(); if (t) { e.clipboardData.setData("text/plain", stripInvisible(t)); e.preventDefault() } }}>
                         {group.card_keys.map((key, kIdx) => (
                           <div
                             key={kIdx}

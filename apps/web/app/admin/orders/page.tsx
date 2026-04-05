@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from "react"
 import { Search, ChevronDown, Eye, Download, ChevronLeft, ChevronRight, X, CheckCircle } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, stripInvisible } from "@/lib/utils"
 import { useLocale } from "@/lib/context"
 import { toast } from "sonner"
 import { adminOrderApi, adminCardKeyApi, withMockFallback } from "@/services/api"
@@ -438,7 +438,7 @@ export default function AdminOrdersPage() {
 
               {/* 已发卡密 */}
               {showDetail.status === "DELIVERED" && detailCardKeys.length > 0 && (
-                <div>
+                <div onCopy={(e) => { const t = window.getSelection()?.toString(); if (t) { e.clipboardData.setData("text/plain", stripInvisible(t)); e.preventDefault() } }}>
                   <p className="text-xs text-muted-foreground mb-2">已发卡密</p>
                   {(() => {
                     // 判断是否多商品：按 product_title + spec_name 去重
