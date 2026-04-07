@@ -277,7 +277,7 @@ public class WebhookServiceImpl implements WebhookService {
 
         String chain = order.getUsdtChain() != null ? order.getUsdtChain() : order.getPaymentMethod();
         TxidVerifyService.ChainVerifyResult chainResult =
-                txidVerifyService.verifyForWebhook(chain, blockTxId, order.getUsdtWalletAddress(), order.getUsdtCryptoAmount());
+                txidVerifyService.verifyForWebhook(chain, blockTxId, order.getUsdtWalletAddress(), order.getUsdtCryptoAmount(), order.getCreatedAt());
 
         if (chainResult == null) {
             // 链上 API 查询失败（TronGrid/BscScan 不可用）— 不写入幂等表，返回 fail 触发重试

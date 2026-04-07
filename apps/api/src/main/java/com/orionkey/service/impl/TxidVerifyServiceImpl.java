@@ -5,13 +5,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.orionkey.constant.ErrorCode;
 import com.orionkey.constant.OrderStatus;
 import com.orionkey.entity.Order;
-import com.orionkey.entity.PaymentChannel;
 import com.orionkey.entity.UnmatchedTransaction;
 import com.orionkey.exception.BusinessException;
 import com.orionkey.repository.OrderRepository;
-import com.orionkey.repository.PaymentChannelRepository;
 import com.orionkey.repository.UnmatchedTransactionRepository;
-import com.orionkey.service.BepusdtService;
 import com.orionkey.service.TxidVerifyService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -23,6 +20,7 @@ import java.math.BigDecimal;
 import java.math.BigInteger;
 import java.security.MessageDigest;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -33,7 +31,6 @@ import java.util.Set;
 public class TxidVerifyServiceImpl implements TxidVerifyService {
 
     private final OrderRepository orderRepository;
-    private final PaymentChannelRepository paymentChannelRepository;
     private final UnmatchedTransactionRepository unmatchedTransactionRepository;
     private final RestTemplate restTemplate;
     private final ObjectMapper objectMapper;
@@ -56,11 +53,19 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
             BSC_USDT_CONTRACT.toLowerCase()
     );
 
+    /**
+     * 交易时间校验缓冲（秒）：链上交易时间必须 ≥ 订单创建时间 - 此缓冲值。
+     * 正常流程中用户必须先拿到钱包地址才能转账，交易一定在订单之后；
+     * 120 秒缓冲用于应对服务器与区块链节点之间的时钟偏差（NTP 同步后通常 < 1 秒），
+     * 以及纵深防御"先看到链上交易再创建订单提交 TXID"的攻击路径。
+     * 主防线为 Step 6 的精确金额匹配，时间校验为辅助层。
+     */
+    private static final long TX_TIME_BUFFER_SECONDS = 120;
+
     @Override
     @Transactional
     public VerifyDetail verifyAndProcess(Order order, String txid) {
         String chain = order.getUsdtChain();
-        BepusdtService.BepusdtConfig config = loadConfig(order);
 
         // ---- Step 1: 调用链上 API 查询交易 ----
         ChainTransaction tx;
@@ -101,33 +106,56 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
                     "NOT_USDT", tx.from, tx.to, tx.amount, true);
         }
 
-        // ---- Step 5: 金额差异判定 ----
+        // ---- Step 5: 交易时间校验（防止历史交易 TXID 重放攻击） ----
+        if (tx.blockTimestamp == null) {
+            // 无法获取区块时间戳 → fail-safe 转人工审核，不自动通过
+            log.warn("TXID verify: block timestamp unavailable, txid={}, orderId={}", txid, order.getId());
+            saveUnmatched(order, txid, chain, VerifyResult.PENDING_REVIEW,
+                    "BLOCK_TIME_UNAVAILABLE", tx.from, tx.to, tx.amount);
+            return new VerifyDetail(VerifyResult.PENDING_REVIEW,
+                    "BLOCK_TIME_UNAVAILABLE", tx.from, tx.to, tx.amount, true);
+        }
+        long orderCreatedEpoch = order.getCreatedAt()
+                .atZone(ZoneId.systemDefault())
+                .toEpochSecond();
+        if (tx.blockTimestamp < orderCreatedEpoch - TX_TIME_BUFFER_SECONDS) {
+            log.warn("TXID verify: transaction too old, txid={}, txTime={}, orderCreated={}, orderId={}",
+                    txid, tx.blockTimestamp, orderCreatedEpoch, order.getId());
+            saveUnmatched(order, txid, chain, VerifyResult.AUTO_REJECTED,
+                    "TX_TOO_OLD", tx.from, tx.to, tx.amount);
+            return new VerifyDetail(VerifyResult.AUTO_REJECTED,
+                    "TX_TOO_OLD", tx.from, tx.to, tx.amount, true);
+        }
+
+        // ---- Step 6: 金额判定（仅精确匹配自动通过，任何差异转人工审核） ----
+        // 安全设计：BEpusdt 使用 2 位小数顺序递增分配金额（如 45.44, 45.45），
+        // 容差式自动通过会被攻击者利用相邻金额的 TXID 盗刷。
+        // 因此仅精确匹配（diff=0）才自动通过，任何金额不一致均转人工审核。
         BigDecimal expected = new BigDecimal(order.getUsdtCryptoAmount());
         BigDecimal actual = new BigDecimal(tx.amount);
         BigDecimal diff = expected.subtract(actual).abs();
 
-        if (diff.compareTo(config.autoApproveTolerance()) <= 0) {
-            // 差额 ≤ 容差阈值 → 自动通过
+        if (diff.compareTo(BigDecimal.ZERO) == 0) {
+            // 精确匹配 → 自动通过，TXID UNIQUE 约束兜底防并发
             order.setStatus(OrderStatus.PAID);
             order.setPaidAt(LocalDateTime.now());
             order.setUsdtTxId(txid);
-            orderRepository.save(order);
+            try {
+                orderRepository.saveAndFlush(order);
+            } catch (org.springframework.dao.DataIntegrityViolationException e) {
+                // TXID 已被 webhook 或其他请求抢先写入（UNIQUE 约束冲突）
+                // flush 失败后 Hibernate Session 不一致，不能正常 return（Spring 的 commit 会抛异常），
+                // 必须抛出 RuntimeException 让 @Transactional 走回滚路径，由 GlobalExceptionHandler 返回业务错误。
+                log.warn("TXID verify: unique constraint violation (webhook race), txid={}, orderId={}", txid, order.getId());
+                throw new BusinessException(ErrorCode.TXID_ALREADY_USED, "该交易哈希已被其他订单使用");
+            }
             saveUnmatched(order, txid, chain, VerifyResult.AUTO_APPROVED,
                     "AUTO_APPROVED", tx.from, tx.to, tx.amount);
             return new VerifyDetail(VerifyResult.AUTO_APPROVED,
                     "AUTO_APPROVED", tx.from, tx.to, tx.amount, true);
         }
 
-        if (diff.compareTo(config.manualReviewUpper()) > 0) {
-            // 差额 > 人工审核上限 → 自动拒绝
-            saveUnmatched(order, txid, chain, VerifyResult.AUTO_REJECTED,
-                    "AMOUNT_TOO_LARGE:" + diff.toPlainString(), tx.from, tx.to, tx.amount);
-            return new VerifyDetail(VerifyResult.AUTO_REJECTED,
-                    "AMOUNT_TOO_LARGE:" + diff.toPlainString(),
-                    tx.from, tx.to, tx.amount, true);
-        }
-
-        // 差额在 (容差, 上限] 之间 → 转人工
+        // 金额不匹配 → 统一转人工审核（覆盖手续费少付、输入误差等场景）
         saveUnmatched(order, txid, chain, VerifyResult.PENDING_REVIEW,
                 "AMOUNT_MISMATCH:" + diff.toPlainString(), tx.from, tx.to, tx.amount);
         return new VerifyDetail(VerifyResult.PENDING_REVIEW,
@@ -142,7 +170,8 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
             String to,
             String amount,
             String contractAddress,
-            boolean confirmed
+            boolean confirmed,
+            Long blockTimestamp   // 区块时间戳（秒级 Unix timestamp），null 表示获取失败
     ) {}
 
     /**
@@ -200,10 +229,17 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
                 // TRC20 USDT 精度为 6 位
                 BigDecimal amount = new BigDecimal(rawValue).movePointLeft(6);
 
+                // 提取区块时间戳（TronGrid 事件数据中已包含 block_timestamp，毫秒级）
+                Long blockTimestamp = null;
+                Object blockTsObj = event.get("block_timestamp");
+                if (blockTsObj instanceof Number) {
+                    blockTimestamp = ((Number) blockTsObj).longValue() / 1000; // 毫秒 → 秒
+                }
+
                 // 手动 TXID 验证：通过 walletsolidity API 验证交易是否已 solidified（不可逆确认）
                 // Webhook 回调：跳过 solidification 检查（BEpusdt 自己扫链发现的交易，可信度高）
                 boolean confirmed = !requireSolidified || checkTronTransactionConfirmed(txid);
-                return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, confirmed);
+                return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, confirmed, blockTimestamp);
             }
             return null;
         } catch (Exception e) {
@@ -269,12 +305,16 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
             String statusHex = (String) receipt.get("status");
             boolean confirmed = "0x1".equals(statusHex);
 
+            // 通过 blockNumber 查询区块时间戳
+            String blockNumberHex = (String) receipt.get("blockNumber");
+            Long blockTimestamp = queryBscBlockTimestamp(rpcUrl, blockNumberHex);
+
             // 解析 Transfer 事件日志
             // Transfer(address indexed from, address indexed to, uint256 value)
             @SuppressWarnings("unchecked")
             List<Map<String, Object>> logs = (List<Map<String, Object>>) receipt.get("logs");
             if (logs == null || logs.isEmpty()) {
-                return new ChainTransaction(null, null, "0", null, confirmed);
+                return new ChainTransaction(null, null, "0", null, confirmed, blockTimestamp);
             }
 
             String transferSig = "0xddf252ad1be2c89b69c2b068fc378daa952ba7f163c4a11628f55a4df523b3ef";
@@ -296,19 +336,54 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
                 // BSC USDT (Binance-Peg BSC-USD) 精度为 18 位
                 BigDecimal amount = new BigDecimal(rawValue).movePointLeft(18);
 
-                return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, confirmed);
+                return new ChainTransaction(from, to, amount.toPlainString(), contractAddress, confirmed, blockTimestamp);
             }
 
-            return new ChainTransaction(null, null, "0", null, confirmed);
+            return new ChainTransaction(null, null, "0", null, confirmed, blockTimestamp);
         } catch (Exception e) {
             log.error("Failed to parse BSC RPC response: {}", e.getMessage());
             throw new RuntimeException("BSC RPC 解析失败", e);
         }
     }
 
+    /**
+     * 通过 BSC RPC 查询区块时间戳。
+     * eth_getBlockByNumber 返回区块头，其中 timestamp 为 hex 编码的秒级 Unix 时间戳。
+     *
+     * @param rpcUrl         BSC RPC 节点地址
+     * @param blockNumberHex 区块号（hex，如 "0x541c1a1"）
+     * @return 秒级 Unix 时间戳，查询失败返回 null
+     */
+    private Long queryBscBlockTimestamp(String rpcUrl, String blockNumberHex) {
+        if (blockNumberHex == null) return null;
+        try {
+            Map<String, Object> blockRequest = Map.of(
+                    "jsonrpc", "2.0",
+                    "method", "eth_getBlockByNumber",
+                    "params", List.of(blockNumberHex, false),  // false = 不返回交易详情，只要区块头
+                    "id", 2
+            );
+            String blockResponse = restTemplate.postForObject(rpcUrl, blockRequest, String.class);
+            if (blockResponse == null) return null;
+
+            Map<String, Object> blockRpc = objectMapper.readValue(blockResponse, new TypeReference<>() {});
+            @SuppressWarnings("unchecked")
+            Map<String, Object> blockResult = (Map<String, Object>) blockRpc.get("result");
+            if (blockResult == null) return null;
+
+            String timestampHex = (String) blockResult.get("timestamp");
+            if (timestampHex == null) return null;
+            return Long.parseLong(timestampHex.substring(2), 16);
+        } catch (Exception e) {
+            log.warn("Failed to query BSC block timestamp: blockNumber={}, error={}", blockNumberHex, e.getMessage());
+            return null;
+        }
+    }
+
     @Override
     public ChainVerifyResult verifyForWebhook(String chain, String txid,
-                                               String expectedWalletAddress, String expectedCryptoAmount) {
+                                               String expectedWalletAddress, String expectedCryptoAmount,
+                                               LocalDateTime orderCreatedAt) {
         ChainTransaction tx;
         try {
             // Webhook 回调来自 BEpusdt 自身的链上扫描，可信度高，跳过 TRC20 solidification 检查
@@ -334,7 +409,23 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
             return new ChainVerifyResult(false, "非 USDT 合约交易");
         }
 
-        // 4. 金额是否匹配（容差 0.001 USDT 防止链上精度差异）
+        // 4. 交易时间校验（防止旧交易 TXID 重放，兜底防御）
+        if (tx.blockTimestamp() == null) {
+            log.warn("Webhook on-chain verify: block timestamp unavailable, txid={}", txid);
+            return null; // 无法获取时间戳 → 触发 BEpusdt 重试
+        }
+        long orderCreatedEpoch = orderCreatedAt
+                .atZone(ZoneId.systemDefault())
+                .toEpochSecond();
+        if (tx.blockTimestamp() < orderCreatedEpoch - TX_TIME_BUFFER_SECONDS) {
+            return new ChainVerifyResult(false,
+                    "交易时间早于订单创建: txTime=" + tx.blockTimestamp() + ", orderCreated=" + orderCreatedEpoch);
+        }
+
+        // 5. 金额是否匹配
+        // 注意：此处 0.001 容差仅用于对齐 BEpusdt 回调金额与我们独立链上查询结果之间的浮点精度差异，
+        // 不同于 verifyAndProcess 的精确匹配策略。Webhook 路径的主金额校验在 WebhookServiceImpl
+        // 中已完成精确比对（compareTo != 0），此处为纵深防御的链上二次验证。
         try {
             BigDecimal expected = new BigDecimal(expectedCryptoAmount);
             BigDecimal actual = new BigDecimal(tx.amount());
@@ -347,51 +438,6 @@ public class TxidVerifyServiceImpl implements TxidVerifyService {
         }
 
         return new ChainVerifyResult(true, "链上验证通过");
-    }
-
-    /**
-     * 从订单的支付渠道加载 BepusdtConfig
-     */
-    private BepusdtService.BepusdtConfig loadConfig(Order order) {
-        PaymentChannel channel = paymentChannelRepository
-                .findByChannelCodeAndIsDeleted(order.getPaymentMethod(), 0)
-                .orElseThrow(() -> new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "支付渠道不存在"));
-
-        Map<String, String> cfg = parseConfigData(channel.getConfigData());
-
-        // F7: 默认容差从 1.5 降至 0.01 USDT — 防止攻击者系统性少付
-        BigDecimal tolerance = new BigDecimal(cfg.getOrDefault("auto_approve_tolerance", "0.01"));
-        BigDecimal upper = new BigDecimal(cfg.getOrDefault("manual_review_upper", "5.0"));
-
-        return new BepusdtService.BepusdtConfig(
-                cfg.getOrDefault("api_url", ""),
-                cfg.getOrDefault("api_token", ""),
-                cfg.getOrDefault("notify_url", ""),
-                cfg.getOrDefault("redirect_url", ""),
-                cfg.getOrDefault("trade_type", "usdt.trc20"),
-                cfg.getOrDefault("fiat", "CNY"),
-                Integer.parseInt(cfg.getOrDefault("timeout", "900")),
-                tolerance,
-                upper,
-                cfg.getOrDefault("fixed_rate", "")
-        );
-    }
-
-    private Map<String, String> parseConfigData(String configData) {
-        if (configData == null || configData.isBlank()) return Map.of();
-        try {
-            Map<String, Object> raw = objectMapper.readValue(configData, new TypeReference<>() {});
-            java.util.LinkedHashMap<String, String> result = new java.util.LinkedHashMap<>();
-            for (var entry : raw.entrySet()) {
-                if (entry.getValue() != null) {
-                    result.put(entry.getKey(), entry.getValue().toString());
-                }
-            }
-            return result;
-        } catch (Exception e) {
-            log.warn("Failed to parse channel config_data: {}", e.getMessage());
-            return Map.of();
-        }
     }
 
     /**
