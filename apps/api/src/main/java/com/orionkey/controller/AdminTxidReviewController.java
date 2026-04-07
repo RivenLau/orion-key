@@ -75,6 +75,15 @@ public class AdminTxidReviewController {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录状态不允许审核");
         }
 
+        // TXID 唯一性前置检查：必须在任何写操作之前，防止检查失败时状态不一致
+        if (ut.getOrderId() != null) {
+            Optional<Order> txidExisting = orderRepository.findByUsdtTxId(ut.getTxid());
+            if (txidExisting.isPresent() && !txidExisting.get().getId().equals(ut.getOrderId())) {
+                throw new BusinessException(ErrorCode.TXID_ALREADY_USED,
+                        "该 TXID 已被订单 " + txidExisting.get().getId() + " 使用，无法审批");
+            }
+        }
+
         // 更新审核记录
         ut.setStatus("APPROVED");
         ut.setVerifyReason("人工审核通过");
