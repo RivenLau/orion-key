@@ -2,6 +2,7 @@ package com.orionkey.controller;
 
 import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
+import com.orionkey.common.PageResult;
 import com.orionkey.constant.ErrorCode;
 import com.orionkey.constant.OrderStatus;
 import com.orionkey.context.RequestContext;
@@ -37,7 +38,6 @@ public class AdminTxidReviewController {
         Page<UnmatchedTransaction> result = unmatchedTransactionRepository
                 .findByStatusOrderByCreatedAtDesc(status, PageRequest.of(page - 1, pageSize));
 
-        Map<String, Object> response = new LinkedHashMap<>();
         List<Map<String, Object>> items = new ArrayList<>();
         for (UnmatchedTransaction ut : result.getContent()) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -57,12 +57,8 @@ public class AdminTxidReviewController {
             item.put("reviewed_at", ut.getReviewedAt());
             items.add(item);
         }
-        response.put("list", items);
-        response.put("total", result.getTotalElements());
-        response.put("page", page);
-        response.put("page_size", pageSize);
 
-        return ApiResponse.success(response);
+        return ApiResponse.success(PageResult.of(items, page, pageSize, result.getTotalElements()));
     }
 
     @LogOperation(action = "txid.approve", targetType = "TXID_REVIEW", targetId = "#id", detail = "'通过TXID审核'")
