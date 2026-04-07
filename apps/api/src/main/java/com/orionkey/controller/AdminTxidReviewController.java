@@ -31,12 +31,14 @@ public class AdminTxidReviewController {
 
     @GetMapping
     public ApiResponse<?> listTxidReviews(
-            @RequestParam(defaultValue = "PENDING_REVIEW") String status,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(value = "page_size", defaultValue = "20") int pageSize) {
 
-        Page<UnmatchedTransaction> result = unmatchedTransactionRepository
-                .findByStatusOrderByCreatedAtDesc(status, PageRequest.of(page - 1, pageSize));
+        PageRequest pageable = PageRequest.of(page - 1, pageSize);
+        Page<UnmatchedTransaction> result = (status == null || status.isBlank())
+                ? unmatchedTransactionRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : unmatchedTransactionRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
 
         List<Map<String, Object>> items = new ArrayList<>();
         for (UnmatchedTransaction ut : result.getContent()) {

@@ -15,5 +15,7 @@ public interface UnmatchedTransactionRepository extends JpaRepository<UnmatchedT
 
     Page<UnmatchedTransaction> findByStatusOrderByCreatedAtDesc(String status, Pageable pageable);
 
+    Page<UnmatchedTransaction> findAllByOrderByCreatedAtDesc(Pageable pageable);
+
     List<UnmatchedTransaction> findByOrderId(UUID orderId);
 }
