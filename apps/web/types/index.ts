@@ -153,6 +153,9 @@ export interface OrderBrief {
   created_at: string
   // USDT 支付字段（仅 USDT 订单返回）
   usdt_tx_id?: string
+  // TXID 审核状态（仅 USDT 订单且有审核记录时返回）
+  txid_review_status?: string
+  txid_review_reason?: string
 }
 
 export interface OrderItemDetail {

@@ -30,6 +30,7 @@ public class DeliverServiceImpl implements DeliverService {
     private final UserRepository userRepository;
     private final PointsLogRepository pointsLogRepository;
     private final SiteConfigRepository siteConfigRepository;
+    private final UnmatchedTransactionRepository unmatchedTransactionRepository;
     private final EmailService emailService;
 
     @Override
@@ -76,6 +77,19 @@ public class DeliverServiceImpl implements DeliverService {
             map.put("order_type", o.getOrderType().name());
             map.put("payment_method", o.getPaymentMethod());
             map.put("created_at", o.getCreatedAt());
+            // USDT 订单：附带 TXID 审核状态（供用户查询页展示审核结果反馈）
+            if (o.getPaymentMethod() != null && o.getPaymentMethod().startsWith("usdt_")) {
+                map.put("usdt_tx_id", o.getUsdtTxId());
+                List<UnmatchedTransaction> reviews = unmatchedTransactionRepository.findByOrderId(o.getId());
+                if (!reviews.isEmpty()) {
+                    // 取最新一条（按提交时间倒序）
+                    UnmatchedTransaction latest = reviews.stream()
+                            .max(java.util.Comparator.comparing(UnmatchedTransaction::getSubmittedAt))
+                            .orElse(reviews.get(0));
+                    map.put("txid_review_status", latest.getStatus());
+                    map.put("txid_review_reason", latest.getVerifyReason());
+                }
+            }
             return map;
         }).toList();
     }

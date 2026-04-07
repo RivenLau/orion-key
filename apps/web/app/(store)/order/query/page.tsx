@@ -378,7 +378,7 @@ export default function OrderQueryPage() {
             {order.payment_method?.startsWith("usdt_") &&
              (order.status === "PENDING" || order.status === "EXPIRED") && (
               <div className="rounded-lg border border-amber-200 bg-amber-50 p-4 dark:border-amber-900/50 dark:bg-amber-950/30">
-                {/* TXID 验证结果反馈 */}
+                {/* TXID 验证结果反馈（本次会话即时结果优先） */}
                 {txidResult[order.id] ? (
                   <div className={cn(
                     "rounded-md p-3 text-sm",
@@ -389,6 +389,33 @@ export default function OrderQueryPage() {
                     {txidResult[order.id].result === "AUTO_APPROVED" && t("order.usdt.autoApproved")}
                     {txidResult[order.id].result === "AUTO_REJECTED" && t("order.usdt.autoRejected").replace("{reason}", formatTxidReason(txidResult[order.id].reason, t))}
                     {txidResult[order.id].result === "PENDING_REVIEW" && t("order.usdt.pendingReview")}
+                  </div>
+                ) : order.txid_review_status && txidExpandedOrder !== order.id ? (
+                  /* 后端持久化的审核结果（跨会话可见） */
+                  <div className="flex flex-col gap-2">
+                    <div className={cn(
+                      "rounded-md p-3 text-sm",
+                      (order.txid_review_status === "REJECTED" || order.txid_review_status === "AUTO_REJECTED") && "bg-red-50 text-red-800 dark:bg-red-950/30 dark:text-red-200",
+                      order.txid_review_status === "PENDING_REVIEW" && "bg-yellow-50 text-yellow-800 dark:bg-yellow-950/30 dark:text-yellow-200",
+                      (order.txid_review_status === "APPROVED" || order.txid_review_status === "AUTO_APPROVED") && "bg-emerald-50 text-emerald-800 dark:bg-emerald-950/30 dark:text-emerald-200"
+                    )}>
+                      {(order.txid_review_status === "APPROVED" || order.txid_review_status === "AUTO_APPROVED") &&
+                        t("order.usdt.reviewApproved")}
+                      {order.txid_review_status === "PENDING_REVIEW" &&
+                        t("order.usdt.reviewPending")}
+                      {(order.txid_review_status === "REJECTED" || order.txid_review_status === "AUTO_REJECTED") &&
+                        t("order.usdt.reviewRejected").replace("{reason}", order.txid_review_reason || "")}
+                    </div>
+                    {/* 被拒绝后允许重新提交 */}
+                    {(order.txid_review_status === "REJECTED" || order.txid_review_status === "AUTO_REJECTED") && (
+                      <button
+                        type="button"
+                        onClick={() => { setTxidExpandedOrder(order.id); setTxidInput(""); setTxidResult(prev => { const n = { ...prev }; delete n[order.id]; return n }) }}
+                        className="self-start text-xs font-medium text-primary underline-offset-4 hover:underline"
+                      >
+                        {t("order.usdt.submitTxidLink")}
+                      </button>
+                    )}
                   </div>
                 ) : txidExpandedOrder === order.id ? (
                   /* TXID 输入表单 */
