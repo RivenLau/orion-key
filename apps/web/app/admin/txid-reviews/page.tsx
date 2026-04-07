@@ -401,11 +401,11 @@ export default function AdminTxidReviewsPage() {
                 </button>
               </div>
               <div className="flex flex-col gap-5 p-6">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">{t("admin.txidRelatedOrder")}</span>
+                    <span className="text-muted-foreground">{t("admin.txidRelatedOrder")}</span>
                     <span
-                      className="cursor-pointer font-mono text-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                      className="cursor-pointer font-mono font-medium text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
                       title={showDetail.order_id}
                       onClick={() => copyToClipboard(showDetail.order_id)}
                     >
@@ -413,11 +413,11 @@ export default function AdminTxidReviewsPage() {
                     </span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">{t("admin.txidChain")}</span>
-                    <span className="text-sm text-foreground">{chainLabel(showDetail.chain)}</span>
+                    <span className="text-muted-foreground">{t("admin.txidChain")}</span>
+                    <span className="text-foreground">{chainLabel(showDetail.chain)}</span>
                   </div>
                   <div className="col-span-2 flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">TXID</span>
+                    <span className="text-muted-foreground">TXID</span>
                     <div className="flex items-center gap-2">
                       <code
                         className="cursor-pointer break-all rounded bg-muted/50 px-2 py-1 text-xs text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
@@ -438,20 +438,20 @@ export default function AdminTxidReviewsPage() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">{t("admin.txidExpected")}</span>
-                    <span className="text-sm font-medium text-foreground">{showDetail.expected_amount} USDT</span>
+                    <span className="text-muted-foreground">{t("admin.txidExpected")}</span>
+                    <span className="font-medium text-foreground">{showDetail.expected_amount} USDT</span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">{t("admin.txidOnChain")}</span>
-                    <span className="text-sm font-medium text-foreground">
+                    <span className="text-muted-foreground">{t("admin.txidOnChain")}</span>
+                    <span className="font-medium text-foreground">
                       {showDetail.on_chain_amount != null ? `${showDetail.on_chain_amount} USDT` : t("admin.txidOnChainNA")}
                     </span>
                   </div>
                   {showDetail.amount_diff != null && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">{t("admin.txidDiff")}</span>
+                      <span className="text-muted-foreground">{t("admin.txidDiff")}</span>
                       <span className={cn(
-                        "text-sm font-medium",
+                        "font-medium",
                         showDetail.amount_diff === 0 ? "text-emerald-600" :
                         Math.abs(showDetail.amount_diff) < 1 ? "text-amber-600" : "text-red-600"
                       )}>
@@ -460,43 +460,53 @@ export default function AdminTxidReviewsPage() {
                     </div>
                   )}
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">{t("admin.txidSource")}</span>
-                    <span className="text-sm text-foreground">
+                    <span className="text-muted-foreground">{t("admin.txidSource")}</span>
+                    <span className="text-foreground">
                       {showDetail.source === "USER_SUBMIT" ? t("admin.txidSourceUser") : t("admin.txidSourceSystem")}
                     </span>
                   </div>
                   {showDetail.on_chain_from && (
                     <div className="col-span-2 flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">{t("admin.txidFrom")}</span>
-                      <code className="break-all text-xs text-foreground">{showDetail.on_chain_from}</code>
+                      <span className="text-muted-foreground">{t("admin.txidFrom")}</span>
+                      <code
+                        className="cursor-pointer break-all text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                        onClick={() => copyToClipboard(showDetail.on_chain_from!)}
+                      >
+                        {showDetail.on_chain_from}
+                      </code>
                     </div>
                   )}
                   {showDetail.on_chain_to && (
                     <div className="col-span-2 flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">{t("admin.txidTo")}</span>
-                      <code className="break-all text-xs text-foreground">{showDetail.on_chain_to}</code>
+                      <span className="text-muted-foreground">{t("admin.txidTo")}</span>
+                      <code
+                        className="cursor-pointer break-all text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                        onClick={() => copyToClipboard(showDetail.on_chain_to!)}
+                      >
+                        {showDetail.on_chain_to}
+                      </code>
                     </div>
                   )}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">{t("admin.txidStatus")}</span>
+                  <div className="flex flex-col gap-1 items-start">
+                    <span className="text-muted-foreground">{t("admin.txidStatus")}</span>
                     {statusBadge(showDetail.status, t)}
                   </div>
                   {showDetail.verify_reason && (
                     <div className="col-span-2 flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">{t("admin.txidVerifyReason")}</span>
-                      <span className="text-sm text-foreground">{showDetail.verify_reason}</span>
+                      <span className="text-muted-foreground">{t("admin.txidVerifyReason")}</span>
+                      <span className="text-foreground">{showDetail.verify_reason}</span>
                     </div>
                   )}
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">{t("admin.txidSubmittedAt")}</span>
-                    <span className="text-sm text-foreground">
+                    <span className="text-muted-foreground">{t("admin.txidSubmittedAt")}</span>
+                    <span className="text-foreground">
                       {new Date(showDetail.submitted_at || showDetail.created_at).toLocaleString()}
                     </span>
                   </div>
                   {showDetail.reviewed_at && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">{t("admin.txidReviewedAt")}</span>
-                      <span className="text-sm text-foreground">{new Date(showDetail.reviewed_at).toLocaleString()}</span>
+                      <span className="text-muted-foreground">{t("admin.txidReviewedAt")}</span>
+                      <span className="text-foreground">{new Date(showDetail.reviewed_at).toLocaleString()}</span>
                     </div>
                   )}
                 </div>
