@@ -19,6 +19,7 @@ import java.math.BigDecimal;
 import java.time.Duration;
 import java.time.LocalDateTime;
 import java.util.*;
+import java.util.regex.Pattern;
 
 @Slf4j
 @Service
@@ -61,6 +62,7 @@ public class OrderServiceImpl implements OrderService {
         UUID specId = req.get("spec_id") != null ? UUID.fromString((String) req.get("spec_id")) : null;
         int quantity = ((Number) req.get("quantity")).intValue();
         String email = (String) req.get("email");
+        validateEmail(email);
 
         // F4: 购买数量校验（读取后台配置，兜底 999）
         int maxQuantity = getMaxPurchasePerUser();
@@ -152,6 +154,7 @@ public class OrderServiceImpl implements OrderService {
         }
 
         String email = (String) req.get("email");
+        validateEmail(email);
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
         validatePaymentMethod(paymentMethod);
@@ -426,6 +429,15 @@ public class OrderServiceImpl implements OrderService {
         paymentChannelRepository.findByChannelCodeAndIsDeleted(paymentMethod, 0)
                 .filter(PaymentChannel::isEnabled)
                 .orElseThrow(() -> new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "支付渠道不可用"));
+    }
+
+    private static final Pattern EMAIL_PATTERN = Pattern.compile(
+            "^[a-zA-Z0-9._%+\\-]+@[a-zA-Z0-9.\\-]+\\.[a-zA-Z]{2,}$");
+
+    private void validateEmail(String email) {
+        if (email == null || email.isBlank() || !EMAIL_PATTERN.matcher(email.trim()).matches()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "邮箱格式不正确");
+        }
     }
 
     /** 每用户单次最大购买数量，后台可配，兜底 999（配置异常或 ≤ 0 时回退） */
