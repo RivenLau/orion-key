@@ -14,7 +14,7 @@ import {
   ChevronLeft,
   ChevronRight,
 } from "lucide-react"
-import { cn } from "@/lib/utils"
+import { cn, stripInvisible } from "@/lib/utils"
 import { useLocale } from "@/lib/context"
 import { toast } from "sonner"
 import { adminCardKeyApi, adminProductApi, withMockFallback } from "@/services/api"
@@ -584,7 +584,7 @@ export default function AdminCardKeysPage() {
             <p className="py-12 text-center text-sm text-muted-foreground">暂无卡密数据</p>
           ) : (
             <div className="overflow-x-auto">
-              <table className="w-full text-sm table-fixed">
+              <table className="w-full text-sm table-fixed" onCopy={(e) => { const t = window.getSelection()?.toString(); if (t) { e.clipboardData.setData("text/plain", stripInvisible(t)); e.preventDefault() } }}>
                 <thead>
                   <tr className="border-b border-border bg-muted/30">
                     <th className="w-[36%] px-3 py-2 text-left font-medium text-muted-foreground">卡密内容</th>

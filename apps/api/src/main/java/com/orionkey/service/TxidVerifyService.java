@@ -2,6 +2,8 @@ package com.orionkey.service;
 
 import com.orionkey.entity.Order;
 
+import java.time.LocalDateTime;
+
 public interface TxidVerifyService {
 
     enum VerifyResult {
@@ -31,7 +33,8 @@ public interface TxidVerifyService {
      * @return 验证通过/失败的结果；null 表示链上 API 查询失败（调用方应触发重试）
      */
     ChainVerifyResult verifyForWebhook(String chain, String txid,
-                                        String expectedWalletAddress, String expectedCryptoAmount);
+                                        String expectedWalletAddress, String expectedCryptoAmount,
+                                        LocalDateTime orderCreatedAt);
 
     record ChainVerifyResult(boolean verified, String reason) {}
 }

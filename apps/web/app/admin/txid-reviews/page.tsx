@@ -8,30 +8,29 @@ import { toast } from "sonner"
 import { adminTxidReviewApi, withMockFallback } from "@/services/api"
 import { Modal } from "@/components/ui/modal"
 import type { UnmatchedTransaction, TxidReviewStatus } from "@/types"
+import type { TranslationKey } from "@/lib/i18n"
 
 const ITEMS_PER_PAGE = 10
 
-const STATUS_OPTIONS: { value: TxidReviewStatus | ""; label: string; labelEn: string }[] = [
-  { value: "", label: "全部状态", labelEn: "All Status" },
-  { value: "PENDING_REVIEW", label: "待审核", labelEn: "Pending Review" },
-  { value: "AUTO_APPROVED", label: "自动通过", labelEn: "Auto Approved" },
-  { value: "AUTO_REJECTED", label: "自动拒绝", labelEn: "Auto Rejected" },
-  { value: "APPROVED", label: "人工通过", labelEn: "Approved" },
-  { value: "REJECTED", label: "人工拒绝", labelEn: "Rejected" },
-]
-
-function statusBadge(status: TxidReviewStatus) {
-  const map: Record<TxidReviewStatus, { bg: string; text: string; label: string }> = {
-    PENDING_REVIEW: { bg: "bg-amber-500/10", text: "text-amber-600", label: "待审核" },
-    AUTO_APPROVED: { bg: "bg-emerald-500/10", text: "text-emerald-600", label: "自动通过" },
-    AUTO_REJECTED: { bg: "bg-red-500/10", text: "text-red-600", label: "自动拒绝" },
-    APPROVED: { bg: "bg-emerald-500/10", text: "text-emerald-600", label: "人工通过" },
-    REJECTED: { bg: "bg-red-500/10", text: "text-red-600", label: "人工拒绝" },
+function statusBadge(status: TxidReviewStatus, t: (k: TranslationKey) => string) {
+  const map: Record<TxidReviewStatus, { bg: string; text: string; key: TranslationKey }> = {
+    PENDING_REVIEW: { bg: "bg-amber-500/10", text: "text-amber-600", key: "admin.txidPendingReview" },
+    AUTO_APPROVED: { bg: "bg-emerald-500/10", text: "text-emerald-600", key: "admin.txidAutoApproved" },
+    AUTO_REJECTED: { bg: "bg-red-500/10", text: "text-red-600", key: "admin.txidAutoRejected" },
+    APPROVED: { bg: "bg-emerald-500/10", text: "text-emerald-600", key: "admin.txidApproved" },
+    REJECTED: { bg: "bg-red-500/10", text: "text-red-600", key: "admin.txidRejected" },
   }
-  const s = map[status] || { bg: "bg-muted", text: "text-muted-foreground", label: status }
+  const s = map[status]
+  if (!s) {
+    return (
+      <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", "bg-muted", "text-muted-foreground")}>
+        {status}
+      </span>
+    )
+  }
   return (
     <span className={cn("rounded-full px-2.5 py-0.5 text-xs font-medium", s.bg, s.text)}>
-      {s.label}
+      {t(s.key)}
     </span>
   )
 }
@@ -67,6 +66,39 @@ export default function AdminTxidReviewsPage() {
   const [showDetail, setShowDetail] = useState<UnmatchedTransaction | null>(null)
   const [rejectReason, setRejectReason] = useState("")
   const [actionLoading, setActionLoading] = useState(false)
+  const [approveConfirm, setApproveConfirm] = useState<UnmatchedTransaction | null>(null)
+  const [rejectConfirm, setRejectConfirm] = useState<UnmatchedTransaction | null>(null)
+
+  const copyToClipboard = (text: string) => {
+    if (navigator.clipboard?.writeText) {
+      navigator.clipboard.writeText(text).then(
+        () => toast.success(t("order.copied")),
+        () => fallbackCopy(text)
+      )
+    } else {
+      fallbackCopy(text)
+    }
+    function fallbackCopy(val: string) {
+      const ta = document.createElement("textarea")
+      ta.value = val
+      ta.style.position = "fixed"
+      ta.style.opacity = "0"
+      document.body.appendChild(ta)
+      ta.select()
+      document.execCommand("copy")
+      document.body.removeChild(ta)
+      toast.success(t("order.copied"))
+    }
+  }
+
+  const STATUS_OPTIONS: { value: TxidReviewStatus | ""; key: TranslationKey }[] = [
+    { value: "", key: "admin.txidAllStatus" },
+    { value: "PENDING_REVIEW", key: "admin.txidPendingReview" },
+    { value: "AUTO_APPROVED", key: "admin.txidAutoApproved" },
+    { value: "AUTO_REJECTED", key: "admin.txidAutoRejected" },
+    { value: "APPROVED", key: "admin.txidApproved" },
+    { value: "REJECTED", key: "admin.txidRejected" },
+  ]
 
   const fetchList = async () => {
     setLoading(true)
@@ -100,11 +132,12 @@ export default function AdminTxidReviewsPage() {
         () => adminTxidReviewApi.approve(record.id),
         () => null
       )
-      toast.success("已通过审核，订单将自动核销")
+      toast.success(t("admin.txidApproveSuccess"))
+      setApproveConfirm(null)
       setShowDetail(null)
       await fetchList()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "操作失败")
+      toast.error(err instanceof Error ? err.message : t("admin.txidActionFailed"))
     } finally {
       setActionLoading(false)
     }
@@ -112,7 +145,7 @@ export default function AdminTxidReviewsPage() {
 
   const handleReject = async (record: UnmatchedTransaction) => {
     if (!rejectReason.trim()) {
-      toast.error("请填写拒绝原因")
+      toast.error(t("admin.txidRejectReasonRequired"))
       return
     }
     setActionLoading(true)
@@ -121,12 +154,13 @@ export default function AdminTxidReviewsPage() {
         () => adminTxidReviewApi.reject(record.id, rejectReason.trim()),
         () => null
       )
-      toast.success("已拒绝")
+      toast.success(t("admin.txidRejectSuccess"))
       setRejectReason("")
+      setRejectConfirm(null)
       setShowDetail(null)
       await fetchList()
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "操作失败")
+      toast.error(err instanceof Error ? err.message : t("admin.txidActionFailed"))
     } finally {
       setActionLoading(false)
     }
@@ -142,7 +176,7 @@ export default function AdminTxidReviewsPage() {
       {/* Header */}
       <div>
         <h1 className="text-2xl font-bold text-foreground">{t("admin.txidReview")}</h1>
-        <p className="text-sm text-muted-foreground">管理 USDT 交易哈希审核记录，仅 PENDING_REVIEW 状态可操作</p>
+        <p className="text-sm text-muted-foreground">{t("admin.txidReviewDesc")}</p>
       </div>
 
       {/* Filters */}
@@ -154,7 +188,7 @@ export default function AdminTxidReviewsPage() {
             onChange={(e) => { setStatusFilter(e.target.value as TxidReviewStatus | ""); setCurrentPage(1) }}
           >
             {STATUS_OPTIONS.map(opt => (
-              <option key={opt.value} value={opt.value}>{opt.label}</option>
+              <option key={opt.value} value={opt.value}>{t(opt.key)}</option>
             ))}
           </select>
           <ChevronDown className="pointer-events-none absolute right-2.5 top-1/2 h-4 w-4 -translate-y-1/2 text-muted-foreground" />
@@ -167,15 +201,15 @@ export default function AdminTxidReviewsPage() {
           <table className="w-full text-sm">
             <thead>
               <tr className="border-b border-border bg-muted/30">
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">订单号</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t("admin.txidOrderId")}</th>
                 <th className="px-4 py-3 text-left font-medium text-muted-foreground">TXID</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">链</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">预期金额</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">链上金额</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">差额</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">来源</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">状态</th>
-                <th className="px-4 py-3 text-left font-medium text-muted-foreground">提交时间</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t("admin.txidChain")}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t("admin.txidExpectedAmount")}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t("admin.txidOnChainAmount")}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t("admin.txidAmountDiff")}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t("admin.txidSource")}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t("admin.txidStatus")}</th>
+                <th className="px-4 py-3 text-left font-medium text-muted-foreground">{t("admin.txidSubmittedAt")}</th>
                 <th className="px-4 py-3 text-right font-medium text-muted-foreground">{t("admin.actions")}</th>
               </tr>
             </thead>
@@ -190,7 +224,7 @@ export default function AdminTxidReviewsPage() {
                 </tr>
               ) : records.length === 0 ? (
                 <tr>
-                  <td colSpan={10} className="py-8 text-center text-sm text-muted-foreground">暂无审核记录</td>
+                  <td colSpan={10} className="py-8 text-center text-sm text-muted-foreground">{t("admin.txidNoRecords")}</td>
                 </tr>
               ) : (
                 records.map((record) => {
@@ -198,13 +232,21 @@ export default function AdminTxidReviewsPage() {
                   return (
                     <tr key={record.id} className="border-b border-border/50 last:border-0 hover:bg-muted/20 transition-colors">
                       <td className="px-4 py-3">
-                        <span className="font-mono text-xs font-medium text-foreground">
+                        <span
+                          className="cursor-pointer font-mono text-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                          title={record.order_id}
+                          onClick={() => copyToClipboard(record.order_id)}
+                        >
                           {shortenId(record.order_id)}
                         </span>
                       </td>
                       <td className="px-4 py-3">
                         <div className="flex items-center gap-1">
-                          <span className="font-mono text-xs text-foreground" title={record.txid}>
+                          <span
+                            className="cursor-pointer font-mono text-sm font-medium text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                            title={record.txid}
+                            onClick={() => copyToClipboard(record.txid)}
+                          >
                             {shortenTxid(record.txid)}
                           </span>
                           {explorerUrl && (
@@ -213,7 +255,7 @@ export default function AdminTxidReviewsPage() {
                               target="_blank"
                               rel="noopener noreferrer"
                               className="text-muted-foreground hover:text-primary transition-colors"
-                              title="在区块浏览器中查看"
+                              title={t("admin.txidViewExplorer")}
                             >
                               <ExternalLink className="h-3 w-3" />
                             </a>
@@ -243,10 +285,10 @@ export default function AdminTxidReviewsPage() {
                             ? "bg-blue-500/10 text-blue-600"
                             : "bg-purple-500/10 text-purple-600"
                         )}>
-                          {record.source === "USER_SUBMIT" ? "用户提交" : "回调异常"}
+                          {record.source === "USER_SUBMIT" ? t("admin.txidSourceUser") : t("admin.txidSourceSystem")}
                         </span>
                       </td>
-                      <td className="px-4 py-3">{statusBadge(record.status)}</td>
+                      <td className="px-4 py-3">{statusBadge(record.status, t)}</td>
                       <td className="px-4 py-3 text-xs text-muted-foreground whitespace-nowrap">
                         {new Date(record.submitted_at || record.created_at).toLocaleString()}
                       </td>
@@ -256,7 +298,7 @@ export default function AdminTxidReviewsPage() {
                             type="button"
                             onClick={() => openDetail(record)}
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors"
-                            title="查看详情"
+                            title={t("admin.txidViewDetail")}
                           >
                             <Eye className="h-4 w-4" />
                           </button>
@@ -264,17 +306,17 @@ export default function AdminTxidReviewsPage() {
                             <>
                               <button
                                 type="button"
-                                onClick={() => handleApprove(record)}
+                                onClick={() => setApproveConfirm(record)}
                                 className="rounded-md p-1.5 text-muted-foreground hover:bg-emerald-500/10 hover:text-emerald-600 transition-colors"
-                                title="通过"
+                                title={t("admin.txidApproveLabel")}
                               >
                                 <CheckCircle className="h-4 w-4" />
                               </button>
                               <button
                                 type="button"
-                                onClick={() => openDetail(record)}
+                                onClick={() => { setRejectReason(""); setRejectConfirm(record) }}
                                 className="rounded-md p-1.5 text-muted-foreground hover:bg-red-500/10 hover:text-red-600 transition-colors"
-                                title="拒绝"
+                                title={t("admin.txidRejectLabel")}
                               >
                                 <XCircle className="h-4 w-4" />
                               </button>
@@ -347,7 +389,7 @@ export default function AdminTxidReviewsPage() {
             <>
               <div className="border-b border-border px-6 py-4 flex items-center justify-between">
                 <div>
-                  <h2 className="text-lg font-semibold text-foreground">TXID 审核详情</h2>
+                  <h2 className="text-lg font-semibold text-foreground">{t("admin.txidDetail")}</h2>
                   <p className="font-mono text-xs text-muted-foreground">{showDetail.id}</p>
                 </div>
                 <button
@@ -359,19 +401,30 @@ export default function AdminTxidReviewsPage() {
                 </button>
               </div>
               <div className="flex flex-col gap-5 p-6">
-                <div className="grid grid-cols-2 gap-x-8 gap-y-4">
+                <div className="grid grid-cols-2 gap-x-8 gap-y-4 text-sm">
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">关联订单</span>
-                    <span className="font-mono text-sm font-medium text-foreground">{shortenId(showDetail.order_id)}</span>
+                    <span className="text-muted-foreground">{t("admin.txidRelatedOrder")}</span>
+                    <span
+                      className="cursor-pointer font-mono font-medium text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                      title={showDetail.order_id}
+                      onClick={() => copyToClipboard(showDetail.order_id)}
+                    >
+                      {shortenId(showDetail.order_id)}
+                    </span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">链</span>
-                    <span className="text-sm text-foreground">{chainLabel(showDetail.chain)}</span>
+                    <span className="text-muted-foreground">{t("admin.txidChain")}</span>
+                    <span className="text-foreground">{chainLabel(showDetail.chain)}</span>
                   </div>
                   <div className="col-span-2 flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">TXID</span>
+                    <span className="text-muted-foreground">TXID</span>
                     <div className="flex items-center gap-2">
-                      <code className="break-all rounded bg-muted/50 px-2 py-1 text-xs text-foreground">{showDetail.txid}</code>
+                      <code
+                        className="cursor-pointer break-all rounded bg-muted/50 px-2 py-1 text-xs text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                        onClick={() => copyToClipboard(showDetail.txid)}
+                      >
+                        {showDetail.txid}
+                      </code>
                       {explorerUrl && (
                         <a
                           href={explorerUrl}
@@ -385,20 +438,20 @@ export default function AdminTxidReviewsPage() {
                     </div>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">预期金额</span>
-                    <span className="text-sm font-medium text-foreground">{showDetail.expected_amount} USDT</span>
+                    <span className="text-muted-foreground">{t("admin.txidExpected")}</span>
+                    <span className="font-medium text-foreground">{showDetail.expected_amount} USDT</span>
                   </div>
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">链上金额</span>
-                    <span className="text-sm font-medium text-foreground">
-                      {showDetail.on_chain_amount != null ? `${showDetail.on_chain_amount} USDT` : "未获取"}
+                    <span className="text-muted-foreground">{t("admin.txidOnChain")}</span>
+                    <span className="font-medium text-foreground">
+                      {showDetail.on_chain_amount != null ? `${showDetail.on_chain_amount} USDT` : t("admin.txidOnChainNA")}
                     </span>
                   </div>
                   {showDetail.amount_diff != null && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">金额差异</span>
+                      <span className="text-muted-foreground">{t("admin.txidDiff")}</span>
                       <span className={cn(
-                        "text-sm font-medium",
+                        "font-medium",
                         showDetail.amount_diff === 0 ? "text-emerald-600" :
                         Math.abs(showDetail.amount_diff) < 1 ? "text-amber-600" : "text-red-600"
                       )}>
@@ -407,79 +460,74 @@ export default function AdminTxidReviewsPage() {
                     </div>
                   )}
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">来源</span>
-                    <span className="text-sm text-foreground">
-                      {showDetail.source === "USER_SUBMIT" ? "用户提交" : "回调异常"}
+                    <span className="text-muted-foreground">{t("admin.txidSource")}</span>
+                    <span className="text-foreground">
+                      {showDetail.source === "USER_SUBMIT" ? t("admin.txidSourceUser") : t("admin.txidSourceSystem")}
                     </span>
                   </div>
                   {showDetail.on_chain_from && (
                     <div className="col-span-2 flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">发送地址</span>
-                      <code className="break-all text-xs text-foreground">{showDetail.on_chain_from}</code>
+                      <span className="text-muted-foreground">{t("admin.txidFrom")}</span>
+                      <code
+                        className="cursor-pointer break-all text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                        onClick={() => copyToClipboard(showDetail.on_chain_from!)}
+                      >
+                        {showDetail.on_chain_from}
+                      </code>
                     </div>
                   )}
                   {showDetail.on_chain_to && (
                     <div className="col-span-2 flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">接收地址</span>
-                      <code className="break-all text-xs text-foreground">{showDetail.on_chain_to}</code>
+                      <span className="text-muted-foreground">{t("admin.txidTo")}</span>
+                      <code
+                        className="cursor-pointer break-all text-foreground underline-offset-4 transition-colors hover:underline hover:text-primary"
+                        onClick={() => copyToClipboard(showDetail.on_chain_to!)}
+                      >
+                        {showDetail.on_chain_to}
+                      </code>
                     </div>
                   )}
-                  <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">状态</span>
-                    {statusBadge(showDetail.status)}
+                  <div className="flex flex-col gap-1 items-start">
+                    <span className="text-muted-foreground">{t("admin.txidStatus")}</span>
+                    {statusBadge(showDetail.status, t)}
                   </div>
                   {showDetail.verify_reason && (
                     <div className="col-span-2 flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">验证/审核说明</span>
-                      <span className="text-sm text-foreground">{showDetail.verify_reason}</span>
+                      <span className="text-muted-foreground">{t("admin.txidVerifyReason")}</span>
+                      <span className="text-foreground">{showDetail.verify_reason}</span>
                     </div>
                   )}
                   <div className="flex flex-col gap-1">
-                    <span className="text-xs text-muted-foreground">提交时间</span>
-                    <span className="text-sm text-foreground">
+                    <span className="text-muted-foreground">{t("admin.txidSubmittedAt")}</span>
+                    <span className="text-foreground">
                       {new Date(showDetail.submitted_at || showDetail.created_at).toLocaleString()}
                     </span>
                   </div>
                   {showDetail.reviewed_at && (
                     <div className="flex flex-col gap-1">
-                      <span className="text-xs text-muted-foreground">审核时间</span>
-                      <span className="text-sm text-foreground">{new Date(showDetail.reviewed_at).toLocaleString()}</span>
+                      <span className="text-muted-foreground">{t("admin.txidReviewedAt")}</span>
+                      <span className="text-foreground">{new Date(showDetail.reviewed_at).toLocaleString()}</span>
                     </div>
                   )}
                 </div>
 
-                {/* Reject reason input — only for PENDING_REVIEW */}
-                {showDetail.status === "PENDING_REVIEW" && (
-                  <div className="flex flex-col gap-2">
-                    <label className="text-xs text-muted-foreground">拒绝原因（拒绝时必填）</label>
-                    <textarea
-                      value={rejectReason}
-                      onChange={(e) => setRejectReason(e.target.value)}
-                      placeholder="请输入拒绝原因..."
-                      className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none"
-                      rows={2}
-                    />
-                  </div>
-                )}
               </div>
               <div className="flex justify-end gap-3 border-t border-border px-6 py-4">
                 {showDetail.status === "PENDING_REVIEW" && (
                   <>
                     <button
                       type="button"
-                      disabled={actionLoading}
-                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
-                      onClick={() => handleApprove(showDetail)}
+                      className="rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors"
+                      onClick={() => setApproveConfirm(showDetail)}
                     >
-                      {actionLoading ? "处理中..." : "通过"}
+                      {t("admin.txidApproveLabel")}
                     </button>
                     <button
                       type="button"
-                      disabled={actionLoading}
-                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
-                      onClick={() => handleReject(showDetail)}
+                      className="rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors"
+                      onClick={() => { setRejectReason(""); setRejectConfirm(showDetail) }}
                     >
-                      {actionLoading ? "处理中..." : "拒绝"}
+                      {t("admin.txidRejectLabel")}
                     </button>
                   </>
                 )}
@@ -494,6 +542,68 @@ export default function AdminTxidReviewsPage() {
             </>
           )
         })()}
+      </Modal>
+
+      {/* Approve Confirmation */}
+      <Modal open={approveConfirm !== null} onClose={() => setApproveConfirm(null)} className="max-w-sm">
+        <div className="flex flex-col items-center gap-4 p-6 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-emerald-500/10">
+            <CheckCircle className="h-6 w-6 text-emerald-600" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground">{t("admin.txidApproveConfirm")}</h3>
+          <p className="text-sm text-muted-foreground">{t("admin.txidApproveHint")}</p>
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              className="flex-1 rounded-lg border border-input bg-transparent px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+              onClick={() => setApproveConfirm(null)}
+            >
+              {t("admin.cancel")}
+            </button>
+            <button
+              type="button"
+              disabled={actionLoading}
+              className="flex-1 rounded-lg bg-emerald-600 px-4 py-2 text-sm font-medium text-white hover:bg-emerald-700 transition-colors disabled:opacity-50"
+              onClick={() => { if (approveConfirm) handleApprove(approveConfirm) }}
+            >
+              {actionLoading ? t("admin.txidProcessing") : t("admin.txidApproveBtn")}
+            </button>
+          </div>
+        </div>
+      </Modal>
+
+      {/* Reject Confirmation */}
+      <Modal open={rejectConfirm !== null} onClose={() => setRejectConfirm(null)} className="max-w-sm">
+        <div className="flex flex-col items-center gap-4 p-6 text-center">
+          <div className="flex h-12 w-12 items-center justify-center rounded-full bg-red-500/10">
+            <XCircle className="h-6 w-6 text-red-600" />
+          </div>
+          <h3 className="text-base font-semibold text-foreground">{t("admin.txidRejectConfirm")}</h3>
+          <textarea
+            value={rejectReason}
+            onChange={(e) => setRejectReason(e.target.value)}
+            placeholder={t("admin.txidRejectReasonPlaceholder")}
+            className="w-full rounded-lg border border-input bg-background px-3 py-2 text-sm text-foreground placeholder:text-muted-foreground focus:outline-none focus:ring-2 focus:ring-ring resize-none text-left"
+            rows={2}
+          />
+          <div className="flex w-full gap-3">
+            <button
+              type="button"
+              className="flex-1 rounded-lg border border-input bg-transparent px-4 py-2 text-sm font-medium text-foreground hover:bg-accent transition-colors"
+              onClick={() => setRejectConfirm(null)}
+            >
+              {t("admin.cancel")}
+            </button>
+            <button
+              type="button"
+              disabled={actionLoading}
+              className="flex-1 rounded-lg bg-red-600 px-4 py-2 text-sm font-medium text-white hover:bg-red-700 transition-colors disabled:opacity-50"
+              onClick={() => { if (rejectConfirm) handleReject(rejectConfirm) }}
+            >
+              {actionLoading ? t("admin.txidProcessing") : t("admin.txidRejectBtn")}
+            </button>
+          </div>
+        </div>
       </Modal>
     </div>
   )

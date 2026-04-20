@@ -2,6 +2,7 @@ package com.orionkey.controller;
 
 import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
+import com.orionkey.common.PageResult;
 import com.orionkey.constant.ErrorCode;
 import com.orionkey.constant.OrderStatus;
 import com.orionkey.context.RequestContext;
@@ -30,14 +31,15 @@ public class AdminTxidReviewController {
 
     @GetMapping
     public ApiResponse<?> listTxidReviews(
-            @RequestParam(defaultValue = "PENDING_REVIEW") String status,
+            @RequestParam(required = false) String status,
             @RequestParam(defaultValue = "1") int page,
             @RequestParam(value = "page_size", defaultValue = "20") int pageSize) {
 
-        Page<UnmatchedTransaction> result = unmatchedTransactionRepository
-                .findByStatusOrderByCreatedAtDesc(status, PageRequest.of(page - 1, pageSize));
+        PageRequest pageable = PageRequest.of(page - 1, pageSize);
+        Page<UnmatchedTransaction> result = (status == null || status.isBlank())
+                ? unmatchedTransactionRepository.findAllByOrderByCreatedAtDesc(pageable)
+                : unmatchedTransactionRepository.findByStatusOrderByCreatedAtDesc(status, pageable);
 
-        Map<String, Object> response = new LinkedHashMap<>();
         List<Map<String, Object>> items = new ArrayList<>();
         for (UnmatchedTransaction ut : result.getContent()) {
             Map<String, Object> item = new LinkedHashMap<>();
@@ -57,12 +59,8 @@ public class AdminTxidReviewController {
             item.put("reviewed_at", ut.getReviewedAt());
             items.add(item);
         }
-        response.put("list", items);
-        response.put("total", result.getTotalElements());
-        response.put("page", page);
-        response.put("page_size", pageSize);
 
-        return ApiResponse.success(response);
+        return ApiResponse.success(PageResult.of(items, page, pageSize, result.getTotalElements()));
     }
 
     @LogOperation(action = "txid.approve", targetType = "TXID_REVIEW", targetId = "#id", detail = "'通过TXID审核'")
@@ -73,6 +71,15 @@ public class AdminTxidReviewController {
 
         if (!"PENDING_REVIEW".equals(ut.getStatus())) {
             throw new BusinessException(ErrorCode.BAD_REQUEST, "该记录状态不允许审核");
+        }
+
+        // TXID 唯一性前置检查：必须在任何写操作之前，防止检查失败时状态不一致
+        if (ut.getOrderId() != null) {
+            Optional<Order> txidExisting = orderRepository.findByUsdtTxId(ut.getTxid());
+            if (txidExisting.isPresent() && !txidExisting.get().getId().equals(ut.getOrderId())) {
+                throw new BusinessException(ErrorCode.TXID_ALREADY_USED,
+                        "该 TXID 已被订单 " + txidExisting.get().getId() + " 使用，无法审批");
+            }
         }
 
         // 更新审核记录

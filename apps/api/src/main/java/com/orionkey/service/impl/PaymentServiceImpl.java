@@ -112,12 +112,10 @@ public class PaymentServiceImpl implements PaymentService {
         String tradeType = cfg.getOrDefault("trade_type", "usdt.trc20");
         String fiat = cfg.getOrDefault("fiat", "CNY");
         int timeout = Integer.parseInt(cfg.getOrDefault("timeout", "900"));
-        BigDecimal tolerance = new BigDecimal(cfg.getOrDefault("auto_approve_tolerance", "0.01"));
-        BigDecimal upper = new BigDecimal(cfg.getOrDefault("manual_review_upper", "5.0"));
         String fixedRate = cfg.getOrDefault("fixed_rate", "");
 
         return new BepusdtConfig(apiUrl, apiToken, notifyUrl, redirectUrl,
-                tradeType, fiat, timeout, tolerance, upper, fixedRate);
+                tradeType, fiat, timeout, fixedRate);
     }
 
     /**

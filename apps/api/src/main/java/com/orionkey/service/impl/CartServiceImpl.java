@@ -10,6 +10,7 @@ import com.orionkey.repository.CardKeyRepository;
 import com.orionkey.repository.CartItemRepository;
 import com.orionkey.repository.ProductRepository;
 import com.orionkey.repository.ProductSpecRepository;
+import com.orionkey.repository.SiteConfigRepository;
 import com.orionkey.service.CartService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.stereotype.Service;
@@ -26,6 +27,7 @@ public class CartServiceImpl implements CartService {
     private final ProductRepository productRepository;
     private final ProductSpecRepository productSpecRepository;
     private final CardKeyRepository cardKeyRepository;
+    private final SiteConfigRepository siteConfigRepository;
 
     @Override
     @Transactional
@@ -66,8 +68,10 @@ public class CartServiceImpl implements CartService {
         UUID specId = req.get("spec_id") != null ? UUID.fromString((String) req.get("spec_id")) : null;
         int quantity = ((Number) req.get("quantity")).intValue();
 
-        if (quantity < 1 || quantity > 999) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "购买数量无效，允许范围 1~999");
+        int maxQuantity = getMaxPurchasePerUser();
+        if (quantity < 1 || quantity > maxQuantity) {
+            throw new BusinessException(ErrorCode.PURCHASE_LIMIT_EXCEEDED, "购买数量无效，允许范围 1~" + maxQuantity,
+                    Map.of("max", maxQuantity));
         }
 
         Product product = productRepository.findById(productId)
@@ -88,9 +92,16 @@ public class CartServiceImpl implements CartService {
             existing = cartItemRepository.findBySessionTokenAndProductIdAndSpecId(resultSessionToken, productId, specId);
         }
 
-        // Advisory stock check: 购物车已有数量 + 新增数量 ≤ 可用库存
+        // 合并后总量校验：已有数量 + 新增数量 ≤ 购买上限
         int existingQty = existing.map(CartItem::getQuantity).orElse(0);
         int totalQty = existingQty + quantity;
+        if (totalQty > maxQuantity) {
+            throw new BusinessException(ErrorCode.PURCHASE_LIMIT_EXCEEDED,
+                    "购买数量无效，允许范围 1~" + maxQuantity,
+                    Map.of("max", maxQuantity));
+        }
+
+        // Advisory stock check: 购物车已有数量 + 新增数量 ≤ 可用库存
         long available = specId != null
                 ? cardKeyRepository.countByProductIdAndSpecIdAndStatus(productId, specId, CardKeyStatus.AVAILABLE)
                 : cardKeyRepository.countByProductIdAndSpecIdIsNullAndStatus(productId, CardKeyStatus.AVAILABLE);
@@ -119,8 +130,10 @@ public class CartServiceImpl implements CartService {
     @Override
     @Transactional
     public void updateItem(UUID userId, String sessionToken, UUID itemId, int quantity) {
-        if (quantity < 1 || quantity > 999) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "购买数量无效，允许范围 1~999");
+        int maxQuantity = getMaxPurchasePerUser();
+        if (quantity < 1 || quantity > maxQuantity) {
+            throw new BusinessException(ErrorCode.PURCHASE_LIMIT_EXCEEDED, "购买数量无效，允许范围 1~" + maxQuantity,
+                    Map.of("max", maxQuantity));
         }
 
         CartItem item = cartItemRepository.findById(itemId)
@@ -168,8 +181,10 @@ public class CartServiceImpl implements CartService {
             Optional<CartItem> existing = cartItemRepository.findByUserIdAndProductIdAndSpecId(
                     userId, guestItem.getProductId(), guestItem.getSpecId());
             if (existing.isPresent()) {
-                // 已存在同商品+规格 → 合并数量
-                existing.get().setQuantity(existing.get().getQuantity() + guestItem.getQuantity());
+                // 已存在同商品+规格 → 合并数量（截断到购买上限，避免超限）
+                int merged = existing.get().getQuantity() + guestItem.getQuantity();
+                int max = getMaxPurchasePerUser();
+                existing.get().setQuantity(Math.min(merged, max));
                 cartItemRepository.save(existing.get());
                 cartItemRepository.delete(guestItem);
             } else {
@@ -215,5 +230,16 @@ public class CartServiceImpl implements CartService {
         map.put("stock_available", stockAvailable);
 
         return map;
+    }
+
+    /** 每用户单次最大购买数量，后台可配，兜底 999 */
+    private int getMaxPurchasePerUser() {
+        return siteConfigRepository.findByConfigKey("max_purchase_per_user")
+                .map(c -> {
+                    try {
+                        int val = Integer.parseInt(c.getConfigValue());
+                        return (val > 0 && val <= 999) ? val : 999;
+                    } catch (Exception e) { return 999; }
+                }).orElse(999);
     }
 }

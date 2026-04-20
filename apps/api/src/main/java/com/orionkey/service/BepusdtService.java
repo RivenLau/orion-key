@@ -16,8 +16,6 @@ public interface BepusdtService {
             String tradeType,                // 交易类型，如 usdt.trc20 / usdt.bep20
             String fiat,                     // 法币类型，默认 CNY
             int timeout,                     // 超时秒数，默认 900
-            BigDecimal autoApproveTolerance, // TXID 自动审核容差(USDT)，默认 1.5
-            BigDecimal manualReviewUpper,    // 人工审核上限(USDT)，默认 5.0
             String fixedRate                 // 固定汇率（留空则使用 BEpusdt 动态汇率），如 "7.2"
     ) {}
 

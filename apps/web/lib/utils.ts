@@ -64,6 +64,11 @@ export function isMobileDevice(): boolean {
   return detectPaymentDevice() !== 'pc'
 }
 
+/** Strip invisible Unicode control characters (direction marks, zero-width chars, BOM) */
+export function stripInvisible(text: string): string {
+  return text.replace(/[\u200B-\u200F\u2060\uFEFF]/g, '')
+}
+
 export function formatDateTime(iso: string, locale?: string): string {
   try {
     const date = new Date(iso)
