@@ -2,7 +2,7 @@
 # Orion Key CI/CD 工作流
 # ===================================================================
 #
-# 流程：push 到 prod 分支 → 云端构建两个 Docker 镜像 → 推送 GHCR → 服务器拉取并重启
+# 流程：在 main 上打 tag v* → 云端构建两个 Docker 镜像（:v* + :latest）→ 推送 GHCR → demo 服务器拉取并重启
 #
 # 镜像构建方式：
 #   后端 (Java):  Jib Maven 插件直接产出 Docker 镜像（无需 Dockerfile）
@@ -15,8 +15,7 @@ name: Orion Key CI/CD
 # ── 触发条件 ──
 on:
   push:
-    branches: [main]        # push 到 prod 分支时触发
-    tags: ['v*']            # push tag（如 v1.0.0）时触发
+    tags: ['v*']            # 在 main 上打 tag（如 v1.0.0）时触发，部署到 demo 服务器
   workflow_dispatch:         # 支持在 GitHub Actions 页面手动触发
     inputs:
       image_tag:
@@ -50,31 +49,53 @@ jobs:
           cache: maven          # 缓存 Maven 依赖，加速后续构建
 
       # 计算镜像标签：手动输入 > git tag > commit SHA 前 7 位
+      # tag 触发时额外推 :latest，方便社区匿名拉取"当前稳定版"
       - name: Compute image tags
         id: meta
         shell: bash
         run: |
           if [ -n "${{ inputs.image_tag }}" ]; then
             TAG="${{ inputs.image_tag }}"
+            EXTRA=""
           elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
             TAG="${GITHUB_REF_NAME}"
+            EXTRA="latest"          # git tag 触发：同时推 :latest
           else
             TAG="${GITHUB_SHA::7}"
+            EXTRA=""
           fi
           # Docker 镜像名要求全小写
           OWNER=$(echo "${{ github.repository_owner }}" | tr '[:upper:]' '[:lower:]')
           echo "tag=$TAG"                                                >> "$GITHUB_OUTPUT"
+          echo "extra=$EXTRA"                                            >> "$GITHUB_OUTPUT"
           echo "api_image=ghcr.io/$OWNER/orion-key-api:$TAG"            >> "$GITHUB_OUTPUT"
           echo "web_image=ghcr.io/$OWNER/orion-key-web:$TAG"            >> "$GITHUB_OUTPUT"
+          # 前端 build-push-action 支持多行 tags，用 heredoc 生成
+          if [ -n "$EXTRA" ]; then
+            {
+              echo "web_tags<<EOF"
+              echo "ghcr.io/$OWNER/orion-key-web:$TAG"
+              echo "ghcr.io/$OWNER/orion-key-web:$EXTRA"
+              echo "EOF"
+            } >> "$GITHUB_OUTPUT"
+          else
+            echo "web_tags=ghcr.io/$OWNER/orion-key-web:$TAG"           >> "$GITHUB_OUTPUT"
+          fi
 
       # ── 后端镜像：Jib 构建（无需 Docker daemon，无需 Dockerfile）──
+      # tag 触发时通过 -Djib.to.tags 额外推 :latest
       - name: Build & Push API image (Jib)
         working-directory: apps/api
         run: |
+          EXTRA_ARGS=""
+          if [ -n "${{ steps.meta.outputs.extra }}" ]; then
+            EXTRA_ARGS="-Djib.to.tags=${{ steps.meta.outputs.extra }}"
+          fi
           mvn -B -DskipTests \
             -Djib.to.image="${{ steps.meta.outputs.api_image }}" \
             -Djib.to.auth.username="${{ github.actor }}" \
             -Djib.to.auth.password="${{ secrets.GITHUB_TOKEN }}" \
+            $EXTRA_ARGS \
             compile jib:build
 
       # ── 前端镜像：Docker 多阶段构建 ──
@@ -91,14 +112,14 @@ jobs:
           context: .                # 构建上下文 = 仓库根目录（Dockerfile.web 需要 monorepo 配置文件）
           file: ./Dockerfile.web    # 指定 Dockerfile 路径
           push: true
-          tags: ${{ steps.meta.outputs.web_image }}
+          tags: ${{ steps.meta.outputs.web_tags }}    # 支持多 tag（tag 触发时含 :latest）
 
   # ════════════════════════════════════════════════════════════════
   # Job 2: 部署到服务器（在自建 runner 上执行）
   # ════════════════════════════════════════════════════════════════
   deploy:
     needs: [build-and-push]             # 等 Job 1 完成后才执行
-    runs-on: [self-hosted, main]        # 在带有 "demo-prod" 标签的自建 runner 上运行，用于区分多个workflow和runner
+    runs-on: [self-hosted, demo]        # 在带有 "demo" 标签的 self-hosted runner 上运行（新 demo 服务器）
     permissions:
       contents: read
       packages: read                    # 拉取镜像只需 read 权限
