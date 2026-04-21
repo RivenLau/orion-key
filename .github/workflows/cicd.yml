@@ -15,7 +15,7 @@ name: Orion Key CI/CD
 # ── 触发条件 ──
 on:
   push:
-    branches: [demo-prod]        # push 到 prod 分支时触发
+    branches: [demo]        # push 到 prod 分支时触发
     tags: ['v*']            # push tag（如 v1.0.0）时触发
   workflow_dispatch:         # 支持在 GitHub Actions 页面手动触发
     inputs:
@@ -98,7 +98,7 @@ jobs:
   # ════════════════════════════════════════════════════════════════
   deploy:
     needs: [build-and-push]             # 等 Job 1 完成后才执行
-    runs-on: [self-hosted, demo-prod]        # 在带有 "demo-prod" 标签的自建 runner 上运行，用于区分多个workflow和runner
+    runs-on: [self-hosted, demo]        # 在带有 "demo-prod" 标签的自建 runner 上运行，用于区分多个workflow和runner
     permissions:
       contents: read
       packages: read                    # 拉取镜像只需 read 权限
