@@ -377,6 +377,11 @@ export const orderApi = {
       method: "POST",
       body: JSON.stringify({ device }),
     }),
+  // [DEMO] 模拟支付成功回调 — 仅演示分支使用
+  mockPaySuccess: (orderId: string) =>
+    request<{ order_id: string; status: OrderStatus }>(`/orders/${orderId}/mock-pay-success`, {
+      method: "POST",
+    }),
 }
 
 // ============================================================

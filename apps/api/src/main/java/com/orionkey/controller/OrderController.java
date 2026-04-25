@@ -87,6 +87,26 @@ public class OrderController {
     }
 
     /**
+     * [DEMO] 模拟支付成功回调 — 仅用于演示分支。
+     * 直接将 PENDING/EXPIRED 订单置为 PAID，不做任何签名/金额/链上校验。
+     * 后续发货由用户跳转到 /order/query 后由该页自动调用 deliver 接口完成。
+     */
+    @PostMapping("/{id}/mock-pay-success")
+    public ApiResponse<?> mockPaySuccess(@PathVariable UUID id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在"));
+        if (order.getStatus() == OrderStatus.PENDING || order.getStatus() == OrderStatus.EXPIRED) {
+            order.setStatus(OrderStatus.PAID);
+            order.setPaidAt(java.time.LocalDateTime.now());
+            orderRepository.save(order);
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("order_id", id);
+        data.put("status", order.getStatus().name());
+        return ApiResponse.success(data);
+    }
+
+    /**
      * 用户提交 TXID 进行自动链上验证（USDT 补单）
      */
     @PostMapping("/{id}/txid-verify")

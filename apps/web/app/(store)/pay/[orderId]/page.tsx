@@ -8,26 +8,22 @@ import {
   Clock,
   CheckCircle2,
   XCircle,
-  RefreshCw,
   Copy,
   ExternalLink,
   HelpCircle,
   Loader2,
-  Info,
   ArrowRight,
-  AlertTriangle,
-  Smartphone,
 } from "lucide-react"
-import { QRCodeSVG } from "qrcode.react"
 import { toast } from "sonner"
 import { useLocale, useCart, useSiteConfig } from "@/lib/context"
 import { orderApi } from "@/services/api"
 import type { OrderStatus } from "@/types"
-import { cn, detectPaymentDevice, isMobileDevice } from "@/lib/utils"
+import { cn } from "@/lib/utils"
 import { PaymentIcon, getPaymentLabel, getPaymentBrandColor, getPaymentScanHint } from "@/components/shared/payment-icon"
 
 const POLL_INTERVAL = 3000 // 3 seconds
-const MANUAL_REFRESH_COOLDOWN = 10 // 10 seconds
+// [DEMO] 静态二维码图片路径 — 4 个支付渠道共用一张
+const DEMO_QR_IMAGE = "/demo/payment-qr-demo.png"
 
 export default function PaymentPage({ params }: { params: Promise<{ orderId: string }> }) {
   const { orderId } = use(params)
@@ -40,15 +36,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
 
   const [status, setStatus] = useState<OrderStatus>("PENDING")
   const [timeLeft, setTimeLeft] = useState(-1) // -1 = 等待服务端返回真实倒计时，避免闪屏
-  const [refreshCooldown, setRefreshCooldown] = useState(0)
-  const [isRefreshing, setIsRefreshing] = useState(false)
-  const [qrcodeUrl, setQrcodeUrl] = useState<string>("")
-  const [payUrlH5, setPayUrlH5] = useState<string>("")
-  const [retrying, setRetrying] = useState(false)
-  // 标记是否已经跳转过支付 App（从 sessionStorage 初始化，防止返回后文案错误）
-  const [hasRedirected, setHasRedirected] = useState(false)
-
-  const isMobile = isMobileDevice()
+  const [isMocking, setIsMocking] = useState(false)
 
   const paymentMethod = searchParams.get("method") || "alipay"
   const paymentMethodName = getPaymentLabel(paymentMethod, t)
@@ -57,39 +45,18 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
 
   // USDT 支付判断 & 参数
   const isUsdtPayment = paymentMethod.startsWith("usdt_")
-  // 微信移动端：jspay 走 JSAPI（需微信内置浏览器），普通浏览器只能展示二维码
-  const isWechatMobile = isMobile && ["wechat", "wxpay"].includes(paymentMethod.toLowerCase())
   const walletAddress = searchParams.get("wallet") || ""
   const cryptoAmount = searchParams.get("crypto_amount") || ""
   const usdtChain = searchParams.get("chain") || paymentMethod
   const chainDisplayName = usdtChain.includes("trc20") ? "TRC-20" : usdtChain.includes("bep20") ? "BEP-20" : usdtChain
 
-  // 初始化：获取订单状态 + QR code + H5 pay URL + 真实倒计时
+  // 初始化：获取订单真实倒计时
   useEffect(() => {
-    const qrFromParam = searchParams.get("qr")
-    if (qrFromParam) {
-      setQrcodeUrl(qrFromParam)
-    }
-
-    const payurlFromParam = searchParams.get("payurl")
-    if (payurlFromParam) {
-      setPayUrlH5(payurlFromParam)
-    }
-
-    // 检查是否已跳转过支付 App（从 sessionStorage 恢复状态）
-    if (sessionStorage.getItem(`pay_redirected_${orderId}`)) {
-      setHasRedirected(true)
-    }
-
-    // 从 API 获取服务端计算的 remaining_seconds，不依赖客户端时钟
     async function fetchOrderInfo() {
       try {
         const result = await orderApi.getStatus(orderId)
         if (result.remaining_seconds !== undefined) {
           setTimeLeft(result.remaining_seconds)
-        }
-        if (!qrFromParam && result.payment_url) {
-          setQrcodeUrl(result.payment_url)
         }
         if (result.status !== "PENDING") {
           setStatus(result.status)
@@ -99,21 +66,7 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
       }
     }
     fetchOrderInfo()
-  }, [orderId, searchParams])
-
-  // H5 自动跳转（移动端 + 有 payUrl + PENDING 状态 + 未跳转过 + 非微信）
-  // 微信 jspay 走 JSAPI（需微信浏览器），普通浏览器不能 H5 跳转，只能扫码
-  useEffect(() => {
-    if (!isMobile || !payUrlH5 || status !== "PENDING" || isUsdtPayment || isWechatMobile) return
-    const storageKey = `pay_redirected_${orderId}`
-    if (sessionStorage.getItem(storageKey)) {
-      setHasRedirected(true)
-      return
-    }
-    sessionStorage.setItem(storageKey, "1")
-    setHasRedirected(true)
-    window.location.href = payUrlH5
-  }, [isMobile, payUrlH5, status, orderId, isUsdtPayment, isWechatMobile])
+  }, [orderId])
 
   // Countdown timer — 仅在服务端返回真实倒计时后才开始递减
   // 倒计时归零时仅停止递减，不单方面设置 EXPIRED — 等待下一次轮询从服务端获取真实状态
@@ -149,61 +102,23 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
     return () => clearInterval(poll)
   }, [status, orderId, refreshCart])
 
-  // Manual refresh cooldown
-  useEffect(() => {
-    if (refreshCooldown <= 0) return
-    const timer = setInterval(() => {
-      setRefreshCooldown((prev) => Math.max(0, prev - 1))
-    }, 1000)
-    return () => clearInterval(timer)
-  }, [refreshCooldown])
-
-  const handleManualRefresh = useCallback(async () => {
-    if (refreshCooldown > 0 || isRefreshing) return
-    setIsRefreshing(true)
+  // [DEMO] 模拟支付成功回调 — 调用后端 mock 接口直接将订单置为 PAID
+  // 成功后立即把本地 status 切换到 PAID，触发 success 分支自动跳转到订单查询页（自动发货）
+  const handleMockPaySuccess = useCallback(async () => {
+    if (isMocking) return
+    setIsMocking(true)
     try {
-      const result = await orderApi.getStatus(orderId)
-      if (result.status !== "PENDING") {
-        setStatus(result.status)
-        if (result.status === "PAID" || result.status === "DELIVERED") {
-          refreshCart()
-        }
-      }
-    } catch {
-      // silent
-    } finally {
-      setIsRefreshing(false)
-      setRefreshCooldown(MANUAL_REFRESH_COOLDOWN)
-      toast.info(t("payment.statusRefreshed"))
-    }
-  }, [refreshCooldown, isRefreshing, orderId, t])
-
-  // 重新发起支付（移动端重试）
-  const handleRetryPayment = useCallback(async () => {
-    if (retrying) return
-    setRetrying(true)
-    try {
-      const device = detectPaymentDevice()
-      const result = await orderApi.repay(orderId, device)
-      // 更新支付链接
-      if (result.pay_url) setPayUrlH5(result.pay_url)
-      if (result.qrcode_url) setQrcodeUrl(result.qrcode_url)
-      else if (result.payment_url) setQrcodeUrl(result.payment_url)
-
-      if (isMobile && result.pay_url && !isWechatMobile) {
-        // 清除跳转标记，允许重新跳转（微信走 JSAPI 不能跳转，只刷新二维码）
-        sessionStorage.removeItem(`pay_redirected_${orderId}`)
-        window.location.href = result.pay_url
-      } else {
-        toast.success(t("payment.statusRefreshed"))
-      }
+      const result = await orderApi.mockPaySuccess(orderId)
+      setStatus(result.status)
+      refreshCart()
+      toast.success(t("payment.success"))
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : t("common.error")
       toast.error(msg)
     } finally {
-      setRetrying(false)
+      setIsMocking(false)
     }
-  }, [retrying, orderId, isMobile, t])
+  }, [isMocking, orderId, refreshCart, t])
 
   const copyToClipboard = useCallback((text: string) => {
     if (navigator.clipboard?.writeText) {
@@ -365,16 +280,14 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
                 boxShadow: `inset 0 0 0 1px color-mix(in srgb, ${brandColor || "#26A17B"} 12%, transparent)`,
               }}
             >
-              {walletAddress ? (
-                <div className="rounded-lg bg-white p-2">
-                  <QRCodeSVG value={walletAddress} size={160} level="M" includeMargin={false} className="h-[140px] w-[140px] sm:h-[160px] sm:w-[160px]" />
-                </div>
-              ) : (
-                <div className="flex h-[140px] w-[140px] flex-col items-center justify-center gap-2 text-muted-foreground sm:h-[160px] sm:w-[160px]">
-                  <Loader2 className="h-6 w-6 animate-spin" />
-                  <span className="text-xs">{t("common.loading")}</span>
-                </div>
-              )}
+              {/* [DEMO] 静态二维码图片，扫描后提示用户点击下方"模拟支付成功回调"按钮 */}
+              <div className="rounded-lg bg-white p-2">
+                <img
+                  src={DEMO_QR_IMAGE}
+                  alt="Demo QR Code"
+                  className="h-[140px] w-[140px] sm:h-[160px] sm:w-[160px]"
+                />
+              </div>
             </div>
 
             {/* ⑤ 警告提示 — 紧凑 */}
@@ -396,8 +309,8 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
             {/* 检测状态 */}
             <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
           </div>
-        ) : (!isMobile || isWechatMobile) ? (
-          /* ========== PC / 微信移动端 — 二维码视图 ========== */
+        ) : (
+          /* ========== 通用扫码视图（PC + 移动端共用，演示场景统一展示二维码） ========== */
           <>
             <div
               className="flex w-72 flex-col items-center gap-4 rounded-2xl px-6 pb-8 pt-6"
@@ -407,73 +320,13 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
                 <PaymentIcon method={paymentMethod} className="h-10 w-10" variant="plain" />
                 <span className="text-xl font-bold text-white">{paymentMethodName}</span>
               </div>
-              <p className="text-sm font-medium text-white/90">
-                {isWechatMobile ? t("payment.wechatMobileScanHint") : scanHint}
-              </p>
+              <p className="text-sm font-medium text-white/90">{scanHint}</p>
               <div className="flex h-52 w-52 items-center justify-center rounded-xl bg-white p-3">
-                {qrcodeUrl ? (
-                  <QRCodeSVG value={qrcodeUrl} size={184} level="M" includeMargin={false} />
-                ) : (
-                  <div className="flex flex-col items-center gap-2 text-muted-foreground">
-                    <Loader2 className="h-8 w-8 animate-spin" />
-                    <span className="text-xs">{t("common.loading")}</span>
-                  </div>
-                )}
+                {/* [DEMO] 静态二维码图片，扫描后提示用户点击下方"模拟支付成功回调"按钮 */}
+                <img src={DEMO_QR_IMAGE} alt="Demo QR Code" className="h-[184px] w-[184px]" />
               </div>
             </div>
             <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
-
-            {/* 刷新二维码按钮 */}
-            <button
-              onClick={handleRetryPayment}
-              disabled={retrying}
-              className="inline-flex items-center gap-1.5 text-sm text-muted-foreground transition-colors hover:text-primary disabled:opacity-50"
-            >
-              {retrying ? (
-                <Loader2 className="h-3.5 w-3.5 animate-spin" />
-              ) : (
-                <RefreshCw className="h-3.5 w-3.5" />
-              )}
-              {t("payment.refreshQrCode")}
-            </button>
-          </>
-        ) : (
-          /* ========== H5 移动端支付视图（新增） ========== */
-          <>
-            <div
-              className="flex w-full max-w-sm flex-col items-center gap-4 rounded-2xl px-6 pb-6 pt-6"
-              style={{ backgroundColor: brandColor || "#374151" }}
-            >
-              <div className="flex items-center gap-2.5">
-                <PaymentIcon method={paymentMethod} className="h-10 w-10" variant="plain" />
-                <span className="text-xl font-bold text-white">{paymentMethodName}</span>
-              </div>
-              <Smartphone className="h-8 w-8 text-white/80" />
-            </div>
-
-            {/* 状态提示：未跳转过 → "正在跳转..."；已跳转返回 → "如已完成支付..." */}
-            {!hasRedirected ? (
-              <p className="animate-pulse text-sm text-primary">{t("payment.redirectingToPay")}</p>
-            ) : (
-              <p className="text-sm text-muted-foreground">{t("payment.returnedFromPay")}</p>
-            )}
-
-            {/* 检测状态 */}
-            <p className="animate-pulse text-sm text-primary">{t("payment.detecting")}</p>
-
-            {/* 重新发起支付按钮 */}
-            <button
-              onClick={handleRetryPayment}
-              disabled={retrying}
-              className="inline-flex h-10 items-center gap-2 rounded-lg bg-primary px-5 text-sm font-medium text-primary-foreground transition-colors hover:bg-primary/90 disabled:pointer-events-none disabled:opacity-50"
-            >
-              {retrying ? (
-                <Loader2 className="h-4 w-4 animate-spin" />
-              ) : (
-                <RefreshCw className="h-4 w-4" />
-              )}
-              {t("payment.retryPay")}
-            </button>
           </>
         )}
 
@@ -499,18 +352,18 @@ export default function PaymentPage({ params }: { params: Promise<{ orderId: str
         </div>
       </div>
 
-      {/* Manual Refresh */}
+      {/* [DEMO] 模拟支付成功回调按钮 — 样式参考首页"立即购买" CTA，跟随主题色 */}
       <button
-        onClick={handleManualRefresh}
-        disabled={refreshCooldown > 0 || isRefreshing}
-        className="inline-flex h-10 items-center gap-2 rounded-lg border border-border px-5 text-sm font-medium text-foreground transition-colors hover:bg-accent disabled:pointer-events-none disabled:opacity-50"
+        onClick={handleMockPaySuccess}
+        disabled={isMocking}
+        className="scheme-glow inline-flex h-12 w-full max-w-sm items-center justify-center gap-2 rounded-lg bg-primary px-6 text-base font-semibold text-primary-foreground transition-all hover:brightness-110 disabled:pointer-events-none disabled:opacity-50"
       >
-        <RefreshCw className={cn("h-4 w-4", isRefreshing && "animate-spin")} />
-        {isRefreshing
-          ? t("payment.refreshing")
-          : refreshCooldown > 0
-            ? `${refreshCooldown}${t("payment.refreshLimit")}`
-            : t("payment.refresh")}
+        {isMocking ? (
+          <Loader2 className="h-5 w-5 animate-spin" />
+        ) : (
+          <CheckCircle2 className="h-5 w-5" />
+        )}
+        {isMocking ? t("payment.refreshing") : t("payment.refresh")}
       </button>
 
       {/* Help Links */}
