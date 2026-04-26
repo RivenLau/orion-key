@@ -2,6 +2,7 @@ package com.orionkey.controller;
 
 import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
+import com.orionkey.constant.DemoProtectedIds;
 import com.orionkey.service.SiteConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -25,6 +26,7 @@ public class AdminSiteConfigController {
     @SuppressWarnings("unchecked")
     @PutMapping
     public ApiResponse<Void> updateConfigs(@RequestBody Map<String, Object> request) {
+        DemoProtectedIds.denyAlways();
         List<Map<String, String>> configs = (List<Map<String, String>>) request.get("configs");
         siteConfigService.updateConfigs(configs);
         return ApiResponse.success();
@@ -33,6 +35,7 @@ public class AdminSiteConfigController {
     @LogOperation(action = "config.update", targetType = "SITE_CONFIG", detail = "'切换维护模式'")
     @PostMapping("/maintenance")
     public ApiResponse<Void> toggleMaintenance(@RequestBody Map<String, Object> request) {
+        DemoProtectedIds.denyAlways();
         boolean enabled = (boolean) request.get("enabled");
         siteConfigService.toggleMaintenance(enabled);
         return ApiResponse.success();

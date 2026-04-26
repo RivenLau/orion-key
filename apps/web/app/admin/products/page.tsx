@@ -9,6 +9,7 @@ import { Modal } from "@/components/ui/modal"
 import { useLocale } from "@/lib/context"
 import { adminProductApi, adminCategoryApi, adminCardKeyApi, currencyApi, withMockFallback } from "@/services/api"
 import { mockCategories } from "@/lib/mock-data"
+import { isDemoProtectedProduct, denyDemoOperation } from "@/lib/demo-guard"
 import type { ProductDetail, Category, ProductSpec, CurrencyItem } from "@/types"
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml"]
@@ -144,6 +145,7 @@ export default function AdminProductsPage() {
   const getCategoryName = (id: string) => categories.find(c => c.id === id)?.name || "-"
 
   const handleEdit = (product: ProductDetail) => {
+    if (isDemoProtectedProduct(product.id)) { denyDemoOperation({ t }); return }
     setEditingProduct(product)
     setFormData({
       title: product.title,
@@ -185,7 +187,13 @@ export default function AdminProductsPage() {
     }
   }
 
+  const handleClickDelete = (id: string) => {
+    if (isDemoProtectedProduct(id)) { denyDemoOperation({ t }); return }
+    setShowDeleteConfirm(id)
+  }
+
   const handleToggleStatus = async (product: ProductDetail) => {
+    if (isDemoProtectedProduct(product.id)) { denyDemoOperation({ t }); return }
     try {
       await withMockFallback(
         () => adminProductApi.update(product.id, { is_enabled: product.is_enabled === false }),
@@ -487,7 +495,7 @@ export default function AdminProductsPage() {
                         <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-accent hover:text-foreground transition-colors" title={product.is_enabled !== false ? "下架" : "上架"} onClick={() => handleToggleStatus(product)}>
                           {product.is_enabled !== false ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
                         </button>
-                        <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="删除" onClick={() => setShowDeleteConfirm(product.id)}>
+                        <button type="button" className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors" title="删除" onClick={() => handleClickDelete(product.id)}>
                           <Trash2 className="h-4 w-4" />
                         </button>
                       </div>

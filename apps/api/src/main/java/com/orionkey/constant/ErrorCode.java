@@ -58,4 +58,7 @@ public final class ErrorCode {
     public static final int CARD_KEY_FORMAT_ERROR = 70003;
     public static final int CARD_KEY_DUPLICATE = 70004;
     public static final int PAYMENT_CONFIG_INCOMPLETE = 70005;
+
+    // ── Demo 90001~90099 ──（demo 分支专用，合并 main 前清理）
+    public static final int DEMO_OPERATION_FORBIDDEN = 90001;
 }

@@ -2,7 +2,10 @@ package com.orionkey.controller;
 
 import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
+import com.orionkey.constant.DemoProtectedIds;
 import com.orionkey.context.RequestContext;
+import com.orionkey.entity.CardKey;
+import com.orionkey.repository.CardKeyRepository;
 import com.orionkey.service.AdminCardKeyService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -16,6 +19,7 @@ import java.util.UUID;
 public class AdminCardKeyController {
 
     private final AdminCardKeyService adminCardKeyService;
+    private final CardKeyRepository cardKeyRepository;
 
     @GetMapping("/list")
     public ApiResponse<?> listCardKeys(
@@ -50,6 +54,9 @@ public class AdminCardKeyController {
     @LogOperation(action = "cardkey.invalidate", targetType = "CARD_KEY", targetId = "#id", detail = "'作废卡密'")
     @PostMapping("/{id}/invalidate")
     public ApiResponse<Void> invalidateCardKey(@PathVariable UUID id) {
+        cardKeyRepository.findById(id)
+                .map(CardKey::getProductId)
+                .ifPresent(DemoProtectedIds::denyIfProtectedProduct);
         adminCardKeyService.invalidateCardKey(id);
         return ApiResponse.success();
     }
@@ -59,6 +66,7 @@ public class AdminCardKeyController {
     public ApiResponse<?> batchInvalidateCardKeys(
             @RequestParam("product_id") UUID productId,
             @RequestParam(value = "spec_id", required = false) UUID specId) {
+        DemoProtectedIds.denyIfProtectedProduct(productId);
         int count = adminCardKeyService.batchInvalidateCardKeys(productId, specId);
         return ApiResponse.success(Map.of("invalidated_count", count));
     }

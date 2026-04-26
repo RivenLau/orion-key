@@ -2,6 +2,7 @@ package com.orionkey.controller;
 
 import com.orionkey.common.ApiResponse;
 import com.orionkey.common.PageResult;
+import com.orionkey.constant.DemoProtectedIds;
 import com.orionkey.context.RequestContext;
 import com.orionkey.model.request.ChangePasswordRequest;
 import com.orionkey.model.response.UserProfileResponse;
@@ -26,6 +27,7 @@ public class UserController {
 
     @PutMapping("/password")
     public ApiResponse<Void> changePassword(@Valid @RequestBody ChangePasswordRequest request) {
+        DemoProtectedIds.denyAlways();
         userService.changePassword(RequestContext.getUserId(), request);
         return ApiResponse.success();
     }

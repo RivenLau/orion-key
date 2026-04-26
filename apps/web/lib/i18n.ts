@@ -624,6 +624,7 @@ const zh = {
   "error.txidAlreadyUsed": "该 TXID 已被使用，请勿重复提交",
   "error.txidVerifyFailed": "TXID 验证失败，请确认交易信息是否正确",
   "error.orderNotUsdt": "该订单不是 USDT 支付订单",
+  "error.demoForbidden": "demo样例数据暂不支持操作",
 } as const
 
 const en: Record<keyof typeof zh, string> = {
@@ -1250,6 +1251,7 @@ const en: Record<keyof typeof zh, string> = {
   "error.txidAlreadyUsed": "This TXID has already been used",
   "error.txidVerifyFailed": "TXID verification failed, please confirm your transaction details",
   "error.orderNotUsdt": "This order is not a USDT payment order",
+  "error.demoForbidden": "Demo data does not support this operation",
 }
 
 const dictionaries = { zh, en }

@@ -661,6 +661,8 @@ const ERROR_CODE_I18N: Record<number, string> = {
   50004: "error.txidAlreadyUsed",
   50005: "error.txidVerifyFailed",
   50006: "error.orderNotUsdt",
+  // [DEMO] demo 分支专用，合并 main 前清理
+  90001: "error.demoForbidden",
 }
 
 /**

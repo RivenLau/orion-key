@@ -2,6 +2,7 @@ package com.orionkey.controller;
 
 import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
+import com.orionkey.constant.DemoProtectedIds;
 import com.orionkey.service.ProductService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -40,6 +41,7 @@ public class AdminProductController {
     @LogOperation(action = "product.update", targetType = "PRODUCT", targetId = "#id", detail = "'修改商品'")
     @PutMapping("/{id}")
     public ApiResponse<Void> updateProduct(@PathVariable UUID id, @RequestBody Map<String, Object> request) {
+        DemoProtectedIds.denyIfProtectedProduct(id);
         productService.updateProduct(id, request);
         return ApiResponse.success();
     }
@@ -47,6 +49,7 @@ public class AdminProductController {
     @LogOperation(action = "product.delete", targetType = "PRODUCT", targetId = "#id", detail = "'删除商品'")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteProduct(@PathVariable UUID id) {
+        DemoProtectedIds.denyIfProtectedProduct(id);
         productService.deleteProduct(id);
         return ApiResponse.success();
     }
@@ -58,6 +61,7 @@ public class AdminProductController {
 
     @PostMapping("/{id}/specs")
     public ApiResponse<Void> createSpec(@PathVariable UUID id, @RequestBody Map<String, Object> request) {
+        DemoProtectedIds.denyIfProtectedProduct(id);
         productService.createSpec(id, request);
         return ApiResponse.success();
     }
@@ -65,12 +69,14 @@ public class AdminProductController {
     @PutMapping("/{productId}/specs/{specId}")
     public ApiResponse<Void> updateSpec(@PathVariable UUID productId, @PathVariable UUID specId,
                                         @RequestBody Map<String, Object> request) {
+        DemoProtectedIds.denyIfProtectedProduct(productId);
         productService.updateSpec(productId, specId, request);
         return ApiResponse.success();
     }
 
     @DeleteMapping("/{productId}/specs/{specId}")
     public ApiResponse<Void> deleteSpec(@PathVariable UUID productId, @PathVariable UUID specId) {
+        DemoProtectedIds.denyIfProtectedProduct(productId);
         productService.deleteSpec(productId, specId);
         return ApiResponse.success();
     }
@@ -82,6 +88,7 @@ public class AdminProductController {
 
     @PostMapping("/{id}/wholesale-rules")
     public ApiResponse<Void> setWholesaleRules(@PathVariable UUID id, @RequestBody Map<String, Object> request) {
+        DemoProtectedIds.denyIfProtectedProduct(id);
         productService.setWholesaleRules(id, request);
         return ApiResponse.success();
     }

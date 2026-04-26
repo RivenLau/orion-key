@@ -2,6 +2,7 @@ package com.orionkey.controller;
 
 import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
+import com.orionkey.constant.DemoProtectedIds;
 import com.orionkey.service.RiskConfigService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -23,6 +24,7 @@ public class AdminRiskController {
     @LogOperation(action = "config.update", targetType = "RISK_CONFIG", detail = "'更新风控配置'")
     @PutMapping("/risk-config")
     public ApiResponse<Void> updateRiskConfig(@RequestBody Map<String, Object> request) {
+        DemoProtectedIds.denyAlways();
         riskConfigService.updateRiskConfig(request);
         return ApiResponse.success();
     }

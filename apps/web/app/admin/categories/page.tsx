@@ -8,6 +8,7 @@ import { adminCategoryApi, withMockFallback } from "@/services/api"
 import { mockCategories } from "@/lib/mock-data"
 import { useLocale } from "@/lib/context"
 import { Modal } from "@/components/ui/modal"
+import { isDemoProtectedCategory, denyDemoOperation } from "@/lib/demo-guard"
 import type { Category } from "@/types"
 
 export default function AdminCategoriesPage() {
@@ -39,9 +40,15 @@ export default function AdminCategoriesPage() {
   useEffect(() => { fetchCategories() }, [])
 
   const handleEdit = (category: Category) => {
+    if (isDemoProtectedCategory(category.id)) { denyDemoOperation({ t }); return }
     setEditId(category.id)
     setFormData({ name: category.name, sort_order: String(category.sort_order) })
     setShowModal(true)
+  }
+
+  const handleClickDelete = (id: string) => {
+    if (isDemoProtectedCategory(id)) { denyDemoOperation({ t }); return }
+    setShowDeleteConfirm(id)
   }
 
   const handleSave = async () => {
@@ -168,7 +175,7 @@ export default function AdminCategoriesPage() {
               <button
                 type="button"
                 className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                onClick={() => setShowDeleteConfirm(cat.id)}
+                onClick={() => handleClickDelete(cat.id)}
                 title="删除"
               >
                 <Trash2 className="h-4 w-4" />

@@ -10,6 +10,7 @@ import { mockCreateOrder } from "@/lib/mock-data"
 import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
 import { cn, validateEmail, generateIdempotencyKey, getCurrencySymbol, detectPaymentDevice, isMobileDevice } from "@/lib/utils"
 import { PaymentSelector } from "@/components/shared/payment-selector"
+import { DEMO_MAX_ORDER_QUANTITY, denyDemoOperation } from "@/lib/demo-guard"
 import type { ProductDetail, ProductSpec, PaymentChannelItem } from "@/types"
 
 interface ProductActionsProps {
@@ -74,6 +75,8 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
       toast.error(t("product.outOfStock"))
       return
     }
+    // [DEMO] demo 分支：单次购买数量上限固定为 2
+    if (quantity > DEMO_MAX_ORDER_QUANTITY) { denyDemoOperation({ t }); return }
 
     setSubmitting(true)
     try {
@@ -127,6 +130,8 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
       toast.error(t("product.outOfStock"))
       return
     }
+    // [DEMO] demo 分支：单商品单次加购数量上限固定为 2（购物车总件数同样受限于结算时校验）
+    if (quantity > DEMO_MAX_ORDER_QUANTITY) { denyDemoOperation({ t }); return }
     try {
       await addItem({
         product_id: product.id,
@@ -254,18 +259,18 @@ export function ProductActions({ product, channels }: ProductActionsProps) {
             <input
               type="number"
               min={1}
-              max={currentStock || 1}
+              max={Math.min(currentStock || 1, DEMO_MAX_ORDER_QUANTITY)}
               value={quantity}
               onChange={(e) => {
                 const v = parseInt(e.target.value) || 1
-                setQuantity(Math.min(v, currentStock || 1))
+                setQuantity(Math.min(v, currentStock || 1, DEMO_MAX_ORDER_QUANTITY))
               }}
               className="h-9 w-16 border-x border-border bg-background text-center text-sm text-foreground [appearance:textfield] [&::-webkit-inner-spin-button]:appearance-none [&::-webkit-outer-spin-button]:appearance-none"
             />
             <button
-              onClick={() => setQuantity(Math.min(quantity + 1, currentStock || 1))}
+              onClick={() => setQuantity(Math.min(quantity + 1, currentStock || 1, DEMO_MAX_ORDER_QUANTITY))}
               className="inline-flex h-9 w-9 items-center justify-center text-muted-foreground transition-colors hover:bg-accent"
-              disabled={quantity >= currentStock}
+              disabled={quantity >= Math.min(currentStock, DEMO_MAX_ORDER_QUANTITY)}
             >
               <Plus className="h-4 w-4" />
             </button>

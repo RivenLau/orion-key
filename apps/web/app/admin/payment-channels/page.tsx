@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { adminPaymentApi, withMockFallback } from "@/services/api"
 import { mockPaymentChannels } from "@/lib/mock-data"
 import { Modal } from "@/components/ui/modal"
+import { isDemoProtectedPaymentChannel, denyDemoOperation } from "@/lib/demo-guard"
 import type { PaymentChannelItem, PaymentChannelConfig, ProviderType } from "@/types"
 
 // ============================================================
@@ -175,6 +176,7 @@ export default function AdminPaymentChannelsPage() {
   useEffect(() => { fetchChannels() }, [])
 
   const handleEdit = (channel: PaymentChannelItem) => {
+    if (isDemoProtectedPaymentChannel(channel.id)) { denyDemoOperation({ t }); return }
     setEditId(channel.id)
     setFormData({
       provider_type: channel.provider_type || "epay",
@@ -320,7 +322,13 @@ export default function AdminPaymentChannelsPage() {
     }
   }
 
+  const handleClickDelete = (id: string) => {
+    if (isDemoProtectedPaymentChannel(id)) { denyDemoOperation({ t }); return }
+    setShowDeleteConfirm(id)
+  }
+
   const handleToggle = async (channel: PaymentChannelItem) => {
+    if (isDemoProtectedPaymentChannel(channel.id)) { denyDemoOperation({ t }); return }
     try {
       await withMockFallback(
         () => adminPaymentApi.update(channel.id, { is_enabled: !channel.is_enabled }),
@@ -447,7 +455,7 @@ export default function AdminPaymentChannelsPage() {
                 <button
                   type="button"
                   className="flex items-center gap-1.5 rounded-md px-3 py-1.5 text-xs font-medium text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
-                  onClick={() => setShowDeleteConfirm(channel.id)}
+                  onClick={() => handleClickDelete(channel.id)}
                 >
                   <Trash2 className="h-3.5 w-3.5" />
                   {t("admin.delete")}

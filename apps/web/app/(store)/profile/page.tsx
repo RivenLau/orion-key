@@ -9,6 +9,7 @@ import { useAuth } from "@/lib/context"
 import { useRequireAuth } from "@/lib/hooks"
 import { userApi, withMockFallback, getApiErrorMessage } from "@/services/api"
 import { mockPointsData } from "@/lib/mock-data"
+import { denyDemoOperation } from "@/lib/demo-guard"
 import type { PointRecord } from "@/types"
 import { cn } from "@/lib/utils"
 
@@ -107,26 +108,8 @@ function ChangePasswordForm() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    if (form.newPassword !== form.confirmNew) {
-      toast.error(t("profile.passwordMismatch"))
-      return
-    }
-    setIsLoading(true)
-    try {
-      await withMockFallback(
-        () => userApi.updatePassword({
-          old_password: form.oldPassword,
-          new_password: form.newPassword,
-        }),
-        () => null
-      )
-      toast.success(t("common.success"))
-      setForm({ oldPassword: "", newPassword: "", confirmNew: "" })
-    } catch (err: unknown) {
-      toast.error(getApiErrorMessage(err, t))
-    } finally {
-      setIsLoading(false)
-    }
+    // [DEMO] demo 分支不允许修改密码
+    denyDemoOperation({ t })
   }
 
   return (

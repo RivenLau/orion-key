@@ -8,6 +8,7 @@ import { toast } from "sonner"
 import { adminRiskApi, withMockFallback } from "@/services/api"
 import { mockAdminOrderList } from "@/lib/mock-data"
 import { OrderStatusBadge } from "@/components/shared/order-status-badge"
+import { denyDemoOperation } from "@/lib/demo-guard"
 import type { RiskConfig, AdminOrderItem } from "@/types"
 
 export default function AdminRiskPage() {
@@ -62,29 +63,14 @@ export default function AdminRiskPage() {
   useEffect(() => { fetchConfig() }, [fetchConfig])
   useEffect(() => { if (tab === "flagged") fetchFlaggedOrders() }, [tab, fetchFlaggedOrders])
 
-  // 开关即时保存（点击立即生效，无需手动保存）
-  const handleToggle = async (key: "turnstile_enabled" | "device_rate_limit_enabled") => {
-    const newValue = !config[key]
-    setConfig({ ...config, [key]: newValue })
-    try {
-      await adminRiskApi.updateConfig({ [key]: newValue })
-    } catch {
-      // 保存失败 → 回滚 UI 状态
-      setConfig((prev) => ({ ...prev, [key]: !newValue }))
-      toast.error("保存失败，请重试")
-    }
+  // [DEMO] demo 分支不允许切换风控开关
+  const handleToggle = async (_key: "turnstile_enabled" | "device_rate_limit_enabled") => {
+    denyDemoOperation({ t })
   }
 
+  // [DEMO] demo 分支不允许保存风控配置
   const handleSaveConfig = async () => {
-    setSaving(true)
-    try {
-      await adminRiskApi.updateConfig(config)
-      toast.success("风控配置保存成功")
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "保存失败")
-    } finally {
-      setSaving(false)
-    }
+    denyDemoOperation({ t })
   }
 
   const flaggedTotalPages = Math.ceil(flaggedTotal / 10)

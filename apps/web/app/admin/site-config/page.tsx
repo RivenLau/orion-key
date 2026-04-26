@@ -7,6 +7,7 @@ import { toast } from "sonner"
 import { adminConfigApi, adminProductApi, withMockFallback } from "@/services/api"
 import { mockSiteConfigKVs } from "@/lib/mock-data"
 import { useLocale } from "@/lib/context"
+import { denyDemoOperation } from "@/lib/demo-guard"
 import type { SiteConfigKV } from "@/types"
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml"]
@@ -65,36 +66,13 @@ export default function AdminSiteConfigPage() {
   }
 
   const handleSave = async () => {
-    setSaving(true)
-    try {
-      const configs = Object.entries(configMap).map(([config_key, config_value]) => ({
-        config_key,
-        config_value,
-      }))
-      await withMockFallback(
-        () => adminConfigApi.update({ configs }),
-        () => null
-      )
-      toast.success("保存成功")
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "保存失败")
-    } finally {
-      setSaving(false)
-    }
+    // [DEMO] demo 分支不允许保存站点配置
+    denyDemoOperation({ t })
   }
 
   const handleToggleMaintenance = async () => {
-    const newEnabled = !getBool("maintenance_enabled")
-    try {
-      await withMockFallback(
-        () => adminConfigApi.toggleMaintenance(newEnabled),
-        () => null
-      )
-      setValue("maintenance_enabled", String(newEnabled))
-      toast.success(newEnabled ? "已开启维护模式" : "已关闭维护模式")
-    } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "操作失败")
-    }
+    // [DEMO] demo 分支不允许切换维护模式
+    denyDemoOperation({ t })
   }
 
   if (loading) {

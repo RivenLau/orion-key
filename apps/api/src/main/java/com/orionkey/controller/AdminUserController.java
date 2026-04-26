@@ -2,6 +2,7 @@ package com.orionkey.controller;
 
 import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
+import com.orionkey.constant.DemoProtectedIds;
 import com.orionkey.service.AdminUserService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -27,6 +28,7 @@ public class AdminUserController {
     @LogOperation(action = "user.toggle", targetType = "USER", targetId = "#id", detail = "'切换用户状态'")
     @PostMapping("/{id}/toggle")
     public ApiResponse<Void> toggleUser(@PathVariable UUID id, @RequestBody Map<String, Object> request) {
+        DemoProtectedIds.denyIfProtectedUser(id);
         int isDeleted = ((Number) request.get("is_deleted")).intValue();
         adminUserService.toggleUser(id, isDeleted);
         return ApiResponse.success();

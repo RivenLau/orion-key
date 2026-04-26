@@ -7,6 +7,7 @@ import { Trash2, Minus, Plus, ShoppingCart, ArrowRight, Package } from "lucide-r
 import { toast } from "sonner"
 import { useLocale, useCart } from "@/lib/context"
 import { getApiErrorMessage } from "@/services/api"
+import { DEMO_MAX_ORDER_QUANTITY, denyDemoOperation } from "@/lib/demo-guard"
 import { cn } from "@/lib/utils"
 
 export default function CartPage() {
@@ -163,6 +164,8 @@ export default function CartPage() {
             <button
               onClick={() => {
                 if (items.length === 0) return
+                // [DEMO] demo 分支：购物车结算总件数上限 2
+                if (totalQty > DEMO_MAX_ORDER_QUANTITY) { denyDemoOperation({ t }); return }
                 router.push("/checkout")
               }}
               disabled={items.length === 0}

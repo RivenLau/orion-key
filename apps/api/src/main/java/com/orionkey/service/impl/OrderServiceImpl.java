@@ -64,6 +64,11 @@ public class OrderServiceImpl implements OrderService {
         String email = (String) req.get("email");
         validateEmail(email);
 
+        // [DEMO] demo 分支：单次下单数量上限固定为 DemoProtectedIds.MAX_ORDER_QUANTITY
+        if (quantity > com.orionkey.constant.DemoProtectedIds.MAX_ORDER_QUANTITY) {
+            com.orionkey.constant.DemoProtectedIds.denyAlways();
+        }
+
         // F4: 购买数量校验（读取后台配置，兜底 999）
         int maxQuantity = getMaxPurchasePerUser();
         if (quantity < 1 || quantity > maxQuantity) {
@@ -175,6 +180,12 @@ public class OrderServiceImpl implements OrderService {
         }
         if (cartItems.isEmpty()) {
             throw new BusinessException(ErrorCode.CART_EMPTY, "购物车为空");
+        }
+
+        // [DEMO] demo 分支：购物车结算所有 OrderItem 的 quantity 加总 ≤ DemoProtectedIds.MAX_ORDER_QUANTITY
+        int totalCartQuantity = cartItems.stream().mapToInt(CartItem::getQuantity).sum();
+        if (totalCartQuantity > com.orionkey.constant.DemoProtectedIds.MAX_ORDER_QUANTITY) {
+            com.orionkey.constant.DemoProtectedIds.denyAlways();
         }
 
         // 购物车每项数量校验（与直接下单统一上限）
