@@ -11,7 +11,7 @@ Automated Digital Goods Delivery Platform
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-brightgreen?logo=springboot)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18+-336791?logo=postgresql&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.4-38bdf8?logo=tailwindcss&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-9+-f69220?logo=pnpm&logoColor=white)
@@ -24,33 +24,25 @@ Automated Digital Goods Delivery Platform
 
 ## 截图预览
 
-<details open>
-<summary><b>前台页面</b></summary>
-<br>
-
-| 首页（亮色） | 首页（暗色） |
+| 前台首页（亮色） | 前台首页（暗色） |
 |:---:|:---:|
 | ![首页-亮色](.github/assets/home-light.png) | ![首页-暗色](.github/assets/home-dark.png) |
 
-| 商品详情（亮色） | 商品详情（暗色） |
-|:---:|:---:|
-| ![详情-亮色](.github/assets/detail-light.png) | ![详情-暗色](.github/assets/detail-dark.png) |
-
-| 订单查询（亮色） | 订单查询（暗色） |
-|:---:|:---:|
-| ![订单查询-亮色](.github/assets/order-light.png) | ![订单查询-暗色](.github/assets/order-dark.png) |
-
-</details>
-
-<details open>
-<summary><b>管理后台</b></summary>
-<br>
-
-| Dashboard（亮色） | Dashboard（暗色） |
+| 管理后台（亮色） | 管理后台（暗色） |
 |:---:|:---:|
 | ![后台-亮色](.github/assets/admin-light.png) | ![后台-暗色](.github/assets/admin-dark.png) |
 
-</details>
+---
+
+## 在线 Demo
+
+> 演示环境已开放，可直接登录管理后台体验完整功能。
+
+| | 地址 |
+|---|---|
+| 🛒 **前台** | <https://www.orionkey-demo.com/> |
+| 🛠️ **管理后台** | <https://www.orionkey-demo.com/admin> |
+| 🔑 **管理员账号** | `admin` / `123456` |
 
 ---
 
@@ -68,16 +60,18 @@ Automated Digital Goods Delivery Platform
 
 ## 支付渠道集成
 
-| 渠道            | 接入方式 | 说明 |
-|---------------|---------|------|
-| 支付宝           | 易支付（聚合） | 通过第三方易支付平台接入 |
-| 微信支付          | 易支付（聚合） | 通过第三方易支付平台接入 |
-| 支付宝 (待实现)     | 原生对接 | 需企业资质（支付宝开放平台） |
-| 微信支付 (待实现)    | 原生对接 | 需企业资质（微信支付商户号） |
-| USDT (TRC-20) | BEpusdt 自托管 | 链上自动确认，无第三方托管 |
-| USDT (BEP-20) | BEpusdt 自托管 | 链上自动确认，无第三方托管 |
+| 渠道            | 接入方式        | 说明             |
+|---------------|-------------|----------------|
+| 支付宝           | 易支付集成       | 通过第三方易支付平台接入   |
+| 微信支付          | 易支付集成       | 通过第三方易支付平台接入   |
+| 支付宝     | 原生接入（待实现）   | 需企商户资质 |
+| 微信支付   | 原生接入（待实现）   | 需商户资质  |
+| USDT (TRC-20) | BEpusdt 自托管 | 链上自动确认，无第三方托管  |
+| USDT (BEP-20) | BEpusdt 自托管 | 链上自动确认，无第三方托管  |
 
 > 支付架构可扩展，可通过后台「支付渠道管理」自由配置和切换。
+
+> 💡 **易支付入驻推荐**：<https://vip1.zhunfu.cn/user/?invite=X1NUVw>
 
 ---
 
@@ -87,7 +81,7 @@ Automated Digital Goods Delivery Platform
 |------|--------|
 | **前端** | Next.js 16 · React 19 · TypeScript · Tailwind CSS 3 · shadcn/ui |
 | **后端** | Spring Boot 3.4 · Java 22 · Spring Data JPA · Spring Security |
-| **数据库** | PostgreSQL 14+ |
+| **数据库** | PostgreSQL 18+ |
 | **认证** | JWT (jjwt) · BCrypt |
 | **构建** | pnpm (前端) · Maven (后端) |
 
@@ -122,7 +116,7 @@ orion-key/
 │               ├── application.yml   # 应用配置（数据库、JWT、邮件、上传等）
 │               └── data.sql          # 初始化数据（管理员、站点配置、支付渠道）
 │
-├── docker-compose.prod.yml           # 生产 Docker Compose 编排
+├── docker-compose.yml                # Docker Compose 编排（生产 / 本地通用）
 ├── .env.example                      # 环境变量模板
 └── pnpm-workspace.yaml               # Monorepo 工作区声明
 ```
@@ -139,7 +133,7 @@ orion-key/
 | Maven | 3.9+ | 后端构建工具 |
 | Node.js | 20+ | 前端运行环境 |
 | pnpm | 9+ | 前端包管理（`npm i -g pnpm`） |
-| PostgreSQL | 14+ | 数据库，需提前创建库和用户 |
+| PostgreSQL | 18+ | 数据库，需提前创建库和用户 |
 
 ---
 
@@ -168,14 +162,14 @@ spring:
 
 ```yaml
 jwt:
-  secret: ${JWT_SECRET:orion-key-dev-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  secret: ${JWT_SECRET:<用 openssl rand -base64 48 生成>}
   expiration: 86400000  # 24 小时
 ```
 
-生产环境**必须**替换为随机密钥：
+生产环境**必须**通过 `JWT_SECRET` 环境变量注入随机密钥（至少 256 bits）：
 
 ```bash
-openssl rand -base64 64
+openssl rand -base64 48
 ```
 
 ### 密码加密模式
@@ -213,88 +207,72 @@ upload:
 
 ---
 
-## 本地开发启动
+## 部署
 
-### 方式一：分别启动
+> 完整生产部署（含服务器初始化、Nginx/HTTPS、CI/CD、BEpusdt USDT 支付等）请参见 [`docs/PRODUCTION_SETUP_GUIDE.md`](docs/PRODUCTION_SETUP_GUIDE.md)。本节仅给出最小启动路径。
 
-**启动后端：**
+### 方式一：Docker 部署（推荐）
+
+仓库根目录提供 `docker-compose.yml`，编排 **api / web / bepusdt** 三个容器；**不含 PostgreSQL 和 Nginx**，需自行准备。
+
+镜像已发布至 GHCR 公开仓库，默认 `:latest` tag 跟随最新 release，无需登录即可匿名拉取：
+
+- `ghcr.io/rivenlau/orion-key-api:latest`
+- `ghcr.io/rivenlau/orion-key-web:latest`
 
 ```bash
-cd apps/api
-mvn spring-boot:run
-# 启动于 http://localhost:8083/api
+# 1. 准备 .env（变量含义见上方「配置」章节）
+cp .env.example .env
+
+# 2. 拉取镜像并启动
+docker compose pull
+docker compose up -d
+
+# 3. 查看日志
+docker compose logs -f
 ```
 
-**启动前端：**
+> 💡 **生产环境建议固定具体版本号**（如 `:v1.0.0`），在 `.env` 中通过 `API_IMAGE` / `WEB_IMAGE` 覆盖默认值，便于回滚和多机一致性。
+
+> 上传文件通过卷挂载 `./uploads` 持久化，容器重建不丢失。生产环境建议前置 Nginx 反向代理处理 HTTPS 和静态资源。
+
+### 方式二：非 Docker 部署（直接运行）
+
+适合本地开发或单机直跑场景。需先安装 Java 22 / Maven 3.9+ / Node.js 20+ / pnpm 9+ / PostgreSQL 18+。
+
+> ⚠️ **时区提醒**：Docker 部署时已通过 compose 文件注入 `TZ=Asia/Shanghai`；非 Docker 部署需自行确保进程时区正确，否则订单时间、过期判断、链上验证等会偏差 8 小时。任选其一：
+>
+> ```bash
+> # 方式 A：改系统时区（一劳永逸，影响所有进程）
+> sudo timedatectl set-timezone Asia/Shanghai
+>
+> # 方式 B：启动前注入 TZ 环境变量（仅影响当前进程）
+> export TZ=Asia/Shanghai
+> ```
 
 ```bash
+# 后端（端口 8083）
+cd apps/api
+mvn spring-boot:run
+
+# 前端（端口 3000，新开终端）
 cd apps/web
 pnpm install
 pnpm dev
-# 启动于 http://localhost:3000
 ```
 
-### 方式二：Monorepo 根目录启动前端
+或在仓库根目录一键启动前端：
 
 ```bash
-# 在项目根目录
 pnpm install
 pnpm dev:web
-# 等价于 pnpm --filter @orion-key/web dev
 ```
 
-> **API 代理**：`next.config.mjs` 已配置 `rewrites`，前端 `/api/*` 请求自动代理到 `http://localhost:8083`，无需手动处理跨域。如后端端口不同，设置环境变量 `BACKEND_URL`。
+> **API 代理**：`next.config.mjs` 已配置 `rewrites`，前端 `/api/*` 自动代理到 `http://localhost:8083`，无需手动处理跨域。
 
 ### 验证
 
-- 健康检查：`GET http://localhost:8083/api/categories`
-- 管理员登录：`admin` / `admin123`
-
----
-
-## Docker 部署
-
-项目提供 `docker-compose.prod.yml` 用于生产部署，前后端各一个容器，通过 Docker 内部网络互通。
-
-### 1. 配置环境变量
-
-复制 `.env.example` 为 `.env`，填入实际配置：
-
-```bash
-cp .env.example .env
-```
-
-关键变量：
-
-```env
-# 数据库
-DB_URL=jdbc:postgresql://your-db-host:5432/orion_key
-DB_USERNAME=orionkey
-DB_PASSWORD=your_strong_password
-
-# 安全（必须修改）
-JWT_SECRET=用 openssl rand -base64 64 生成
-PASSWORD_PLAIN=false
-
-# 邮件（不需要可设 MAIL_ENABLED=false）
-MAIL_ENABLED=true
-MAIL_HOST=smtp.example.com
-MAIL_USERNAME=your@email.com
-MAIL_PASSWORD=your_password
-
-# 镜像地址（CI/CD 自动构建推送，或手动指定）
-API_IMAGE=ghcr.io/your-org/orion-key-api:latest
-WEB_IMAGE=ghcr.io/your-org/orion-key-web:latest
-```
-
-### 2. 启动
-
-```bash
-docker compose -f docker-compose.prod.yml pull    # 拉取最新镜像
-docker compose -f docker-compose.prod.yml up -d    # 后台启动
-```
-
-> 上传文件通过卷挂载 `./uploads` 持久化，容器重建不会丢失数据。前端容器通过 Docker 内部网络 `http://api:8083` 访问后端。生产环境建议在前面加一层 Nginx 反向代理处理 HTTPS 和静态资源。
+- 健康检查：`GET http://localhost:8083/api/health`
 
 ---
 
@@ -306,7 +284,19 @@ docker compose -f docker-compose.prod.yml up -d    # 后台启动
 
 ## TG 交流群组
 
-[![Telegram](https://img.shields.io/badge/Telegram-群组-26A5E4?logo=telegram&logoColor=white)](https://t.me/+bFPWrYnruDIwZWRh)
+[![Telegram](https://img.shields.io/badge/Telegram-群组-26A5E4?logo=telegram&logoColor=white)](https://t.me/+7Gx0vtwWixI3ODZh)
+
+---
+
+## 商务合作
+
+**代建自动发卡网，商务合作请联系**
+
+> 微信：**Aarion666**
+
+<p align="center">
+  <img src=".github/assets/contact.jpg" alt="商务合作微信二维码" width="240" />
+</p>
 
 ---
 

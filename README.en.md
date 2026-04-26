@@ -11,7 +11,7 @@
 ![Spring Boot](https://img.shields.io/badge/Spring%20Boot-3.4-brightgreen?logo=springboot)
 ![Next.js](https://img.shields.io/badge/Next.js-16-black?logo=next.js)
 ![React](https://img.shields.io/badge/React-19-61dafb?logo=react)
-![PostgreSQL](https://img.shields.io/badge/PostgreSQL-14+-336791?logo=postgresql&logoColor=white)
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-18+-336791?logo=postgresql&logoColor=white)
 ![TypeScript](https://img.shields.io/badge/TypeScript-5.7-3178c6?logo=typescript&logoColor=white)
 ![Tailwind CSS](https://img.shields.io/badge/Tailwind%20CSS-3.4-38bdf8?logo=tailwindcss&logoColor=white)
 ![pnpm](https://img.shields.io/badge/pnpm-9+-f69220?logo=pnpm&logoColor=white)
@@ -24,33 +24,25 @@
 
 ## Screenshots
 
-<details open>
-<summary><b>Storefront</b></summary>
-<br>
-
-| Home (Light) | Home (Dark) |
+| Storefront (Light) | Storefront (Dark) |
 |:---:|:---:|
 | ![Home Light](.github/assets/home-light.png) | ![Home Dark](.github/assets/home-dark.png) |
 
-| Product Detail (Light) | Product Detail (Dark) |
-|:---:|:---:|
-| ![Detail Light](.github/assets/detail-light.png) | ![Detail Dark](.github/assets/detail-dark.png) |
-
-| Order Query (Light) | Order Query (Dark) |
-|:---:|:---:|
-| ![Order Light](.github/assets/order-light.png) | ![Order Dark](.github/assets/order-dark.png) |
-
-</details>
-
-<details open>
-<summary><b>Admin Panel</b></summary>
-<br>
-
-| Dashboard (Light) | Dashboard (Dark) |
+| Admin Panel (Light) | Admin Panel (Dark) |
 |:---:|:---:|
 | ![Admin Light](.github/assets/admin-light.png) | ![Admin Dark](.github/assets/admin-dark.png) |
 
-</details>
+---
+
+## Online Demo
+
+> Live demo environment is open — log in to the admin panel to explore the full feature set.
+
+| | URL |
+|---|---|
+| 🛒 **Storefront** | <https://www.orionkey-demo.com/> |
+| 🛠️ **Admin Panel** | <https://www.orionkey-demo.com/admin> |
+| 🔑 **Admin Credentials** | `admin` / `123456` |
 
 ---
 
@@ -79,6 +71,8 @@
 
 > Extensible payment architecture — configure and switch channels freely via admin panel.
 
+> 💡 **Epay Onboarding Referral** (CN mainland users): <https://vip1.zhunfu.cn/user/?invite=X1NUVw>
+
 ---
 
 ## Tech Stack
@@ -87,7 +81,7 @@
 |-------|-------------|
 | **Frontend** | Next.js 16 · React 19 · TypeScript · Tailwind CSS 3 · shadcn/ui |
 | **Backend** | Spring Boot 3.4 · Java 22 · Spring Data JPA · Spring Security |
-| **Database** | PostgreSQL 14+ |
+| **Database** | PostgreSQL 18+ |
 | **Auth** | JWT (jjwt) · BCrypt |
 | **Build** | pnpm (frontend) · Maven (backend) |
 
@@ -122,10 +116,9 @@ orion-key/
 │               ├── application.yml   # App config (DB, JWT, mail, uploads, etc.)
 │               └── data.sql          # Seed data (admin account, site config, payment channels)
 │
-├── docker-compose.prod.yml           # Production Docker Compose
+├── docker-compose.yml                # Docker Compose orchestration (production / local)
 ├── .env.example                      # Environment variable template
-├── pnpm-workspace.yaml               # Monorepo workspace declaration
-└── ui_picture/                       # Project screenshots
+└── pnpm-workspace.yaml               # Monorepo workspace declaration
 ```
 
 ---
@@ -140,7 +133,7 @@ Ensure the following tools are installed before getting started:
 | Maven | 3.9+ | Backend build tool |
 | Node.js | 20+ | Frontend runtime |
 | pnpm | 9+ | Frontend package manager (`npm i -g pnpm`) |
-| PostgreSQL | 14+ | Database — create a database and user before starting |
+| PostgreSQL | 18+ | Database — create a database and user before starting |
 
 ---
 
@@ -172,14 +165,14 @@ psql -U orionkey -d orion_key -f apps/api/src/main/resources/data.sql
 
 ```yaml
 jwt:
-  secret: ${JWT_SECRET:orion-key-dev-secret-key-must-be-at-least-256-bits-long-for-hs256}
+  secret: ${JWT_SECRET:<generate with: openssl rand -base64 48>}
   expiration: 86400000  # 24 hours
 ```
 
-**Must** replace with a random secret for production:
+For production, you **must** inject a random secret via the `JWT_SECRET` environment variable (at least 256 bits):
 
 ```bash
-openssl rand -base64 64
+openssl rand -base64 48
 ```
 
 ### Password Encryption Mode
@@ -217,88 +210,73 @@ upload:
 
 ---
 
-## Local Development
+## Deployment
 
-### Option A: Start Separately
+> For full production setup (server bootstrap, Nginx/HTTPS, CI/CD, BEpusdt USDT payments, etc.), see [`docs/PRODUCTION_SETUP_GUIDE.md`](docs/PRODUCTION_SETUP_GUIDE.md). This section covers the minimal startup path only.
 
-**Start backend:**
+### Option A: Docker (Recommended)
+
+The repo ships `docker-compose.yml` orchestrating **api / web / bepusdt** containers; **PostgreSQL and Nginx are not included** — bring your own.
+
+Public images are published to GHCR; the `:latest` tag tracks the latest release and can be pulled anonymously:
+
+- `ghcr.io/rivenlau/orion-key-api:latest`
+- `ghcr.io/rivenlau/orion-key-web:latest`
 
 ```bash
-cd apps/api
-mvn spring-boot:run
-# Running at http://localhost:8083/api
+# 1. Prepare .env (see "Configuration" section above for variable meanings)
+cp .env.example .env
+
+# 2. Pull images and start
+docker compose pull
+docker compose up -d
+
+# 3. Tail logs
+docker compose logs -f
 ```
 
-**Start frontend:**
+> 💡 **For production**, pin to a specific version (e.g. `:v1.0.0`) by overriding `API_IMAGE` / `WEB_IMAGE` in `.env` — easier rollback and multi-host consistency.
+
+> Uploaded files persist via the `./uploads` volume mount and survive container rebuilds. Add an Nginx reverse proxy in front for HTTPS and static assets in production.
+
+### Option B: Non-Docker (Direct Run)
+
+For local development or single-host setups. Requires Java 22 / Maven 3.9+ / Node.js 20+ / pnpm 9+ / PostgreSQL 18+.
+
+> ⚠️ **Timezone notice**: Docker deployments inject `TZ=Asia/Shanghai` via compose. For non-Docker setups, you must configure the process timezone yourself — otherwise order timestamps, expiry checks, and on-chain verification will be off by 8 hours. Pick either:
+>
+> ```bash
+> # Option A: change system timezone (affects all processes)
+> sudo timedatectl set-timezone Asia/Shanghai
+>
+> # Option B: inject TZ env var per process
+> export TZ=Asia/Shanghai
+> ```
 
 ```bash
+# Backend (port 8083)
+cd apps/api
+mvn spring-boot:run
+
+# Frontend (port 3000, in a new terminal)
 cd apps/web
 pnpm install
 pnpm dev
-# Running at http://localhost:3000
 ```
 
-### Option B: Start Frontend from Monorepo Root
+Or start the frontend from the monorepo root:
 
 ```bash
-# From project root
 pnpm install
 pnpm dev:web
-# Equivalent to: pnpm --filter @orion-key/web dev
 ```
 
-> **API Proxy**: `next.config.mjs` rewrites `/api/*` to `http://localhost:8083` automatically — no CORS setup needed. Set `BACKEND_URL` env var if your backend runs on a different port.
+> **API Proxy**: `next.config.mjs` rewrites `/api/*` to `http://localhost:8083` automatically — no CORS setup needed.
 
 ### Verify
 
 - Health check: `GET http://localhost:8083/api/categories`
 - Admin login: `admin` / `admin123`
-
----
-
-## Docker Deployment
-
-The project provides `docker-compose.prod.yml` for production — one container each for frontend and backend, communicating over Docker's internal network.
-
-### 1. Configure Environment Variables
-
-Copy `.env.example` to `.env` and fill in your values:
-
-```bash
-cp .env.example .env
-```
-
-Key variables:
-
-```env
-# Database
-DB_URL=jdbc:postgresql://your-db-host:5432/orion_key
-DB_USERNAME=orionkey
-DB_PASSWORD=your_strong_password
-
-# Security (must change)
-JWT_SECRET=generate with: openssl rand -base64 64
-PASSWORD_PLAIN=false
-
-# Email (set MAIL_ENABLED=false to disable)
-MAIL_ENABLED=true
-MAIL_HOST=smtp.example.com
-MAIL_USERNAME=your@email.com
-MAIL_PASSWORD=your_password
-
-# Docker images (built by CI/CD, or specify manually)
-API_IMAGE=ghcr.io/your-org/orion-key-api:latest
-WEB_IMAGE=ghcr.io/your-org/orion-key-web:latest
-```
-
-### 2. Start
-
-```bash
-docker compose -f docker-compose.prod.yml pull    # Pull latest images
-docker compose -f docker-compose.prod.yml up -d    # Start in background
-```
-
-> Uploaded files are persisted via the `./uploads` volume mount — data survives container rebuilds. The frontend container accesses the backend via Docker internal network at `http://api:8083`. For production, add an Nginx reverse proxy in front for HTTPS and static assets.
 
 ---
 
@@ -310,7 +288,19 @@ docker compose -f docker-compose.prod.yml up -d    # Start in background
 
 ## Telegram Group
 
-[![Telegram](https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white)](https://t.me/+bFPWrYnruDIwZWRh)
+[![Telegram](https://img.shields.io/badge/Telegram-Group-26A5E4?logo=telegram&logoColor=white)](https://t.me/+7Gx0vtwWixI3ODZh)
+
+---
+
+## Business Inquiries
+
+Custom card-key platform development services available — including dedicated deployment, custom feature development, payment integration, and operations support.
+
+> 📩 WeChat: **Aarion666**
+
+<p align="center">
+  <img src=".github/assets/contact.jpg" alt="Business contact QR code" width="240" />
+</p>
 
 ---
 

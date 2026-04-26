@@ -2,7 +2,9 @@
 # Orion Key CI/CD 工作流
 # ===================================================================
 #
-# 流程：在 main 上打 tag v* → 云端构建两个 Docker 镜像（:v* + :latest）→ 推送 GHCR → demo 服务器拉取并重启
+# 流程：
+#   push tag v*           → 云端构建两个 Docker 镜像（:v* + :latest）→ 推送 GHCR（仅构建，不部署）
+#   workflow_dispatch     → 云端构建（自定义 tag）→ 推送 GHCR；勾选 deploy 开关时才部署到 demo 服务器
 #
 # 镜像构建方式：
 #   后端 (Java):  Jib Maven 插件直接产出 Docker 镜像（无需 Dockerfile）
@@ -15,13 +17,18 @@ name: Orion Key CI/CD
 # ── 触发条件 ──
 on:
   push:
-    tags: ['v*']            # 在 main 上打 tag（如 v1.0.0）时触发，部署到 demo 服务器
+    tags: ['v*']            # 打 tag（如 v1.0.0）时触发，仅构建并推送镜像，不自动部署
   workflow_dispatch:         # 支持在 GitHub Actions 页面手动触发
     inputs:
       image_tag:
         description: '镜像标签（留空自动生成）'
         required: false
         type: string
+      deploy:
+        description: '是否部署到 demo 服务器（默认仅构建推送）'
+        required: false
+        type: boolean
+        default: false
 
 # 全局权限：最小权限原则
 permissions:
@@ -117,8 +124,11 @@ jobs:
   # ════════════════════════════════════════════════════════════════
   # Job 2: 部署到服务器（在自建 runner 上执行）
   # ════════════════════════════════════════════════════════════════
+  # 仅在 workflow_dispatch 且勾选 deploy 开关时执行；
+  # push tag 仅构建推送镜像，不自动部署，避免误推到生产/演示环境。
   deploy:
     needs: [build-and-push]             # 等 Job 1 完成后才执行
+    if: github.event_name == 'workflow_dispatch' && inputs.deploy == true
     runs-on: [self-hosted, demo]        # 在带有 "demo" 标签的 self-hosted runner 上运行（新 demo 服务器）
     permissions:
       contents: read
@@ -151,7 +161,7 @@ jobs:
       # ── 核心部署步骤（Docker Compose）──
       #
       # 流程：
-      #   1. 把仓库中的 docker-compose.prod.yml 复制到服务器部署目录
+      #   1. 把仓库中的 docker-compose.yml 复制到服务器部署目录
       #   2. 将本次构建的镜像标签写入 .env（Compose 通过 ${API_IMAGE} 变量引用）
       #   3. docker compose pull 拉取最新镜像
       #   4. docker compose up -d 自动停旧容器、启新容器
@@ -167,8 +177,8 @@ jobs:
           set -euo pipefail
           DEPLOY_DIR="/opt/orion-key"
 
-          # ① 将 docker-compose.prod.yml 复制到部署目录（每次部署自动同步最新配置）
-          cp docker-compose.prod.yml "$DEPLOY_DIR/docker-compose.yml"
+          # ① 将 docker-compose.yml 复制到部署目录（每次部署自动同步最新配置）
+          cp docker-compose.yml "$DEPLOY_DIR/docker-compose.yml"
 
           # ② 更新 .env 中的镜像标签
           #    先移除旧的 IMAGE 行，再追加新值
