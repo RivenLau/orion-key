@@ -71,7 +71,7 @@
 
 > Extensible payment architecture — configure and switch channels freely via admin panel.
 
-💡 **Epay Onboarding Referral** (CN mainland users): <a href="https://vip1.zhunfu.cn/user/?invite=X1NUVw" target="_blank" rel="noopener noreferrer">https://vip1.zhunfu.cn/user/?invite=X1NUVw</a>
+💡 **Epay Onboarding Referral** (CN mainland users): <a href="https://vip1.zhunfu.cn/user/?invite=X1NUVw" target="_blank" rel="noopener noreferrer">https://vip1.zhunfu.cn/user/?invite=X1NUVw</a>&emsp;·&emsp;After signing up via this link, contact Epay support on QQ **440933** (with note **1203**) to enjoy a permanent ultra-low **3%** withdrawal fee.
 
 ---
 
