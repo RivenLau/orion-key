@@ -40,8 +40,8 @@ Automated Digital Goods Delivery Platform
 
 | | 地址 |
 |---|---|
-| 🛒 **前台** | <https://www.orionkey-demo.com/> |
-| 🛠️ **管理后台** | <https://www.orionkey-demo.com/admin> |
+| 🛒 **前台** | <a href="https://www.orionkey-demo.com/" target="_blank" rel="noopener noreferrer">https://www.orionkey-demo.com/</a> |
+| 🛠️ **管理后台** | <a href="https://www.orionkey-demo.com/admin" target="_blank" rel="noopener noreferrer">https://www.orionkey-demo.com/admin</a> |
 | 🔑 **管理员账号** | `admin` / `123456` |
 
 ---
@@ -71,7 +71,7 @@ Automated Digital Goods Delivery Platform
 
 > 支付架构可扩展，可通过后台「支付渠道管理」自由配置和切换。
 
-> 💡 **易支付入驻推荐**：<https://vip1.zhunfu.cn/user/?invite=X1NUVw>
+💡 **易支付入驻推荐**：<a href="https://vip1.zhunfu.cn/user/?invite=X1NUVw" target="_blank" rel="noopener noreferrer">https://vip1.zhunfu.cn/user/?invite=X1NUVw</a>
 
 ---
 
@@ -209,7 +209,7 @@ upload:
 
 ## 部署
 
-> 完整生产部署（含服务器初始化、Nginx/HTTPS、CI/CD、BEpusdt USDT 支付等）请参见 [`docs/PRODUCTION_SETUP_GUIDE.md`](docs/PRODUCTION_SETUP_GUIDE.md)。本节仅给出最小启动路径。
+> 完整生产部署（含服务器初始化、Nginx/HTTPS、CI/CD、BEpusdt USDT 支付等），本节仅给出最小启动路径。
 
 ### 方式一：Docker 部署（推荐）
 
@@ -290,9 +290,7 @@ pnpm dev:web
 
 ## 商务合作
 
-**代建自动发卡网，商务合作请联系**
-
-> 微信：**Aarion666**
+**自动发卡网代建、商务合作联系 微信: Aarion666**
 
 <p align="center">
   <img src=".github/assets/contact.jpg" alt="商务合作微信二维码" width="240" />

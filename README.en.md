@@ -40,8 +40,8 @@
 
 | | URL |
 |---|---|
-| 🛒 **Storefront** | <https://www.orionkey-demo.com/> |
-| 🛠️ **Admin Panel** | <https://www.orionkey-demo.com/admin> |
+| 🛒 **Storefront** | <a href="https://www.orionkey-demo.com/" target="_blank" rel="noopener noreferrer">https://www.orionkey-demo.com/</a> |
+| 🛠️ **Admin Panel** | <a href="https://www.orionkey-demo.com/admin" target="_blank" rel="noopener noreferrer">https://www.orionkey-demo.com/admin</a> |
 | 🔑 **Admin Credentials** | `admin` / `123456` |
 
 ---
@@ -60,18 +60,18 @@
 
 ## Integrated Payment Channels
 
-| Channel | Integration | Notes |
-|---------|------------|-------|
-| Alipay | Epay (Aggregator) | Via third-party Epay payment platform |
-| WeChat Pay | Epay (Aggregator) | Via third-party Epay payment platform |
-| Alipay | Native | Requires business license (Alipay Open Platform) |
-| WeChat Pay | Native | Requires business license (WeChat Pay Merchant) |
+| Channel       | Integration         | Notes                                              |
+|---------------|---------------------|----------------------------------------------------|
+| Alipay        | Epay Aggregator     | Via third-party Epay payment platform              |
+| WeChat Pay    | Epay Aggregator     | Via third-party Epay payment platform              |
+| Alipay        | Native (planned)    | Requires merchant qualification                    |
+| WeChat Pay    | Native (planned)    | Requires merchant qualification                    |
 | USDT (TRC-20) | BEpusdt Self-hosted | On-chain auto-confirmation, no third-party custody |
 | USDT (BEP-20) | BEpusdt Self-hosted | On-chain auto-confirmation, no third-party custody |
 
 > Extensible payment architecture — configure and switch channels freely via admin panel.
 
-> 💡 **Epay Onboarding Referral** (CN mainland users): <https://vip1.zhunfu.cn/user/?invite=X1NUVw>
+💡 **Epay Onboarding Referral** (CN mainland users): <a href="https://vip1.zhunfu.cn/user/?invite=X1NUVw" target="_blank" rel="noopener noreferrer">https://vip1.zhunfu.cn/user/?invite=X1NUVw</a>
 
 ---
 
@@ -212,7 +212,7 @@ upload:
 
 ## Deployment
 
-> For full production setup (server bootstrap, Nginx/HTTPS, CI/CD, BEpusdt USDT payments, etc.), see [`docs/PRODUCTION_SETUP_GUIDE.md`](docs/PRODUCTION_SETUP_GUIDE.md). This section covers the minimal startup path only.
+> Full production setup includes server bootstrap, Nginx/HTTPS, CI/CD, BEpusdt USDT payments, etc. This section covers the minimal startup path only.
 
 ### Option A: Docker (Recommended)
 
@@ -275,8 +275,7 @@ pnpm dev:web
 
 ### Verify
 
-- Health check: `GET http://localhost:8083/api/categories`
-- Admin login: `admin` / `admin123`
+- Health check: `GET http://localhost:8083/api/health`
 
 ---
 
@@ -294,9 +293,7 @@ pnpm dev:web
 
 ## Business Inquiries
 
-Custom card-key platform development services available — including dedicated deployment, custom feature development, payment integration, and operations support.
-
-> 📩 WeChat: **Aarion666**
+**Custom card-key platform development & business inquiries · WeChat: Aarion666**
 
 <p align="center">
   <img src=".github/assets/contact.jpg" alt="Business contact QR code" width="240" />
