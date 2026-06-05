@@ -23,6 +23,11 @@ on:
         description: '镜像标签（留空自动生成）'
         required: false
         type: string
+      skip_build:
+        description: '跳过构建，直接部署 GHCR 上已存在的镜像（必须同时填写 image_tag）'
+        required: false
+        type: boolean
+        default: false
 
 # 全局权限：最小权限原则
 permissions:
@@ -33,6 +38,9 @@ jobs:
   # Job 1: 构建并推送镜像（在 GitHub 云端 runner 上执行）
   # ════════════════════════════════════════════════════════════════
   build-and-push:
+    # 手动触发且勾选 skip_build 时跳过构建（用于部署 GHCR 上已发布的版本，如回滚）
+    # push 触发时 inputs.skip_build 为空，条件恒为 true，构建照常执行
+    if: ${{ !(github.event_name == 'workflow_dispatch' && inputs.skip_build) }}
     runs-on: ubuntu-latest      # 使用 GitHub 提供的云端 Ubuntu 机器
     permissions:
       contents: read
@@ -98,6 +106,10 @@ jobs:
   # ════════════════════════════════════════════════════════════════
   deploy:
     needs: [build-and-push]             # 等 Job 1 完成后才执行
+    # 默认规则下，needs 的 job 被跳过会连带跳过本 job，因此需要显式放行：
+    # 构建成功（正常流水线）或 构建被跳过（skip_build 部署已有版本）都执行部署；
+    # 构建失败/取消时不部署。!cancelled() 保证手动取消时整条流水线停止。
+    if: ${{ !cancelled() && (needs.build-and-push.result == 'success' || needs.build-and-push.result == 'skipped') }}
     runs-on: [self-hosted, prod-getgpt]        # 在带有 "demo-prod" 标签的自建 runner 上运行，用于区分多个workflow和runner
     permissions:
       contents: read
@@ -112,6 +124,12 @@ jobs:
         id: meta
         shell: bash
         run: |
+          # 防呆：skip_build 模式下未指定 image_tag 时立即失败
+          # （否则会回退到当前 commit 的 sha tag，而该 tag 因跳过构建在 GHCR 上不存在，pull 必然失败）
+          if [[ "${{ inputs.skip_build }}" == "true" && -z "${{ inputs.image_tag }}" ]]; then
+            echo "::error::skip_build=true 时必须填写 image_tag（GHCR 上已存在的镜像标签）"
+            exit 1
+          fi
           if [ -n "${{ inputs.image_tag }}" ]; then
             TAG="${{ inputs.image_tag }}"
           elif [[ "${GITHUB_REF_TYPE}" == "tag" ]]; then
