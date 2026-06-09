@@ -291,11 +291,7 @@ pnpm dev:web
 
 ## 商务合作
 
-**自动发卡网代建、商务合作联系 微信: Riven8436**
-
-<p align="center">
-  <img src=".github/assets/contact.jpg" alt="商务合作微信二维码" width="240" />
-</p>
+**自动发卡网代建、商务合作联系  QQ: 843676885**
 
 ---
 
