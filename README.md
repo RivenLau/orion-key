@@ -71,7 +71,7 @@ Automated Digital Goods Delivery Platform
 
 > 支付架构可扩展，可通过后台「支付渠道管理」自由配置和切换。
 
-💡 **易支付入驻推荐**：<a href="https://vip1.zhunfu.cn/user/?invite=X1NUVw" target="_blank" rel="noopener noreferrer">https://vip1.zhunfu.cn/user/?invite=X1NUVw</a>
+💡 **易支付入驻推荐**：<a href="https://api.niman.cn/user/?invite=X1NUVw" target="_blank" rel="noopener noreferrer">https://api.niman.cn/user/?invite=X1NUVw</a>
 > 通过该链接注册后，联系易支付客服 QQ：**26266156**（备注 **1203**），可享受永久 **3%** 超低提现手续费。
 
 ---
