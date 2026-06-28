@@ -21,7 +21,7 @@ public class PaymentChannel extends BaseEntity {
     private String channelName;
 
     /**
-     * 支付提供商类型：epay / native_alipay / native_wxpay / usdt
+     * 支付提供商类型：epay / qiupay / native_alipay / native_wxpay / usdt
      * 同一 channelCode 只能有一个已启用的 providerType
      */
     @Column(nullable = false, columnDefinition = "varchar(255) not null default 'epay'")

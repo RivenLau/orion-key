@@ -48,6 +48,19 @@ const PROVIDER_OPTIONS: ProviderOption[] = [
     ],
   },
   {
+    type: "qiupay",
+    name: "QiuPay（聚合支付）",
+    description: "独立 provider，复用 Epay 协议，仅支持支付宝渠道",
+    channels: [{ code: "qiupay_alipay", name: "支付宝（QiuPay）" }],
+    configFields: [
+      { key: "pid", label: "商户ID (PID)", placeholder: "例如：743794" },
+      { key: "key", label: "商户密钥 (Key)", placeholder: "MD5 密钥", type: "password" },
+      { key: "api_url", label: "API 地址", placeholder: "例如：https://pay.example.com/" },
+      { key: "notify_url", label: "异步回调地址", placeholder: "例如：https://yourdomain.com/api/payments/webhook/qiupay" },
+      { key: "return_url", label: "同步跳转地址", placeholder: "例如：https://yourdomain.com/pay" },
+    ],
+  },
+  {
     type: "native_alipay",
     name: "原生支付宝",
     description: "直接对接支付宝开放平台，需要企业资质",
