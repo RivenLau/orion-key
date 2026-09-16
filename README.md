@@ -316,11 +316,11 @@ pnpm dev:web
 
 ## Star History
 
-<a href="https://star-history.com/#RivenLau/orion-key&Date">
+<a href="https://star-history.dera.page/#RivenLau/orion-key&Date">
   <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://api.star-history.com/svg?repos=RivenLau/orion-key&type=Date&theme=dark" />
-    <source media="(prefers-color-scheme: light)" srcset="https://api.star-history.com/svg?repos=RivenLau/orion-key&type=Date" />
-    <img alt="Star History Chart" src="https://api.star-history.com/svg?repos=RivenLau/orion-key&type=Date" />
+    <source media="(prefers-color-scheme: dark)" srcset="https://star-history.dera.page/svg?repos=RivenLau/orion-key&type=Date&theme=dark" />
+    <source media="(prefers-color-scheme: light)" srcset="https://star-history.dera.page/svg?repos=RivenLau/orion-key&type=Date" />
+    <img alt="Star History Chart" src="https://star-history.dera.page/svg?repos=RivenLau/orion-key&type=Date" />
   </picture>
 </a>
 
