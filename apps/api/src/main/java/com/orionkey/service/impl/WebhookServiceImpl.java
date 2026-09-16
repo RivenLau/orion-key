@@ -41,6 +41,9 @@ public class WebhookServiceImpl implements WebhookService {
     private final PaymentServiceImpl paymentService;
     private final TxidVerifyService txidVerifyService;
 
+    /** Qiupay 允许的最大超付金额（单位：元） */
+    private static final BigDecimal QIUPAY_MAX_OVERPAY = new BigDecimal("0.99");
+
     @Override
     @Transactional
     public String processEpayCallback(Map<String, String> params) {
@@ -175,6 +178,152 @@ public class WebhookServiceImpl implements WebhookService {
 
         webhookEventRepository.save(event);
         return "SUCCESS";
+    }
+
+    @Override
+    @Transactional
+    public String processQiupayCallback(Map<String, String> params) {
+        String tradeNo = params.get("trade_no");
+        String outTradeNo = params.get("out_trade_no");
+        String tradeStatus = params.get("trade_status");
+        String money = params.get("money");
+        String sign = params.get("sign");
+
+        log.info("Qiupay callback: out_trade_no={}, trade_status={}, money={}", outTradeNo, tradeStatus, money);
+
+        // 使用 trade_no 作为幂等事件 ID
+        String eventId = "qiupay_" + (tradeNo != null ? tradeNo : UUID.randomUUID().toString());
+        Optional<WebhookEvent> existingEvent = webhookEventRepository.findByEventId(eventId);
+        if (existingEvent.isPresent()) {
+            log.info("Qiupay callback already processed: {}", eventId);
+            return "success";
+        }
+
+        // Step 1: 解析订单 ID
+        UUID orderId;
+        try {
+            orderId = UUID.fromString(outTradeNo);
+        } catch (IllegalArgumentException e) {
+            log.error("Qiupay callback invalid out_trade_no: {}", outTradeNo);
+            return "fail";
+        }
+
+        // Step 2: 解析商户 key 并验签
+        String merchantKey = resolveMerchantKey(orderId);
+        if (!epayService.verifySign(merchantKey, params, sign)) {
+            log.error("Qiupay callback signature verification failed: out_trade_no={}, remote sign={}", outTradeNo, sign);
+            return "fail";
+        }
+
+        // Step 3: 状态校验（仅处理支付成功）
+        if (!"TRADE_SUCCESS".equals(tradeStatus)) {
+            log.info("Qiupay callback non-success status: {}, skipping (not saved to idempotency table)", tradeStatus);
+            return "success";
+        }
+
+        // Step 4: 构建事件对象
+        WebhookEvent event = new WebhookEvent();
+        event.setEventId(eventId);
+        event.setChannelCode("qiupay");
+        event.setOrderId(orderId);
+        event.setPayload(params.toString());
+
+        Order order = orderRepository.findById(orderId).orElse(null);
+        if (order == null) {
+            event.setProcessResult("ORDER_NOT_FOUND");
+            log.warn("Qiupay callback order not found: {}", orderId);
+            webhookEventRepository.save(event);
+            return "success";
+        }
+
+        // Step 5: 回调金额容差校验（paid >= order && paid - order <= 0.99）
+        if (money == null || money.isBlank()) {
+            log.error("Qiupay callback missing money parameter: out_trade_no={}", outTradeNo);
+            event.setProcessResult("MISSING_AMOUNT");
+            webhookEventRepository.save(event);
+            return "fail";
+        }
+
+        BigDecimal callbackAmount;
+        try {
+            callbackAmount = new BigDecimal(money);
+        } catch (NumberFormatException e) {
+            log.error("Qiupay callback invalid money format: {}, out_trade_no={}", money, outTradeNo);
+            event.setProcessResult("INVALID_AMOUNT_FORMAT");
+            webhookEventRepository.save(event);
+            return "fail";
+        }
+
+        if (!isQiupayAmountWithinTolerance(order.getActualAmount(), callbackAmount)) {
+            log.error("Qiupay callback amount out of tolerance: order={}, callback={}", order.getActualAmount(), callbackAmount);
+            event.setProcessResult("AMOUNT_OUT_OF_TOLERANCE");
+            webhookEventRepository.save(event);
+            return "fail";
+        }
+
+        // Step 6: 服务端主动查询网关订单状态（防止伪造回调）
+        EpayService.ChannelConfig channelConfig = resolveChannelConfig(order);
+        if (channelConfig != null) {
+            EpayService.OrderQueryResult queryResult = epayService.queryOrder(channelConfig, outTradeNo);
+            if (queryResult == null) {
+                // 网络/网关故障 — 不写入幂等表，返回 fail 触发网关重试
+                log.warn("Qiupay callback deferred: server-side order query returned null, out_trade_no={}", outTradeNo);
+                return "fail";
+            }
+
+            if (!isQueryStatusPaid(queryResult.tradeStatus())) {
+                log.error("Qiupay callback rejected: query status={}, expected TRADE_SUCCESS/1, out_trade_no={}",
+                        queryResult.tradeStatus(), outTradeNo);
+                event.setProcessResult("QUERY_STATUS_MISMATCH");
+                webhookEventRepository.save(event);
+                return "fail";
+            }
+
+            if (queryResult.money() == null || queryResult.money().isBlank()) {
+                log.error("Qiupay callback rejected: missing query money, out_trade_no={}", outTradeNo);
+                event.setProcessResult("QUERY_MISSING_AMOUNT");
+                webhookEventRepository.save(event);
+                return "fail";
+            }
+
+            BigDecimal queryAmount;
+            try {
+                queryAmount = new BigDecimal(queryResult.money());
+            } catch (NumberFormatException e) {
+                log.error("Qiupay order query returned invalid money format: {}, out_trade_no={}", queryResult.money(), outTradeNo);
+                event.setProcessResult("QUERY_INVALID_AMOUNT_FORMAT");
+                webhookEventRepository.save(event);
+                return "fail";
+            }
+
+            if (!isQiupayAmountWithinTolerance(order.getActualAmount(), queryAmount)) {
+                log.error("Qiupay callback rejected: query amount out of tolerance, query={}, order={}, out_trade_no={}",
+                        queryAmount, order.getActualAmount(), outTradeNo);
+                event.setProcessResult("QUERY_AMOUNT_OUT_OF_TOLERANCE");
+                webhookEventRepository.save(event);
+                return "fail";
+            }
+
+            log.info("Qiupay callback server-side verification passed: out_trade_no={}, queryStatus={}", outTradeNo, queryResult.tradeStatus());
+        } else {
+            // 配置不完整时降级为仅签名校验
+            log.warn("Qiupay callback: channel config incomplete, skipping server-side query verification for out_trade_no={}", outTradeNo);
+        }
+
+        // Step 7: 幂等更新订单状态
+        if (order.getStatus() == OrderStatus.PENDING) {
+            order.setStatus(OrderStatus.PAID);
+            order.setPaidAt(LocalDateTime.now());
+            orderRepository.save(order);
+            event.setProcessResult("SUCCESS");
+            log.info("Qiupay callback: order {} marked as PAID", orderId);
+        } else {
+            event.setProcessResult("SKIPPED_" + order.getStatus().name());
+            log.info("Qiupay callback: order {} already {}", orderId, order.getStatus());
+        }
+
+        webhookEventRepository.save(event);
+        return "success";
     }
 
     @Override
@@ -383,6 +532,22 @@ public class WebhookServiceImpl implements WebhookService {
         throw new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE,
                 "支付渠道配置缺少 key，请在后台「支付渠道管理」中完善配置");
     }
+
+    /**
+     * Qiupay 金额容差校验：
+     * 1) paidAmount >= orderAmount
+     * 2) paidAmount - orderAmount <= 0.99
+     */
+    private boolean isQiupayAmountWithinTolerance(BigDecimal orderAmount, BigDecimal paidAmount) {
+        if (orderAmount == null || paidAmount == null) {
+            return false;
+        }
+        if (paidAmount.compareTo(orderAmount) < 0) {
+            return false;
+        }
+        return paidAmount.subtract(orderAmount).compareTo(QIUPAY_MAX_OVERPAY) <= 0;
+    }
+
 
     /**
      * 判断查询 API 返回的 status 是否表示"已支付"。

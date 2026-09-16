@@ -32,7 +32,11 @@ const BRAND_COLORS: Record<string, string> = {
 }
 
 export function getPaymentBrandColor(method: string): string | undefined {
-  return BRAND_COLORS[normalize(method)]
+  const m = normalize(method)
+  if (m.includes("alipay") || m === "支付宝") return BRAND_COLORS.alipay
+  if (m.includes("wechat") || m === "微信支付") return BRAND_COLORS.wechat
+  if (m.includes("usdt")) return BRAND_COLORS.usdt
+  return BRAND_COLORS[m]
 }
 
 /** 支付方式 code → 中文名称（不依赖 i18n，用于无 hook 的场景） */
@@ -49,10 +53,24 @@ const PAYMENT_LABELS: Record<string, string> = {
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getPaymentLabel(method: string, t?: (key: any) => string): string {
   const m = normalize(method)
+  const isAlipay = m.includes("alipay") || m === "支付宝"
+  const isWechat = m.includes("wechat") || m === "微信支付"
+
   if (t) {
-    if (m === "alipay") return t("payment.alipay")
-    if (m === "wechat") return t("payment.wechat")
+    if (isAlipay) return t("payment.alipay")
+    if (isWechat) return t("payment.wechat")
   }
+
+  if (isAlipay) return PAYMENT_LABELS.alipay
+  if (isWechat) return PAYMENT_LABELS.wechat
+
+  if (m.includes("usdt")) {
+    if (m.includes("trc20")) return PAYMENT_LABELS.usdt_trc20
+    if (m.includes("erc20")) return PAYMENT_LABELS.usdt_erc20
+    if (m.includes("bep20")) return PAYMENT_LABELS.usdt_bep20
+    if (m.includes("bsc")) return PAYMENT_LABELS.usdt_bsc
+  }
+
   return PAYMENT_LABELS[m] || method
 }
 
@@ -60,8 +78,8 @@ export function getPaymentLabel(method: string, t?: (key: any) => string): strin
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export function getPaymentScanHint(method: string, t: (key: any) => string): string {
   const m = normalize(method)
-  if (m === "alipay") return t("payment.scanWithAlipay")
-  if (m === "wechat") return t("payment.scanWithWechat")
+  if (m.includes("alipay") || m === "支付宝") return t("payment.scanWithAlipay")
+  if (m.includes("wechat") || m === "微信支付") return t("payment.scanWithWechat")
   return t("payment.scanToPay")
 }
 
