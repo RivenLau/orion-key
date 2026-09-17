@@ -185,7 +185,7 @@ public class SiteConfigServiceImpl implements SiteConfigService {
                 requireAd(id.matches("[A-Za-z0-9_-]{1,64}") && ids.add(id), "广告 ID 无效或重复");
                 if (item.has("name")) adText(item, "name", 80);
                 requireAd(item.path("enabled").isBoolean(), "广告启停必须为布尔值");
-                requireAd(validAdUrl(adText(item, "href", 2048), false), "跳转链接须为完整 HTTPS 地址");
+                requireAd(validAdUrl(adText(item, "href", 2048), false), "请输入以 http:// 或 https:// 开头的完整链接");
                 requireAd(validAdUrl(adText(item, "image", 2048), true), "海报须使用本站素材或上传图片路径");
                 for (String field : List.of("darkImage", "mobileImage", "darkMobileImage")) {
                     if (!item.has(field)) continue;
@@ -226,7 +226,19 @@ public class SiteConfigServiceImpl implements SiteConfigService {
         if (allowLocal) return value.matches("/(?:ads|(?:api/)?uploads)/[A-Za-z0-9_-]+\\.(?:jpe?g|png|webp|gif)");
         try {
             URI uri = URI.create(value);
-            return "https".equalsIgnoreCase(uri.getScheme()) && uri.getHost() != null && uri.getRawUserInfo() == null;
+            if (!"http".equalsIgnoreCase(uri.getScheme())
+                    && !"https".equalsIgnoreCase(uri.getScheme())) return false;
+            String authority = uri.getRawAuthority();
+            if (authority == null || authority.contains("@")) return false;
+            // Validate internationalized hostnames without changing the stored destination.
+            if (uri.getHost() == null && !authority.startsWith("[")) {
+                int colon = authority.lastIndexOf(':');
+                String host = colon < 0 ? authority : authority.substring(0, colon);
+                String port = colon < 0 ? "" : authority.substring(colon);
+                uri = URI.create("//" + java.net.IDN.toASCII(host, java.net.IDN.USE_STD3_ASCII_RULES) + port);
+            }
+            return uri.getHost() != null && uri.getRawUserInfo() == null
+                    && uri.getPort() >= -1 && uri.getPort() <= 65535;
         } catch (IllegalArgumentException e) {
             return false;
         }

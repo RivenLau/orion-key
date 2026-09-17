@@ -7,6 +7,7 @@ import Fade from "embla-carousel-fade"
 import { useLocale } from "@/lib/context"
 import { SPONSOR_ROTATION_DELAY, type SponsorPoster } from "@/lib/home-sponsors"
 import { cn } from "@/lib/utils"
+import { MagicCard } from "@/components/ui/magic-card"
 
 interface SponsorCarouselProps {
   ads: SponsorPoster[]
@@ -131,63 +132,62 @@ export function SponsorCarousel({ ads, rotationDelay = SPONSOR_ROTATION_DELAY }:
       ref={containerRef}
       aria-label={t("home.sponsored")}
       aria-roledescription={t("home.adCarousel")}
-      className="relative mt-6 w-[81%] min-w-0 sm:max-w-[356px] lg:absolute lg:bottom-0 lg:right-0 lg:mt-0 lg:aspect-[3/1] lg:h-[min(100%,97.2px)] lg:w-auto xl:h-[min(100%,108px)] 2xl:h-[min(100%,113.4px)]"
+      className="relative mt-6 w-[85.05%] min-w-0 sm:max-w-[373.8px] lg:absolute lg:inset-y-0 lg:-right-2 lg:my-auto lg:aspect-[5/2] lg:h-[min(100%,112px)] lg:w-auto xl:h-[min(100%,120px)] 2xl:h-[min(100%,128px)]"
     >
-      <div className="mb-2 flex items-center gap-2 text-[11px] text-muted-foreground lg:absolute lg:bottom-full lg:left-0 lg:mb-1">
-        <span className="rounded border border-border/70 px-1 leading-4">{t("home.sponsored")}</span>
-      </div>
-      <div ref={viewportRef} className="overflow-hidden rounded-lg border border-border/50 lg:h-full">
-        <div className="flex lg:h-full" aria-live="off">
-          {posters.map((poster, index) => (
-            <div
-              key={poster.id}
-              className="min-w-0 flex-[0_0_100%]"
-              aria-hidden={index !== selected}
-              inert={index !== selected}
-              data-sponsor-id={poster.id}
-            >
-              <a
-                href={poster.href}
-                target="_blank"
-                rel="sponsored noopener noreferrer"
-                aria-label={`${poster.name} ${t("home.adNewTab")}`}
-                className="block aspect-[2/1] rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-primary sm:aspect-[3/1] lg:aspect-auto lg:h-full"
+      <MagicCard className="lg:h-full">
+        <div ref={viewportRef} className="overflow-hidden rounded-[inherit] lg:h-full">
+          <div className="flex lg:h-full" aria-live="off">
+            {posters.map((poster, index) => (
+              <div
+                key={poster.id}
+                className="min-w-0 flex-[0_0_100%]"
+                aria-hidden={index !== selected}
+                inert={index !== selected}
+                data-sponsor-id={poster.id}
               >
-                <picture className={cn("block h-full", poster.darkImage && "dark:hidden")}>
-                  {poster.mobileImage && <source media="(max-width: 639px)" srcSet={poster.mobileImage} />}
-                  <img
-                    src={poster.image}
-                    alt={poster.name}
-                    width={1920}
-                    height={640}
-                    draggable={false}
-                    referrerPolicy="no-referrer"
-                    className="h-full w-full object-cover"
-                    onError={() => setFailedIds((ids) => ids.includes(poster.id) ? ids : [...ids, poster.id])}
-                  />
-                </picture>
-                {poster.darkImage && (
-                  <picture className="hidden h-full dark:block">
-                    {(poster.darkMobileImage || poster.mobileImage) && (
-                      <source media="(max-width: 639px)" srcSet={poster.darkMobileImage || poster.mobileImage} />
-                    )}
+                <a
+                  href={poster.href}
+                  target="_blank"
+                  rel="sponsored noopener noreferrer"
+                  aria-label={`${poster.name} ${t("home.adNewTab")}`}
+                  className="block aspect-[2/1] rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-primary sm:aspect-[3/1] lg:aspect-auto lg:h-full"
+                >
+                  <picture className={cn("block h-full", poster.darkImage && "dark:hidden")}>
+                    {poster.mobileImage && <source media="(max-width: 639px)" srcSet={poster.mobileImage} />}
                     <img
-                      src={poster.darkImage}
+                      src={poster.image}
                       alt={poster.name}
                       width={1920}
                       height={640}
                       draggable={false}
                       referrerPolicy="no-referrer"
-                      className="h-full w-full object-cover"
+                      className="h-full w-full object-cover lg:object-contain"
                       onError={() => setFailedIds((ids) => ids.includes(poster.id) ? ids : [...ids, poster.id])}
                     />
                   </picture>
-                )}
-              </a>
-            </div>
-          ))}
+                  {poster.darkImage && (
+                    <picture className="hidden h-full dark:block">
+                      {(poster.darkMobileImage || poster.mobileImage) && (
+                        <source media="(max-width: 639px)" srcSet={poster.darkMobileImage || poster.mobileImage} />
+                      )}
+                      <img
+                        src={poster.darkImage}
+                        alt={poster.name}
+                        width={1920}
+                        height={640}
+                        draggable={false}
+                        referrerPolicy="no-referrer"
+                        className="h-full w-full object-cover lg:object-contain"
+                        onError={() => setFailedIds((ids) => ids.includes(poster.id) ? ids : [...ids, poster.id])}
+                      />
+                    </picture>
+                  )}
+                </a>
+              </div>
+            ))}
+          </div>
         </div>
-      </div>
+      </MagicCard>
     </aside>
   )
 }
