@@ -141,7 +141,7 @@ export function HomeAdsSettings({ initialValue, onSaved, onReload }: { initialVa
     </fieldset>
     <div className="flex flex-wrap items-center justify-between gap-3">
       <h2 className="font-semibold">{t("ads.list")} <span className="text-sm font-normal text-muted-foreground">{published.items.length} / {MAX_HOME_ADS}</span></h2>
-      <button type="button" className={primaryClass} disabled={busy || published.items.length >= MAX_HOME_ADS} onClick={() => setForm({ id: crypto.randomUUID(), name: "", enabled: false, sort_order: Math.min(999999, Math.max(0, ...published.items.map((item) => item.sort_order)) + 1), image: "", href: "", alt: { zh: "", en: "" } })}><Plus className="h-4 w-4" />{t("ads.add")}</button>
+      <button type="button" className={primaryClass} disabled={busy || published.items.length >= MAX_HOME_ADS} onClick={() => setForm({ id: crypto.randomUUID(), name: "", enabled: false, sort_order: Math.min(999999, Math.max(0, ...published.items.map((item) => item.sort_order)) + 1), image: "", href: "" })}><Plus className="h-4 w-4" />{t("ads.add")}</button>
     </div>
     <div className="overflow-hidden rounded-xl border border-border bg-card shadow-sm">
       <div className="overflow-x-auto">
@@ -149,7 +149,7 @@ export function HomeAdsSettings({ initialValue, onSaved, onReload }: { initialVa
           <thead className="border-b border-border bg-muted/50 text-muted-foreground"><tr>{(["ads.preview", "ads.name", "admin.sortOrderLabel", "ads.status", "ads.link", "ads.actions"] as const).map((key) => <th key={key} className="whitespace-nowrap px-4 py-3 font-medium">{t(key)}</th>)}</tr></thead>
           <tbody>{ordered.slice((page - 1) * 10, page * 10).map((item) => <tr key={item.id} className="border-b border-border last:border-0 hover:bg-muted/30">
             <td className="px-4 py-3"><img src={item.image} alt="" width={96} height={32} loading="lazy" referrerPolicy="no-referrer" className="h-8 w-24 min-w-24 rounded bg-muted object-cover" /></td>
-            <td className="max-w-52 truncate px-4 py-3" title={item.name || item.alt.zh}>{item.name || item.alt.zh}</td>
+            <td className="max-w-52 truncate px-4 py-3" title={item.name}>{item.name}</td>
             <td className="px-4 py-3">{item.sort_order}</td>
             <td className="px-4 py-3"><label className="flex items-center gap-2 whitespace-nowrap"><Switch disabled={busy} checked={item.enabled} onCheckedChange={(enabled) => void persist({ ...published, items: published.items.map((ad) => ad.id === item.id ? { ...ad, enabled } : ad) })} aria-label={t("ads.itemEnabled") + ": " + (item.name || item.id)} /><span className="text-xs text-muted-foreground">{t(item.enabled ? "ads.on" : "ads.off")}</span></label></td>
             <td className="max-w-52 truncate px-4 py-3"><a href={item.href} target="_blank" rel="noopener noreferrer" title={item.href} className="text-primary hover:underline">{item.href}</a></td>
@@ -167,7 +167,6 @@ export function HomeAdsSettings({ initialValue, onSaved, onReload }: { initialVa
           <label className="flex flex-col gap-1.5 text-sm font-medium">{t("ads.name")}<input autoFocus className={inputClass} maxLength={80} value={form.name ?? ""} onChange={(e) => setForm({ ...form, name: e.target.value })} /></label>
           <div className="grid items-center gap-4 sm:grid-cols-2"><label className="flex flex-col gap-1.5 text-sm font-medium">{t("admin.sortOrderLabel")}<input type="number" min={0} max={999999} step={1} className={inputClass} value={Number.isNaN(form.sort_order) ? "" : form.sort_order} onChange={(e) => setForm({ ...form, sort_order: e.target.valueAsNumber })} /><span className="text-xs font-normal text-muted-foreground">{t("admin.sortOrderHint")}</span></label><label className="flex items-center gap-2 text-sm"><Switch disabled={busy} checked={form.enabled} onCheckedChange={(enabled) => setForm({ ...form, enabled })} />{t("ads.itemEnabled")}</label></div>
           <label className="flex flex-col gap-1.5 text-sm font-medium">{t("ads.link")}<input className={inputClass} type="url" maxLength={2048} placeholder="https://" value={form.href} onChange={(e) => setForm({ ...form, href: e.target.value })} /></label>
-          {(["zh", "en"] as const).map((lang) => <label key={lang} className="flex flex-col gap-1.5 text-sm font-medium">{t(lang === "zh" ? "ads.altZh" : "ads.altEn")}<textarea className={inputClass} maxLength={300} value={form.alt[lang]} onChange={(e) => setForm({ ...form, alt: { ...form.alt, [lang]: e.target.value } })} /></label>)}
           <div className="space-y-1 text-xs leading-relaxed text-muted-foreground"><p>{t("ads.formats")}</p><p>{t("ads.dimensions")}</p><p>{t("ads.fallback")}</p></div>
           {imageInput("image")}
           <details><summary className="cursor-pointer text-sm font-medium">{t("ads.variants")}</summary><div className="mt-3 grid gap-3">{imageFields.slice(1).map(imageInput)}</div></details>

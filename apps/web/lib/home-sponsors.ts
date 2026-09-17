@@ -2,14 +2,13 @@ import { z } from "zod"
 
 export interface SponsorPoster {
   id: string
-  name?: string
+  name: string
   sort_order?: number
   image: string
   darkImage?: string
   mobileImage?: string
   darkMobileImage?: string
   href: string
-  alt: { zh: string; en: string }
   enabled: boolean
 }
 
@@ -47,11 +46,12 @@ export const homeAdSettingsSchema = z.object({
     mobileImage: optionalImage,
     darkMobileImage: optionalImage,
     href: z.string().min(1).max(2048).refine(isPosterUrl, "ads.invalidLink"),
-    alt: z.object({ zh: z.string().trim().min(1).max(300), en: z.string().trim().min(1).max(300) }).strict(),
+    // Accept legacy descriptions on read; new saves only use the advertisement name.
+    alt: z.object({ zh: z.string().trim().min(1).max(300), en: z.string().trim().min(1).max(300) }).strict().optional(),
     enabled: z.boolean(),
   }).strict()).max(MAX_HOME_ADS),
 }).strict().refine((value) => new Set(value.items.map((item) => item.id)).size === value.items.length, "ads.invalidConfig")
-  .transform((value) => ({ ...value, items: value.items.map((item, index) => ({ ...item, sort_order: item.sort_order ?? index + 1 })) }))
+  .transform((value) => ({ ...value, items: value.items.map(({ alt, ...item }, index) => ({ ...item, name: item.name ?? item.id, sort_order: item.sort_order ?? index + 1 })) }))
 
 export type HomeAdSettings = z.infer<typeof homeAdSettingsSchema>
 

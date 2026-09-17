@@ -14,7 +14,7 @@ interface SponsorCarouselProps {
 }
 
 export function SponsorCarousel({ ads, rotationDelay = SPONSOR_ROTATION_DELAY }: SponsorCarouselProps) {
-  const { locale, t } = useLocale()
+  const { t } = useLocale()
   const [failedIds, setFailedIds] = useState<string[]>([])
   const posters = useMemo(
     () => ads.filter((ad) => ad.enabled && !failedIds.includes(ad.id)),
@@ -150,14 +150,14 @@ export function SponsorCarousel({ ads, rotationDelay = SPONSOR_ROTATION_DELAY }:
                 href={poster.href}
                 target="_blank"
                 rel="sponsored noopener noreferrer"
-                aria-label={`${poster.alt[locale]} ${t("home.adNewTab")}`}
+                aria-label={`${poster.name} ${t("home.adNewTab")}`}
                 className="block aspect-[2/1] rounded-lg focus-visible:outline focus-visible:outline-2 focus-visible:-outline-offset-4 focus-visible:outline-primary sm:aspect-[3/1] lg:aspect-auto lg:h-full"
               >
                 <picture className={cn("block h-full", poster.darkImage && "dark:hidden")}>
                   {poster.mobileImage && <source media="(max-width: 639px)" srcSet={poster.mobileImage} />}
                   <img
                     src={poster.image}
-                    alt={poster.alt[locale]}
+                    alt={poster.name}
                     width={1920}
                     height={640}
                     draggable={false}
@@ -173,7 +173,7 @@ export function SponsorCarousel({ ads, rotationDelay = SPONSOR_ROTATION_DELAY }:
                     )}
                     <img
                       src={poster.darkImage}
-                      alt={poster.alt[locale]}
+                      alt={poster.name}
                       width={1920}
                       height={640}
                       draggable={false}

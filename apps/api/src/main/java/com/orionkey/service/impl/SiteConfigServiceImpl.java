@@ -193,11 +193,14 @@ public class SiteConfigServiceImpl implements SiteConfigService {
                     requireAd(image.isTextual() && image.textValue().length() <= 2048
                             && (image.textValue().isEmpty() || validAdUrl(image.textValue(), true)), "可选海报地址无效");
                 }
-                JsonNode alt = item.path("alt");
-                requireAd(alt.isObject(), "请填写广告替代说明");
-                checkAdFields(alt, Set.of("zh", "en"));
-                adText(alt, "zh", 300);
-                adText(alt, "en", 300);
+                // Keep existing configurations readable without requiring legacy descriptions.
+                if (item.has("alt")) {
+                    JsonNode alt = item.path("alt");
+                    requireAd(alt.isObject(), "Invalid legacy advertisement description");
+                    checkAdFields(alt, Set.of("zh", "en"));
+                    adText(alt, "zh", 300);
+                    adText(alt, "en", 300);
+                }
             }
             return root;
         } catch (BusinessException e) {
