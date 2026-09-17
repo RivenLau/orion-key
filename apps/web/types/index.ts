@@ -267,6 +267,7 @@ export interface PaymentChannelItem {
 // ============================================================
 
 export interface SiteConfig {
+  homepage_ads?: import("@/lib/home-sponsors").HomeAdSettings
   site_name: string
   site_slogan?: string
   site_description?: string

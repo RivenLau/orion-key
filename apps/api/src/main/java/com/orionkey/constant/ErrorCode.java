@@ -58,4 +58,5 @@ public final class ErrorCode {
     public static final int CARD_KEY_FORMAT_ERROR = 70003;
     public static final int CARD_KEY_DUPLICATE = 70004;
     public static final int PAYMENT_CONFIG_INCOMPLETE = 70005;
+    public static final int CONFIG_CONFLICT = 70006;
 }

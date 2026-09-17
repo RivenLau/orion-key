@@ -1,4 +1,6 @@
 import { getProducts, getCategories, getSiteConfig } from "@/services/api-server"
+import { resolveHomeAds } from "@/lib/home-sponsors"
+import { orderSponsorPosters } from "@/lib/sponsor-selection.server"
 import { HomeContent } from "./home-content"
 import type { Metadata } from "next"
 
@@ -27,6 +29,8 @@ export default async function HomePage() {
     getCategories().catch(() => []),
     getSiteConfig().catch(() => null),
   ])
+  const ads = resolveHomeAds(config ? config.homepage_ads : null)
+  const sponsors = orderSponsorPosters(ads.enabled ? ads.items : [], ads.startFromFirst)
 
   const jsonLd = {
     "@context": "https://schema.org",
@@ -46,6 +50,9 @@ export default async function HomePage() {
         categories={categories}
         siteSlogan={config?.site_slogan || ""}
         siteDescription={config?.site_description || ""}
+        initialTelegramGroup={config?.contact_telegram_group || ""}
+        sponsors={sponsors}
+        sponsorRotationDelay={ads.intervalSeconds * 1000}
       />
     </>
   )

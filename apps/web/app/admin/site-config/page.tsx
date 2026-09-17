@@ -8,6 +8,8 @@ import { adminConfigApi, adminProductApi, withMockFallback } from "@/services/ap
 import { mockSiteConfigKVs } from "@/lib/mock-data"
 import { useLocale } from "@/lib/context"
 import type { SiteConfigKV } from "@/types"
+import { HomeAdsSettings } from "@/components/admin/home-ads-settings"
+import { HOME_ADS_CONFIG_KEY } from "@/lib/home-sponsors"
 
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/gif", "image/webp", "image/bmp", "image/svg+xml"]
 const ALLOWED_IMAGE_ACCEPT = ".jpg,.jpeg,.png,.gif,.webp,.bmp,.svg"
@@ -22,13 +24,14 @@ function validateImageFile(file: File): string | null {
   return null
 }
 
-type TabKey = "basic" | "announcement" | "points" | "contact" | "maintenance"
+type TabKey = "basic" | "announcement" | "ads" | "points" | "contact" | "maintenance"
 
 export default function AdminSiteConfigPage() {
   const { t } = useLocale()
   const [tab, setTab] = useState<TabKey>("basic")
   const [configMap, setConfigMap] = useState<Record<string, string>>({})
   const [loading, setLoading] = useState(true)
+  const [configLoadFailed, setConfigLoadFailed] = useState(false)
   const [saving, setSaving] = useState(false)
   const [logoUploading, setLogoUploading] = useState(false)
   const [popupUploading, setPopupUploading] = useState(false)
@@ -36,15 +39,17 @@ export default function AdminSiteConfigPage() {
 
   const fetchConfig = useCallback(async () => {
     setLoading(true)
+    setConfigLoadFailed(false)
     try {
       const data = await withMockFallback(
         () => adminConfigApi.get(),
-        () => [...mockSiteConfigKVs]
+        () => { setConfigLoadFailed(true); return [...mockSiteConfigKVs] }
       )
       const map: Record<string, string> = {}
       data.forEach((kv: SiteConfigKV) => { map[kv.config_key] = kv.config_value })
       setConfigMap(map)
     } catch {
+      setConfigLoadFailed(true)
       const map: Record<string, string> = {}
       mockSiteConfigKVs.forEach((kv) => { map[kv.config_key] = kv.config_value })
       setConfigMap(map)
@@ -67,7 +72,7 @@ export default function AdminSiteConfigPage() {
   const handleSave = async () => {
     setSaving(true)
     try {
-      const configs = Object.entries(configMap).map(([config_key, config_value]) => ({
+      const configs = Object.entries(configMap).filter(([key]) => key !== HOME_ADS_CONFIG_KEY).map(([config_key, config_value]) => ({
         config_key,
         config_value,
       }))
@@ -122,6 +127,7 @@ export default function AdminSiteConfigPage() {
         {([
           { key: "basic" as const, label: t("admin.basicInfo") },
           { key: "announcement" as const, label: t("admin.announcementTab") },
+          { key: "ads" as const, label: t("admin.adsTab") },
           { key: "points" as const, label: t("admin.pointsSettings") },
           { key: "contact" as const, label: t("admin.contactTab") },
           { key: "maintenance" as const, label: t("admin.maintenanceTab") },
@@ -364,6 +370,15 @@ export default function AdminSiteConfigPage() {
           </div>
         </div>
       )}
+
+      {tab === "ads" && <div>
+        {configLoadFailed ? (
+          <div role="alert" className="rounded-xl border border-destructive/40 bg-card p-6 text-sm">
+            <p>{t("ads.loadError")}</p>
+            <button type="button" onClick={fetchConfig} className="mt-3 text-primary underline">{t("ads.reload")}</button>
+          </div>
+        ) : <HomeAdsSettings initialValue={configMap[HOME_ADS_CONFIG_KEY]} onSaved={(value) => setValue(HOME_ADS_CONFIG_KEY, value)} onReload={fetchConfig} />}
+      </div>}
 
       {/* Points Setting */}
       {tab === "points" && (

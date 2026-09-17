@@ -561,9 +561,14 @@ export const adminPaymentApi = {
 // ============================================================
 
 export const adminConfigApi = {
+  uploadAdImage: (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    return uploadRequest<{ url: string; width: number; height: number }>("/upload/ad-image", formData)
+  },
   get: () =>
     request<SiteConfigKV[]>("/admin/site-config"),
-  update: (data: { configs: { config_key: string; config_value: string }[] }) =>
+  update: (data: { configs: { config_key: string; config_value: string; expected_value?: string }[] }) =>
     request<null>("/admin/site-config", { method: "PUT", body: JSON.stringify(data) }),
   toggleMaintenance: (enabled: boolean) =>
     request<null>("/admin/site-config/maintenance", { method: "POST", body: JSON.stringify({ enabled }) }),
