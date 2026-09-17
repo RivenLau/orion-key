@@ -7,7 +7,6 @@ import { useLocale } from "@/lib/context"
 import { toast } from "sonner"
 import { adminUserApi, withMockFallback } from "@/services/api"
 import { mockAdminUserList } from "@/lib/mock-data"
-import { isDemoProtectedUser, denyDemoOperation } from "@/lib/demo-guard"
 import type { AdminUserItem } from "@/types"
 
 const ITEMS_PER_PAGE = 20
@@ -63,7 +62,6 @@ export default function AdminUsersPage() {
   const totalPages = Math.ceil(total / ITEMS_PER_PAGE)
 
   const handleToggleStatus = async (user: AdminUserItem) => {
-    if (isDemoProtectedUser(user.id)) { denyDemoOperation({ t }); return }
     const newStatus: 0 | 1 = user.is_deleted === 0 ? 1 : 0
     try {
       await withMockFallback(

@@ -11,7 +11,6 @@ import { validateEmail, generateIdempotencyKey, getCurrencySymbol, detectPayment
 import { PaymentSelector } from "@/components/shared/payment-selector"
 import { Turnstile, useTurnstile } from "@/components/shared/turnstile"
 import { setTurnstileHeaders } from "@/services/api"
-import { DEMO_MAX_ORDER_QUANTITY, denyDemoOperation } from "@/lib/demo-guard"
 import type { PaymentChannelItem } from "@/types"
 
 export default function CheckoutPage() {
@@ -65,9 +64,6 @@ export default function CheckoutPage() {
       toast.error(t("product.paymentMethod"))
       return
     }
-    // [DEMO] demo 分支：购物车结算总件数上限 2
-    const totalQty = items.reduce((s, i) => s + i.quantity, 0)
-    if (totalQty > DEMO_MAX_ORDER_QUANTITY) { denyDemoOperation({ t }); return }
 
     setSubmitting(true)
     try {

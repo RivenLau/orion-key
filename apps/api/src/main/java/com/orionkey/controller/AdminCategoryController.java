@@ -2,7 +2,6 @@ package com.orionkey.controller;
 
 import com.orionkey.annotation.LogOperation;
 import com.orionkey.common.ApiResponse;
-import com.orionkey.constant.DemoProtectedIds;
 import com.orionkey.service.CategoryService;
 import lombok.RequiredArgsConstructor;
 import org.springframework.web.bind.annotation.*;
@@ -32,7 +31,6 @@ public class AdminCategoryController {
     @LogOperation(action = "category.update", targetType = "CATEGORY", targetId = "#id", detail = "'修改分类'")
     @PutMapping("/{id}")
     public ApiResponse<Void> updateCategory(@PathVariable UUID id, @RequestBody Map<String, Object> request) {
-        DemoProtectedIds.denyIfProtectedCategory(id);
         categoryService.updateCategory(id, request);
         return ApiResponse.success();
     }
@@ -40,7 +38,6 @@ public class AdminCategoryController {
     @LogOperation(action = "category.delete", targetType = "CATEGORY", targetId = "#id", detail = "'删除分类'")
     @DeleteMapping("/{id}")
     public ApiResponse<Void> deleteCategory(@PathVariable UUID id) {
-        DemoProtectedIds.denyIfProtectedCategory(id);
         categoryService.deleteCategory(id);
         return ApiResponse.success();
     }

@@ -64,11 +64,6 @@ public class OrderServiceImpl implements OrderService {
         String email = (String) req.get("email");
         validateEmail(email);
 
-        // [DEMO] demo 分支：单次下单数量上限固定为 DemoProtectedIds.MAX_ORDER_QUANTITY
-        if (quantity > com.orionkey.constant.DemoProtectedIds.MAX_ORDER_QUANTITY) {
-            com.orionkey.constant.DemoProtectedIds.denyAlways();
-        }
-
         // F4: 购买数量校验（读取后台配置，兜底 999）
         int maxQuantity = getMaxPurchasePerUser();
         if (quantity < 1 || quantity > maxQuantity) {
@@ -79,10 +74,7 @@ public class OrderServiceImpl implements OrderService {
         // F14: 提前提取 email，用于 pending 订单限制（email + IP 双维度防刷）
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
-        // [DEMO] 跳过支付渠道校验，便于演示分支无需配置真实网关
-        if (paymentMethod == null || paymentMethod.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "支付方式不能为空");
-        }
+        validatePaymentMethod(paymentMethod);
 
         Product product = productRepository.findById(productId)
                 .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
@@ -165,10 +157,7 @@ public class OrderServiceImpl implements OrderService {
         validateEmail(email);
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
-        // [DEMO] 跳过支付渠道校验，便于演示分支无需配置真实网关
-        if (paymentMethod == null || paymentMethod.isBlank()) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "支付方式不能为空");
-        }
+        validatePaymentMethod(paymentMethod);
 
         List<CartItem> cartItems;
         if (userId != null) {
@@ -180,12 +169,6 @@ public class OrderServiceImpl implements OrderService {
         }
         if (cartItems.isEmpty()) {
             throw new BusinessException(ErrorCode.CART_EMPTY, "购物车为空");
-        }
-
-        // [DEMO] demo 分支：购物车结算所有 OrderItem 的 quantity 加总 ≤ DemoProtectedIds.MAX_ORDER_QUANTITY
-        int totalCartQuantity = cartItems.stream().mapToInt(CartItem::getQuantity).sum();
-        if (totalCartQuantity > com.orionkey.constant.DemoProtectedIds.MAX_ORDER_QUANTITY) {
-            com.orionkey.constant.DemoProtectedIds.denyAlways();
         }
 
         // 购物车每项数量校验（与直接下单统一上限）
@@ -379,38 +362,13 @@ public class OrderServiceImpl implements OrderService {
     private Map<String, Object> buildOrderResult(Order order, String device) {
         List<OrderItem> items = orderItemRepository.findByOrderId(order.getId());
         Map<String, Object> orderDetail = toOrderDetail(order, items);
-        // [DEMO] 不再调用真实 PaymentService，返回 mock 支付数据，前端使用静态二维码图片
-        Map<String, Object> payment = buildMockPayment(order);
+        Map<String, Object> payment = paymentService.createPayment(
+                order.getId(), order.getPaymentMethod(), order.getActualAmount(), device);
 
         Map<String, Object> result = new LinkedHashMap<>();
         result.put("order", orderDetail);
         result.put("payment", payment);
         return result;
-    }
-
-    /**
-     * [DEMO] 构造 mock 支付返回，跳过真实网关调用。
-     * - 普通渠道（alipay/wechat）：仅返回 order_id 与 expires_at，前端展示静态二维码
-     * - USDT 渠道：附带占位地址与按 7 元/USDT 估算的金额，让 UI 字段不为空
-     */
-    private Map<String, Object> buildMockPayment(Order order) {
-        Map<String, Object> payment = new LinkedHashMap<>();
-        payment.put("order_id", order.getId());
-        payment.put("payment_url", null);
-        payment.put("qrcode_url", null);
-        payment.put("pay_url", null);
-        payment.put("expires_at", order.getExpiresAt());
-
-        String paymentMethod = order.getPaymentMethod();
-        if (paymentMethod != null && paymentMethod.startsWith("usdt_")) {
-            BigDecimal cryptoAmount = order.getActualAmount() == null
-                    ? BigDecimal.ZERO
-                    : order.getActualAmount().divide(BigDecimal.valueOf(7), 2, java.math.RoundingMode.HALF_UP);
-            payment.put("wallet_address", "DEMO-T9xxx演示地址xxx演示xxx");
-            payment.put("crypto_amount", cryptoAmount.toPlainString());
-            payment.put("chain", paymentMethod);
-        }
-        return payment;
     }
 
     private Map<String, Object> toOrderDetail(Order o, List<OrderItem> items) {

@@ -24,7 +24,6 @@ import {
   mockProducts,
 } from "@/lib/mock-data"
 import { Modal } from "@/components/ui/modal"
-import { isDemoProtectedProduct, denyDemoOperation } from "@/lib/demo-guard"
 import type { CardKeyStockSummary, CardKeyListItem, CardImportBatch, ProductCard, ProductSpec } from "@/types"
 
 export default function AdminCardKeysPage() {
@@ -410,10 +409,7 @@ export default function AdminCardKeysPage() {
                             type="button"
                             className="rounded-md p-1.5 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                             title={t("admin.batchInvalidate")}
-                            onClick={() => {
-                              if (isDemoProtectedProduct(item.product_id)) { denyDemoOperation({ t }); return }
-                              setShowInvalidateConfirm(item)
-                            }}
+                            onClick={() => setShowInvalidateConfirm(item)}
                           >
                             <Ban className="h-4 w-4" />
                           </button>
@@ -629,10 +625,7 @@ export default function AdminCardKeysPage() {
                             type="button"
                             className="rounded-md p-1 text-muted-foreground hover:bg-destructive/10 hover:text-destructive transition-colors"
                             title="作废此卡密"
-                            onClick={() => {
-                              if (detailItem && isDemoProtectedProduct(detailItem.product_id)) { denyDemoOperation({ t }); return }
-                              setSingleInvalidateTarget(key)
-                            }}
+                            onClick={() => setSingleInvalidateTarget(key)}
                           >
                             <Ban className="h-3.5 w-3.5" />
                           </button>

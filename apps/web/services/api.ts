@@ -377,11 +377,6 @@ export const orderApi = {
       method: "POST",
       body: JSON.stringify({ device }),
     }),
-  // [DEMO] 模拟支付成功回调 — 仅演示分支使用
-  mockPaySuccess: (orderId: string) =>
-    request<{ order_id: string; status: OrderStatus }>(`/orders/${orderId}/mock-pay-success`, {
-      method: "POST",
-    }),
 }
 
 // ============================================================
@@ -467,7 +462,7 @@ export const adminProductApi = {
   uploadImage: (file: File) => {
     const formData = new FormData()
     formData.append("file", file)
-    return uploadRequest<{ url: string }>("/upload/image", formData)
+    return uploadRequest<{ url: string; width?: number; height?: number }>("/upload/image", formData)
   },
 }
 
@@ -568,7 +563,7 @@ export const adminPaymentApi = {
 export const adminConfigApi = {
   get: () =>
     request<SiteConfigKV[]>("/admin/site-config"),
-  update: (data: { configs: { config_key: string; config_value: string }[] }) =>
+  update: (data: { configs: { config_key: string; config_value: string; expected_value?: string }[] }) =>
     request<null>("/admin/site-config", { method: "PUT", body: JSON.stringify(data) }),
   toggleMaintenance: (enabled: boolean) =>
     request<null>("/admin/site-config/maintenance", { method: "POST", body: JSON.stringify({ enabled }) }),
@@ -661,8 +656,6 @@ const ERROR_CODE_I18N: Record<number, string> = {
   50004: "error.txidAlreadyUsed",
   50005: "error.txidVerifyFailed",
   50006: "error.orderNotUsdt",
-  // [DEMO] demo 分支专用，合并 main 前清理
-  90001: "error.demoForbidden",
 }
 
 /**
