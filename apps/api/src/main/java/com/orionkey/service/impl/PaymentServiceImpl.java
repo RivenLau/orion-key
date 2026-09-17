@@ -52,33 +52,25 @@ public class PaymentServiceImpl implements PaymentService {
 
     @Override
     public Map<String, Object> createPayment(UUID orderId, String paymentMethod, BigDecimal amount, String device) {
-        // 1. 查找渠道并验证已启用
-        PaymentChannel channel = paymentChannelRepository.findByChannelCodeAndIsDeleted(paymentMethod, 0)
-                .filter(PaymentChannel::isEnabled)
-                .orElseThrow(() -> new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "支付渠道不可用"));
-
-        // 2. 查找订单
+        // [DEMO] Checkout and retries share the same mock response; never contact a gateway.
         Order order = orderRepository.findById(orderId)
                 .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在"));
+        Map<String, Object> payment = new LinkedHashMap<>();
+        payment.put("order_id", order.getId());
+        payment.put("payment_url", null);
+        payment.put("qrcode_url", null);
+        payment.put("pay_url", null);
+        payment.put("expires_at", order.getExpiresAt());
 
-        // 3. 幂等：已有支付URL直接返回（paymentUrl 或 qrcodeUrl 任一存在即可）
-        if ((order.getPaymentUrl() != null && !order.getPaymentUrl().isEmpty())
-                || (order.getQrcodeUrl() != null && !order.getQrcodeUrl().isEmpty())) {
-            log.info("Returning cached payment URL for order: {}", orderId);
-            return buildResult(order);
+        if (paymentMethod != null && paymentMethod.startsWith("usdt_")) {
+            BigDecimal cryptoAmount = amount == null
+                    ? BigDecimal.ZERO
+                    : amount.divide(BigDecimal.valueOf(7), 2, java.math.RoundingMode.HALF_UP);
+            payment.put("wallet_address", "DEMO-T9xxx演示地址xxx演示xxx");
+            payment.put("crypto_amount", cryptoAmount.toPlainString());
+            payment.put("chain", paymentMethod);
         }
-
-        // 4. 按 providerType 路由到不同的支付实现
-        String providerType = channel.getProviderType();
-        switch (providerType) {
-            case "epay" -> createEpayPayment(channel, order, paymentMethod, amount, device);
-            case "native_alipay" -> throw new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "原生支付宝支付尚未实现，请使用易支付渠道");
-            case "native_wxpay" -> throw new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "原生微信支付尚未实现，请使用易支付渠道");
-            case "usdt" -> createBepusdtPayment(channel, order, amount);
-            default -> throw new BusinessException(ErrorCode.CHANNEL_UNAVAILABLE, "不支持的支付提供商类型: " + providerType);
-        }
-
-        return buildResult(order);
+        return payment;
     }
 
     /**

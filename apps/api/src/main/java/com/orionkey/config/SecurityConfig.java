@@ -58,6 +58,7 @@ public class SecurityConfig {
                         .requestMatchers(HttpMethod.POST, "/orders/*/refresh").permitAll()
                         .requestMatchers(HttpMethod.POST, "/orders/*/txid-verify").permitAll()
                         .requestMatchers(HttpMethod.POST, "/orders/*/repay").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/orders/*/mock-pay-success").permitAll()
                         .requestMatchers("/payments/webhook/**").permitAll()
                         .requestMatchers("/cart/**").permitAll()
                         .requestMatchers("/uploads/**").permitAll()

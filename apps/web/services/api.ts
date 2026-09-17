@@ -377,6 +377,11 @@ export const orderApi = {
       method: "POST",
       body: JSON.stringify({ device }),
     }),
+  // [DEMO] Simulate payment success on the demo branch.
+  mockPaySuccess: (orderId: string) =>
+    request<{ order_id: string; status: OrderStatus }>(`/orders/${orderId}/mock-pay-success`, {
+      method: "POST",
+    }),
 }
 
 // ============================================================

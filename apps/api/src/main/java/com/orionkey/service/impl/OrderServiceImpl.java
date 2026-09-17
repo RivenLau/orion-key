@@ -74,7 +74,10 @@ public class OrderServiceImpl implements OrderService {
         // F14: 提前提取 email，用于 pending 订单限制（email + IP 双维度防刷）
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
-        validatePaymentMethod(paymentMethod);
+        // [DEMO] Checkout does not require a configured payment gateway.
+        if (paymentMethod == null || paymentMethod.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "支付方式不能为空");
+        }
 
         Product product = productRepository.findById(productId)
                 .filter(p -> p.getIsDeleted() == 0 && p.isEnabled())
@@ -157,7 +160,10 @@ public class OrderServiceImpl implements OrderService {
         validateEmail(email);
         checkPendingOrderLimits(userId, clientIp, email);
         String paymentMethod = (String) req.get("payment_method");
-        validatePaymentMethod(paymentMethod);
+        // [DEMO] Checkout does not require a configured payment gateway.
+        if (paymentMethod == null || paymentMethod.isBlank()) {
+            throw new BusinessException(ErrorCode.BAD_REQUEST, "支付方式不能为空");
+        }
 
         List<CartItem> cartItems;
         if (userId != null) {

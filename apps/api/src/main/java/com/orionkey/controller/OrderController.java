@@ -87,6 +87,26 @@ public class OrderController {
     }
 
     /**
+     * [DEMO] Simulate payment success on the demo branch.
+     * Mark PENDING/EXPIRED orders as PAID without a real gateway callback.
+     * Delivery is requested by the order lookup page after redirection.
+     */
+    @PostMapping("/{id}/mock-pay-success")
+    public ApiResponse<?> mockPaySuccess(@PathVariable UUID id) {
+        Order order = orderRepository.findById(id)
+                .orElseThrow(() -> new BusinessException(ErrorCode.ORDER_NOT_FOUND, "订单不存在"));
+        if (order.getStatus() == OrderStatus.PENDING || order.getStatus() == OrderStatus.EXPIRED) {
+            order.setStatus(OrderStatus.PAID);
+            order.setPaidAt(java.time.LocalDateTime.now());
+            orderRepository.save(order);
+        }
+        Map<String, Object> data = new LinkedHashMap<>();
+        data.put("order_id", id);
+        data.put("status", order.getStatus().name());
+        return ApiResponse.success(data);
+    }
+
+    /**
      * 用户提交 TXID 进行自动链上验证（USDT 补单）
      */
     @PostMapping("/{id}/txid-verify")
