@@ -3,7 +3,7 @@
 import { useRef, useState } from "react"
 import { Edit, ImagePlus, Loader2, Plus, Save, Trash2, X } from "lucide-react"
 import { toast } from "sonner"
-import { ApiError, adminConfigApi, adminProductApi } from "@/services/api"
+import { ApiError, adminConfigApi } from "@/services/api"
 import { Modal } from "@/components/ui/modal"
 import { Switch } from "@/components/ui/switch"
 import { Pagination } from "@/components/shared/pagination"
@@ -85,7 +85,7 @@ export function HomeAdsSettings({ initialValue, onSaved, onReload }: { initialVa
     setUploading(field)
     try {
       // Decode only server-validated uploads, never arbitrary local file contents.
-      const result = await adminProductApi.uploadImage(file)
+      const result = await adminConfigApi.uploadAdImage(file)
       if (!isSponsorImage(result.url)) throw new Error("Unsupported image path")
       setForm((current) => current && ({ ...current, [field]: result.url }))
       const ratio = field.toLowerCase().includes("mobile") ? 2 : 3

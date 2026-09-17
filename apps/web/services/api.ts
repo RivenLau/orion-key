@@ -462,7 +462,7 @@ export const adminProductApi = {
   uploadImage: (file: File) => {
     const formData = new FormData()
     formData.append("file", file)
-    return uploadRequest<{ url: string; width?: number; height?: number }>("/upload/image", formData)
+    return uploadRequest<{ url: string }>("/upload/image", formData)
   },
 }
 
@@ -561,6 +561,11 @@ export const adminPaymentApi = {
 // ============================================================
 
 export const adminConfigApi = {
+  uploadAdImage: (file: File) => {
+    const formData = new FormData()
+    formData.append("file", file)
+    return uploadRequest<{ url: string; width: number; height: number }>("/upload/ad-image", formData)
+  },
   get: () =>
     request<SiteConfigKV[]>("/admin/site-config"),
   update: (data: { configs: { config_key: string; config_value: string; expected_value?: string }[] }) =>

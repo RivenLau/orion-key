@@ -27,14 +27,14 @@ public class AdminSiteConfigController {
     @SuppressWarnings("unchecked")
     @PutMapping
     public ApiResponse<Void> updateConfigs(@RequestBody Map<String, Object> request) {
-        if (!(request.get("configs") instanceof List<?> entries) || entries.size() > 100) {
-            throw new BusinessException(ErrorCode.BAD_REQUEST, "Invalid settings payload");
-        }
-        for (Object entry : entries) {
-            if (!(entry instanceof Map<?, ?> item) || !(item.get("config_key") instanceof String)
-                    || !(item.get("config_value") instanceof String)
-                    || (item.containsKey("expected_value") && !(item.get("expected_value") instanceof String))) {
-                throw new BusinessException(ErrorCode.BAD_REQUEST, "Invalid settings entry");
+        // Advertisement-specific requirements must not change other settings contracts.
+        if (request.get("configs") instanceof List<?> entries) {
+            for (Object entry : entries) {
+                if (entry instanceof Map<?, ?> item && "homepage_ads".equals(item.get("config_key"))
+                        && (!(item.get("config_value") instanceof String)
+                        || !(item.get("expected_value") instanceof String))) {
+                    throw new BusinessException(ErrorCode.BAD_REQUEST, "Invalid advertisement settings entry");
+                }
             }
         }
         List<Map<String, String>> configs = (List<Map<String, String>>) request.get("configs");
